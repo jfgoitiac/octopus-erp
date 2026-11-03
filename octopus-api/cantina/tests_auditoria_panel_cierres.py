@@ -37,7 +37,7 @@ CLAVES_FILA = {
 }
 CLAVES_DETALLE = CLAVES_FILA | {
     'monto_inicial_usd', 'totales_por_metodo', 'observaciones_cajero', 'revision',
-    'adjuntos', 'reaperturas', 'resumen_ventas',
+    'adjuntos', 'reaperturas', 'resumen_ventas', 'desglose',
 }
 CLAVES_EVENTO = {
     'id', 'tipo', 'tipo_etiqueta', 'creado_en', 'usuario', 'usuario_rol', 'area',
@@ -325,10 +325,12 @@ class CierreDetalleTests(BaseAuditoriaB2):
         self.assertEqual(data['observaciones_cajero'], 'Faltó sencillo')
         self.assertEqual(data['totales_por_metodo'], [
             {'metodo': 'efectivo', 'etiqueta': 'Efectivo Divisas', 'ventas_usd': '40.00',
-             'recargas_usd': '0.00', 'abonos_usd': '0.00', 'total_usd': '40.00'},
+             'recargas_usd': '0.00', 'abonos_usd': '0.00', 'total_usd': '40.00', 'total_ves': '1440.00'},
             {'metodo': 'pago_movil', 'etiqueta': 'Pago Móvil', 'ventas_usd': '62.50',
-             'recargas_usd': '15.00', 'abonos_usd': '5.00', 'total_usd': '82.50'},
+             'recargas_usd': '15.00', 'abonos_usd': '5.00', 'total_usd': '82.50', 'total_ves': '2970.00'},
         ])
+        # Cierre anterior al desglose: se entrega vacío, nunca recalculado.
+        self.assertEqual(data['desglose'], {})
         self.assertEqual(data['revision'], {
             'estado': 'pendiente', 'comentario_director': '', 'revisado_por': None, 'revisado_en': None,
             'transiciones_permitidas': ['revisado', 'aprobado', 'observado'],
@@ -336,6 +338,18 @@ class CierreDetalleTests(BaseAuditoriaB2):
         self.assertEqual(data['adjuntos'], [])
         self.assertEqual(data['reaperturas'], [])
         self.assertEqual(data['resumen_ventas'], {'cantidad': 3, 'anuladas': 1, 'con_descuento': 1, 'manuales': 1})
+
+    def test_detalle_entrega_el_desglose_guardado(self):
+        desglose = {
+            'origen': {'consumo_recargas': {'usd': '6.25', 'operaciones': 1}},
+            'arqueo': {'esperado_usd': '95.00', 'esperado_ves': '2000.00', 'tasa_ves': '40.0000',
+                       'contado_usd': '95.00', 'contado_ves': '1900.00',
+                       'diferencia_usd': '0.00', 'diferencia_ves': '-100.00'},
+        }
+        cierre = self.crear_cierre(desglose=desglose)
+        resp = self.client.get(self.url(cierre.id))
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data['desglose'], desglose)
 
     def test_inexistente_404(self):
         self.assertEqual(self.client.get(self.url(9999)).status_code, status.HTTP_404_NOT_FOUND)

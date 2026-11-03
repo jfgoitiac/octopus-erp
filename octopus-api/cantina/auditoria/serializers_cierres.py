@@ -242,11 +242,14 @@ class CierreDetalleSerializer(CierreFilaSerializer):
     adjuntos = serializers.SerializerMethodField()
     reaperturas = serializers.SerializerMethodField()
     resumen_ventas = serializers.SerializerMethodField()
+    # Origen del dinero y arqueo por moneda tal como se guardaron al cerrar
+    # (ver `_calcular_totales_apertura`). {} en cierres anteriores al campo.
+    desglose = serializers.JSONField(read_only=True)
 
     class Meta(CierreFilaSerializer.Meta):
         fields = CierreFilaSerializer.Meta.fields + (
             'monto_inicial_usd', 'totales_por_metodo', 'observaciones_cajero', 'revision',
-            'adjuntos', 'reaperturas', 'resumen_ventas',
+            'adjuntos', 'reaperturas', 'resumen_ventas', 'desglose',
         )
         read_only_fields = fields
 
@@ -265,6 +268,7 @@ class CierreDetalleSerializer(CierreFilaSerializer):
             recargas = Decimal(str(valores.get('recargas') or cero))
             abonos = Decimal(str(valores.get('abonos') or cero))
             total = valores.get('total_usd')
+            total_ves = valores.get('total_ves')
             filas.append({
                 'metodo': metodo,
                 'etiqueta': ETIQUETAS_METODO.get(metodo, metodo),
@@ -272,6 +276,7 @@ class CierreDetalleSerializer(CierreFilaSerializer):
                 'recargas_usd': dinero(recargas),
                 'abonos_usd': dinero(abonos),
                 'total_usd': dinero(total if total is not None else ventas + recargas + abonos),
+                'total_ves': dinero(Decimal(str(total_ves))) if total_ves is not None else None,
             })
         return filas
 

@@ -155,6 +155,21 @@ export function resultadoCierre(cierre) {
     : { tipo: 'sobrante', titulo: `Sobrante ${monto}`, diferencia: redondeada };
 }
 
+/**
+ * Arqueo por moneda de un cierre guardado: contado frente a esperado de cada
+ * moneda. null si el cierre no se contó por moneda (cierres antiguos).
+ */
+export function arqueoPorMoneda(cierre) {
+  const arqueo = cierre?.desglose?.arqueo;
+  const filas = ['usd', 'ves'].map((moneda) => {
+    const contado = aNumero(arqueo?.[`contado_${moneda}`]);
+    const esperado = aNumero(arqueo?.[`esperado_${moneda}`]);
+    return { moneda, contado, esperado, estado: estadoDiferencia(contado, esperado, moneda) };
+  });
+  if (filas.some((f) => f.contado === null)) return null;
+  return { filas, tasa: aNumero(arqueo?.tasa_ves) };
+}
+
 /* ── Dinero recibido ─────────────────────────────────────────────────── */
 
 const SIN_DINERO = ['tarjeta_prepago', 'credito_representante'];

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { CheckCircle2, Printer, Store, TriangleAlert } from 'lucide-react';
 import { imprimirCierreCantina } from '../../../utils/imprimirCierreCantina';
+import ArqueoPorMoneda from './ArqueoPorMoneda';
 import { DineroRecibido, OrigenCierre } from './DesgloseCierre';
 import ReporteCierreTicket from './ReporteCierreTicket';
 import { ESTILOS_DIFERENCIA, fechaHoraCierre, resultadoCierre } from './calculosCierre';
@@ -58,6 +59,7 @@ export default function ResultadoCierre({ cierre, enfocar = false }) {
         </div>
       </section>
 
+      <ArqueoPorMoneda cierre={cierre} />
       <OrigenCierre cierre={cierre} />
       <DineroRecibido totales={cierre.totales_por_metodo} />
       <ReporteCierreTicket cierre={cierre} plano />

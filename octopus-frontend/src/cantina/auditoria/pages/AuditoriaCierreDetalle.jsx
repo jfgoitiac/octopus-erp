@@ -3,7 +3,8 @@ import { Link, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { ArrowLeft, FileQuestion } from 'lucide-react';
 import { PageHeader } from '../../../components/ui/PageHeader';
-import TotalesPorMetodo from '../../../components/cantina/cierre/TotalesPorMetodo';
+import ArqueoPorMoneda from '../../../components/cantina/cierre/ArqueoPorMoneda';
+import { DineroRecibido, OrigenCierre } from '../../../components/cantina/cierre/DesgloseCierre';
 import { parseApiError } from '../../../utils/apiError';
 import { getCierre } from '../api/auditoriaApi';
 import CierreCabecera from '../components/CierreCabecera';
@@ -14,10 +15,23 @@ import LineaTiempoHistorial from '../components/LineaTiempoHistorial';
 import { ReabrirCajaBoton } from '../components/ReabrirCajaModal';
 import { ESTILO_TARJETA, esCancelacion, fmtFecha } from '../components/CierreFormato';
 
-// TotalesPorMetodo (cierre del cajero) recibe { metodo: valor }; el contrato
-// entrega una lista normalizada, así que se adapta sin tocar el componente.
-const totalesComoObjeto = (lista = []) =>
-  Object.fromEntries(lista.map((m) => [m.metodo, { total_usd: m.total_usd }]));
+// Las tarjetas del cierre del cajero esperan su forma de cierre ({metodo: {…}},
+// `total_ventas`, `total_tarjeta`); el contrato de auditoría entrega una lista
+// normalizada, así que se adapta sin tocar los componentes.
+const comoCierreDeCaja = (cierre) => {
+  const totales = Object.fromEntries((cierre.totales_por_metodo ?? []).map((m) => [m.metodo, {
+    ventas: m.ventas_usd, abonos: m.abonos_usd, recargas: m.recargas_usd,
+    total_usd: m.total_usd, total_ves: m.total_ves,
+  }]));
+  const hayTotales = Object.keys(totales).length > 0;
+  return {
+    desglose: cierre.desglose,
+    totales_por_metodo: totales,
+    total_ventas: cierre.total_ventas_usd,
+    // Sin desglose, lo consumido de recargas son las ventas con tarjeta prepago.
+    total_tarjeta: hayTotales ? (totales.tarjeta_prepago?.ventas ?? '0.00') : null,
+  };
+};
 
 function DetalleSkeleton() {
   const bloque = (clase) => <div className={`rounded-2xl animate-pulse ${clase}`} style={{ background: 'var(--border)' }} />;
@@ -72,6 +86,7 @@ const AuditoriaCierreDetalle = () => {
 
   const cargando = estado.clave !== id;
   const { cierre } = estado;
+  const cierreCaja = cierre ? comoCierreDeCaja(cierre) : null;
 
   return (
     <div className="w-full max-w-7xl mx-auto p-3 sm:p-5 flex flex-col gap-4">
@@ -114,8 +129,10 @@ const AuditoriaCierreDetalle = () => {
         <>
           <CierreCabecera cierre={cierre} />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-            <div className="lg:col-span-2 flex flex-col gap-4 min-w-0">
-              <TotalesPorMetodo totales={totalesComoObjeto(cierre.totales_por_metodo)} />
+            <div className="lg:col-span-2 flex flex-col gap-6 min-w-0">
+              <ArqueoPorMoneda cierre={cierreCaja} />
+              <DineroRecibido totales={cierreCaja.totales_por_metodo} />
+              <OrigenCierre cierre={cierreCaja} />
               <CierreResumenVentas
                 resumen={cierre.resumen_ventas}
                 observaciones={cierre.observaciones_cajero}

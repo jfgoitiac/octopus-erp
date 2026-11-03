@@ -11,6 +11,7 @@ import {
   movimientosSinDinero,
   origenDelIngreso,
   parsearMonto,
+  arqueoPorMoneda,
   resultadoCierre,
   tarjetasDeOrigen,
   totalRecibidoUsd,
@@ -126,6 +127,23 @@ describe('resultadoCierre', () => {
 
   it('sin diferencia guardada no afirma que cuadró', () => {
     expect(resultadoCierre({ diferencia: null })).toMatchObject({ tipo: 'sin_referencia', titulo: 'Caja cerrada' });
+  });
+});
+
+describe('arqueoPorMoneda', () => {
+  it('compara contado y esperado de cada moneda', () => {
+    const arqueo = arqueoPorMoneda({ desglose: { arqueo: {
+      esperado_usd: '95.00', esperado_ves: '2000.00', tasa_ves: '40.0000',
+      contado_usd: '95.00', contado_ves: '1900.00',
+    } } });
+    expect(arqueo.tasa).toBe(40);
+    expect(arqueo.filas.map((f) => f.estado.tipo)).toEqual(['cuadrado', 'faltante']);
+    expect(arqueo.filas[1].estado.texto).toBe('Faltante Bs 100,00');
+  });
+
+  it('no inventa un arqueo en cierres que no se contaron por moneda', () => {
+    expect(arqueoPorMoneda({ desglose: {} })).toBeNull();
+    expect(arqueoPorMoneda({ desglose: { arqueo: { esperado_usd: '10.00', esperado_ves: '0.00' } } })).toBeNull();
   });
 });
 
