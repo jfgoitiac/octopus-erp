@@ -206,10 +206,10 @@ class MensualidadSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def _fecha_vencimiento(obj):
-        """Último día del mes de la mensualidad: mismo corte que usa dias_mora."""
-        import calendar
-        ultimo_dia = calendar.monthrange(obj.anio, obj.mes)[1]
-        return date(obj.anio, obj.mes, ultimo_dia)
+        """Vencimiento real de la cuota (el mismo de mora y cobranza), no el
+        fin de mes: así los días de mora del portal coinciden con morosos."""
+        from cobranza.mora import fecha_vencimiento_mensualidad
+        return fecha_vencimiento_mensualidad(obj)
 
     def get_fecha_vencimiento(self, obj):
         return self._fecha_vencimiento(obj).isoformat()

@@ -21,7 +21,7 @@ from django.db import connection
 from rest_framework.test import APIClient
 
 from authentication.models import PerfilUsuario
-from cobranza.models import Mensualidad, Pago, TasaCambio
+from cobranza.models import CuotaProyectoInversion, Mensualidad, Pago, TasaCambio
 from secretaria.models import Alumno, Representante
 
 from .models import ComprobantePago, RepresentanteUser, asignar_rol_portal
@@ -73,11 +73,11 @@ def crear_alumno(representante, cedula_escolar, **kwargs):
     )
 
 
-def crear_mensualidad(alumno, mes, anio, monto='35.00'):
+def crear_mensualidad(alumno, mes, anio, monto='35.00', **kwargs):
     """Crea una mensualidad sin disparar la programación de notificaciones."""
     with mock.patch('notificaciones.tasks.programar_notificaciones_mensualidad'):
         return Mensualidad.objects.create(
-            alumno=alumno, mes=mes, anio=anio, monto_usd=Decimal(monto)
+            alumno=alumno, mes=mes, anio=anio, monto_usd=Decimal(monto), **kwargs
         )
 
 
@@ -91,7 +91,9 @@ class PortalTestBase(TestCase):
         )
         self.alumno = crear_alumno(self.rep, 'E84000001')
         hoy = date.today()
-        self.mensualidad = crear_mensualidad(self.alumno, hoy.month, hoy.year)
+        # Vence hoy: ya cuenta como vencida (mismo día inclusive, ver
+        # cobranza/mora.py) sin depender del día del mes en que corra el test.
+        self.mensualidad = crear_mensualidad(self.alumno, hoy.month, hoy.year, fecha_vencimiento=hoy)
 
     def login_portal(self, cedula=None, password=None):
         resp = self.client.post('/api/portal/token/', {
@@ -296,7 +298,7 @@ class PortalDashboardTests(PortalTestBase):
     def test_deuda_total_suma_a_todos_los_hijos_y_trae_el_desglose(self):
         hermana = crear_alumno(self.rep, 'E84000099', nombre='Ana')
         hoy = date.today()
-        crear_mensualidad(hermana, hoy.month, hoy.year)
+        crear_mensualidad(hermana, hoy.month, hoy.year, fecha_vencimiento=hoy)
         self.auth_portal()
         resumen = self.client.get('/api/portal/dashboard/').data['resumen_financiero']
         self.assertEqual(float(resumen['total_deuda_usd']), 70.0)
@@ -304,15 +306,56 @@ class PortalDashboardTests(PortalTestBase):
         self.assertEqual(por_alumno, {self.alumno.id: 35.0, hermana.id: 35.0})
 
     def test_mensualidades_traen_fecha_de_vencimiento(self):
-        """Fin de mes de la mensualidad: el mismo corte que usa dias_mora."""
-        import calendar
+        """La fecha de vencimiento real de la cuota, la misma que usa mora."""
         self.auth_portal()
         vencida = self.client.get('/api/portal/dashboard/').data['resumen_financiero']['mensualidades_vencidas'][0]
-        ultimo_dia = calendar.monthrange(self.mensualidad.anio, self.mensualidad.mes)[1]
-        self.assertEqual(
-            vencida['fecha_vencimiento'],
-            date(self.mensualidad.anio, self.mensualidad.mes, ultimo_dia).isoformat(),
+        self.assertEqual(vencida['fecha_vencimiento'], date.today().isoformat())
+        self.assertEqual(vencida['dias_mora'], 0)
+
+    def test_cuota_que_aun_no_vence_va_a_proximos_y_no_suma_deuda(self):
+        """Mismo criterio que morosos y WhatsApp: la cuota del mes que todavía
+        no llega a su vencimiento no es deuda vencida."""
+        from datetime import timedelta
+        self.mensualidad.fecha_vencimiento = date.today() + timedelta(days=1)
+        self.mensualidad.save(update_fields=['fecha_vencimiento'])
+        self.auth_portal()
+        resumen = self.client.get('/api/portal/dashboard/').data['resumen_financiero']
+        self.assertEqual(resumen['mensualidades_vencidas'], [])
+        self.assertEqual([m['id'] for m in resumen['proximos_vencimientos']], [self.mensualidad.id])
+        self.assertEqual(float(resumen['total_deuda_usd']), 0.0)
+
+    def test_dias_mora_cuentan_desde_el_vencimiento_real(self):
+        from datetime import timedelta
+        self.mensualidad.fecha_vencimiento = date.today() - timedelta(days=3)
+        self.mensualidad.save(update_fields=['fecha_vencimiento'])
+        self.auth_portal()
+        vencida = self.client.get('/api/portal/dashboard/').data['resumen_financiero']['mensualidades_vencidas'][0]
+        self.assertEqual(vencida['dias_mora'], 3)
+
+    def test_cargo_especial_suma_su_saldo_y_la_solvencia_aparece(self):
+        """Proyecto de inversión por su saldo (no el bruto) y la solvencia
+        pendiente, igual que el cobro por WhatsApp."""
+        from cobranza.models import CuotaSolvencia, TipoCargoEspecial
+        tipo = TipoCargoEspecial.objects.create(
+            nombre='Proyecto familiar', monto_defecto_usd=Decimal('50.00'), bloquea_inscripcion=True,
         )
+        CuotaProyectoInversion.objects.create(
+            representante=self.rep, periodo_escolar='2026-2027', tipo_concepto=tipo,
+            monto_usd=Decimal('50.00'), monto_pagado=Decimal('10.00'),
+        )
+        CuotaSolvencia.objects.create(
+            alumno=self.alumno, periodo_escolar='2026-2027', concepto='Solvencia anual',
+            monto_usd=Decimal('25.00'), monto_pagado=Decimal('5.00'),
+        )
+        self.auth_portal()
+        resumen = self.client.get('/api/portal/dashboard/').data['resumen_financiero']
+        otros = {o['tipo']: o for o in resumen['otros_conceptos_pendientes']}
+        self.assertEqual(Decimal(otros['proyecto_inversion']['monto_usd']), Decimal('40.00'))
+        self.assertEqual(otros['proyecto_inversion']['concepto'], 'Proyecto familiar 2026-2027')
+        self.assertEqual(Decimal(otros['solvencia']['monto_usd']), Decimal('20.00'))
+        self.assertEqual(otros['solvencia']['alumno_id'], self.alumno.id)
+        # 35 de la mensualidad + 40 del cargo + 20 de la solvencia
+        self.assertEqual(float(resumen['total_deuda_usd']), 95.0)
 
     def test_trae_la_tasa_bcv_vigente(self):
         TasaCambio.objects.create(valor_bs=Decimal('40.5000'))

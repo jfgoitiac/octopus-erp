@@ -252,7 +252,10 @@ class PortalDashboardView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        from cobranza.mora import annotate_en_mora, estatus_financiero_actual
+        from cobranza.models import CuotaSolvencia
+        from cobranza.mora import (
+            annotate_en_mora, estatus_financiero_actual, fecha_vencimiento_mensualidad,
+        )
 
         representante = _get_representante(request)
         # Estatus EN VIVO (criterio canónico) para que el portal coincida con
@@ -270,9 +273,11 @@ class PortalDashboardView(APIView):
         # El orden ('anio', 'mes') coincide con Meta.ordering de Mensualidad,
         # así que al agrupar por alumno cada lista queda cronológica.
         pendientes_por_alumno = defaultdict(list)
+        # select_related('alumno'): fecha_vencimiento_mensualidad lee el
+        # dia_limite_pago del alumno en cuotas antiguas sin fecha congelada.
         for m in Mensualidad.objects.filter(
             alumno__in=alumnos, pagado=False
-        ).order_by('anio', 'mes'):
+        ).select_related('alumno').order_by('anio', 'mes'):
             pendientes_por_alumno[m.alumno_id].append(m)
 
         # Cuotas de inscripción pendientes de todos los alumnos (una sola query,
@@ -281,13 +286,20 @@ class PortalDashboardView(APIView):
         for c in CuotaInscripcion.objects.filter(alumno__in=alumnos, pagado=False):
             inscripcion_por_alumno[c.alumno_id].append(c)
 
-        # Proyecto de Inversión: cuota por REPRESENTANTE (no por alumno), se
-        # cobra una sola vez por período aunque tenga varios hijos inscritos
-        # (ver cobranza/models.py::CuotaProyectoInversion).
+        # Cuotas de solvencia: mismo criterio que cobranza/mora.py (impagas con
+        # monto > 0), para que el portal muestre lo mismo que cobra WhatsApp.
+        solvencia_por_alumno = defaultdict(list)
+        for c in CuotaSolvencia.objects.filter(alumno__in=alumnos, pagado=False, monto_usd__gt=0):
+            solvencia_por_alumno[c.alumno_id].append(c)
+
+        # Cargos especiales (Proyecto de Inversión y otros): cuota por
+        # REPRESENTANTE (no por alumno), se cobra una sola vez por período
+        # aunque tenga varios hijos inscritos (ver
+        # cobranza/models.py::CuotaProyectoInversion).
         proyectos_inversion = list(
             CuotaProyectoInversion.objects.filter(
                 representante=representante, pagado=False
-            )
+            ).select_related('tipo_concepto')
         )
 
         # Calcular resumen financiero consolidado de todos los alumnos
@@ -310,17 +322,13 @@ class PortalDashboardView(APIView):
             deuda_alumno_antes = total_deuda_usd
             pendientes = pendientes_por_alumno.get(alumno.id, [])
 
-            # Mensualidades no pagadas y ya vencidas (mes <= mes actual)
-            vencidas = [
-                m for m in pendientes
-                if m.anio < hoy.year or (m.anio == hoy.year and m.mes <= hoy.month)
-            ]
+            # Vencida = su fecha de vencimiento real ya llegó (mismo criterio
+            # que morosos y el cobro por WhatsApp, ver cobranza/mora.py). La
+            # cuota del mes que todavía no vence va a próximos vencimientos.
+            vencidas = [m for m in pendientes if fecha_vencimiento_mensualidad(m) <= hoy]
 
-            # Próximos 2 meses sin pagar
-            futuras = [
-                m for m in pendientes
-                if m.anio > hoy.year or (m.anio == hoy.year and m.mes > hoy.month)
-            ][:2]
+            # Próximas 2 cuotas sin pagar que aún no vencen
+            futuras = [m for m in pendientes if fecha_vencimiento_mensualidad(m) > hoy][:2]
 
             serializer_context = {'cache_reglas': cache_reglas_recargo}
             vencidas_data = MensualidadSerializer(vencidas, many=True, context=serializer_context).data
@@ -359,6 +367,20 @@ class PortalDashboardView(APIView):
                     'alumno_id': alumno.id,
                 })
 
+            # Cuota de solvencia: tampoco tiene fecha límite propia.
+            for c in solvencia_por_alumno.get(alumno.id, []):
+                saldo = c.monto_usd - c.monto_pagado
+                total_deuda_usd += float(saldo)
+                otros_conceptos_pendientes.append({
+                    'id': c.id,
+                    'tipo': 'solvencia',
+                    'concepto': c.concepto or f'Solvencia {c.periodo_escolar}',
+                    'periodo_escolar': c.periodo_escolar,
+                    'monto_usd': str(saldo),
+                    'alumno_nombre': alumno_nombre,
+                    'alumno_id': alumno.id,
+                })
+
             deuda_por_alumno.append({
                 'alumno_id': alumno.id,
                 'alumno_nombre': alumno_nombre,
@@ -367,14 +389,17 @@ class PortalDashboardView(APIView):
 
         # El proyecto de inversión se cobra una sola vez por representante,
         # aunque tenga varios hijos: se agrega una sola vez al total.
+        # Se suma el saldo (no el monto bruto), igual que inscripción y que el
+        # cobro por WhatsApp: tras un abono parcial solo se debe lo que falta.
         for p in proyectos_inversion:
-            total_deuda_usd += float(p.monto_usd)
+            saldo = p.monto_usd - p.monto_pagado
+            total_deuda_usd += float(saldo)
             otros_conceptos_pendientes.append({
                 'id': p.id,
                 'tipo': 'proyecto_inversion',
-                'concepto': f'Proyecto de Inversión {p.periodo_escolar}',
+                'concepto': f'{p.tipo_concepto.nombre} {p.periodo_escolar}',
                 'periodo_escolar': p.periodo_escolar,
-                'monto_usd': str(p.monto_usd),
+                'monto_usd': str(saldo),
                 'alumno_nombre': None,
                 'alumno_id': None,
             })
