@@ -40,6 +40,33 @@ Detectado en la auditoría de notificaciones; solo se anota, no se implementa.
    otra vía y el navegador no lo decodifica, el visor ya muestra un mensaje y
    "Abrir archivo".
 
+## Cierre de caja de cantina: pendientes de la auditoría (02/11/2026)
+
+El cierre ya cuenta por moneda y guarda el desglose en `CierreCajaCantina.desglose`.
+Deuda detectada durante la revisión; solo se anota, no se implementa.
+
+1. **Fondo inicial solo en USD**: `monto_inicial` no admite bolívares, así que el
+   esperado en Bs arranca en 0. Un fondo real en Bs declarado como USD se ve como
+   faltante en dólares y sobrante en Bs, aunque el total en USD compense.
+2. **Anulación en otro turno**: la anulación no guarda en qué apertura ocurrió. Si
+   se devuelve efectivo de una venta de un turno anterior, el turno actual no
+   descuenta ese dinero y el cierre anterior queda desfasado (ver el punto 1 de la
+   sección de CxC más abajo).
+3. **Recargas sin FK a la apertura**: se atribuyen por cajero y ventana de tiempo,
+   sin tope ni área. Hoy no se mezclan porque un cajero solo tiene una caja abierta,
+   pero un recálculo posterior o una reapertura podrían sumar recargas de otro turno.
+4. **Totales fuera de la transacción**: una venta registrada entre el cálculo y el
+   guardado del cierre queda fuera de él.
+5. **Esperado de auditoría sin conteo**: en cierres sin conteo físico, el esperado
+   de `serializers_cierres.py` omite los abonos, porque `total_abonos_efectivo` no se
+   guarda en el cierre.
+6. **`Modal` sin nombre accesible cuando no lleva `titulo`**: `AperturaCajaModal` no
+   puede usar `titulo` porque añade una X que allí no haría nada. Falta una prop de
+   tipo `aria-label` o una opción para ocultar la X. El modal tampoco permite corregir
+   un fondo mal escrito.
+7. **Navegación de cantina en tablet**: bajo `lg` el menú scrollea en horizontal y
+   "Cierre de caja" puede quedar oculto hasta deslizarlo (`CantinaLayout`).
+
 ## Cantina opera con la tasa BCV: restos de la tasa propia (02/11/2026)
 
 Cantina y librería ya no usan una tasa propia. Quedan sin uso, a propósito, el

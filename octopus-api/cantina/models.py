@@ -470,6 +470,10 @@ class CierreCajaCantina(models.Model):
     area = models.CharField(max_length=10, choices=AREAS, default='cantina', db_index=True)
     # D11: totales por método (ventas + abonos + recargas) de la apertura.
     totales_por_metodo = models.JSONField(default=dict, blank=True)
+    # Foto del turno al cerrar: de dónde salió cada monto (`origen`) y el
+    # arqueo por moneda (`arqueo`) — ver `_calcular_totales_apertura`.
+    # {} = cierre anterior a este campo: nunca se recalcula ni se rellena.
+    desglose = models.JSONField(default=dict, blank=True)
     total_ventas = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     total_tarjeta = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
     total_efectivo = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))

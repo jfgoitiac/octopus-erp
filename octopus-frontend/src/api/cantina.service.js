@@ -212,12 +212,20 @@ export const abrirCajaCantina = (montoInicial, area, signal) =>
  *   ventas + abonos CxC + recargas de ESA apertura (D11 del prompt CxC).
  *   Todos los montos vienen como string decimal — se formatean en la UI.
  *
- * POST cierre-caja/ con { conteo_fisico, observaciones } → 201 con el mismo
- *   shape que ya_cerrado:true, o 400 { detail: 'mensaje' } si ya cerró hoy
- *   (condición de carrera con otra pestaña).
+ * POST cierre-caja/ con { conteo_usd, conteo_ves, observaciones } → 201 con el
+ *   mismo shape que ya_cerrado:true, o 400 { detail: 'mensaje' } si ya cerró
+ *   hoy (condición de carrera con otra pestaña) o el monto no es válido.
+ *
+ * GET cierre-caja/ultimo/ → último cierre del cajero autenticado, con
+ *   ya_cerrado:true, o 404 si no tiene ninguno.
+ *
+ * `desglose` (GET y POST): { origen, arqueo } por moneda; {} en cierres antiguos.
  */
 export const getCierreCajaHoy = (signal) =>
   cantinaApiClient.get('cierre-caja/', { signal });
+
+export const getUltimoCierreCaja = (signal) =>
+  cantinaApiClient.get('cierre-caja/ultimo/', { signal });
 
 export const cerrarCajaCantina = (payload, signal) =>
   cantinaApiClient.post('cierre-caja/', payload, { signal });

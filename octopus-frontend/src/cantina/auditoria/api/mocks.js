@@ -118,11 +118,26 @@ export const cierreDetalle = {
   ...cierreFila,
   monto_inicial_usd: '20.00',
   totales_por_metodo: [
-    { metodo: 'efectivo', etiqueta: 'Efectivo divisas', ventas_usd: '40.00', recargas_usd: '0.00', abonos_usd: '0.00', total_usd: '40.00' },
-    { metodo: 'pago_movil', etiqueta: 'Pago móvil', ventas_usd: '62.50', recargas_usd: '15.00', abonos_usd: '5.00', total_usd: '82.50' },
-    { metodo: 'tarjeta_prepago', etiqueta: 'Tarjeta Prepago', ventas_usd: '70.00', recargas_usd: '0.00', abonos_usd: '0.00', total_usd: '70.00' },
-    { metodo: 'credito_representante', etiqueta: 'Cargo a cuenta', ventas_usd: '10.00', recargas_usd: '0.00', abonos_usd: '0.00', total_usd: '10.00' },
+    { metodo: 'efectivo', etiqueta: 'Efectivo divisas', ventas_usd: '40.00', recargas_usd: '0.00', abonos_usd: '0.00', total_usd: '40.00', total_ves: '1440.00' },
+    { metodo: 'pago_movil', etiqueta: 'Pago móvil', ventas_usd: '62.50', recargas_usd: '15.00', abonos_usd: '5.00', total_usd: '82.50', total_ves: '2970.00' },
+    { metodo: 'tarjeta_prepago', etiqueta: 'Tarjeta Prepago', ventas_usd: '70.00', recargas_usd: '0.00', abonos_usd: '0.00', total_usd: '70.00', total_ves: '2520.00' },
+    { metodo: 'credito_representante', etiqueta: 'Cargo a cuenta', ventas_usd: '10.00', recargas_usd: '0.00', abonos_usd: '0.00', total_usd: '10.00', total_ves: '360.00' },
   ],
+  desglose: {
+    origen: {
+      ventas: { usd: '182.50', operaciones: 96 },
+      recargas_cobradas: { usd: '15.00', operaciones: 2, efectivo_usd: '0.00', banco_usd: '15.00' },
+      consumo_recargas: { usd: '70.00', operaciones: 31 },
+      abonos: { usd: '5.00', operaciones: 1 },
+      cargado_a_cuenta: { usd: '10.00', operaciones: 3 },
+      anuladas: { usd: '6.00', operaciones: 2 },
+      recargas_portal: { usd: '0.00', operaciones: 0 },
+    },
+    arqueo: {
+      esperado_usd: '60.00', esperado_ves: '0.00', tasa_ves: '36.0000',
+      contado_usd: '56.00', contado_ves: '0.00', diferencia_usd: '-4.00', diferencia_ves: '0.00',
+    },
+  },
   observaciones_cajero: 'Faltó sencillo para vueltos.',
   revision: {
     estado: 'observado',

@@ -176,8 +176,14 @@ Todo lo anterior más:
   "monto_inicial_usd": "20.00",
   "totales_por_metodo": [
     {"metodo": "efectivo", "etiqueta": "Efectivo Divisas", "ventas_usd": "40.00",
-     "recargas_usd": "0.00", "abonos_usd": "0.00", "total_usd": "40.00"}
+     "recargas_usd": "0.00", "abonos_usd": "0.00", "total_usd": "40.00", "total_ves": "1440.00"}
   ],
+  "desglose": {
+    "origen": {"ventas": {"usd": "182.50", "operaciones": 96}, "...": "..."},
+    "arqueo": {"esperado_usd": "60.00", "esperado_ves": "0.00", "tasa_ves": "36.0000",
+               "contado_usd": "56.00", "contado_ves": "0.00",
+               "diferencia_usd": "-4.00", "diferencia_ves": "0.00"}
+  },
   "observaciones_cajero": "Faltó sencillo",
   "revision": {
     "estado": "observado",
@@ -199,6 +205,10 @@ Todo lo anterior más:
 ```
 `totales_por_metodo` se arma desde `CierreCajaCantina.totales_por_metodo`
 (JSON existente) normalizado a lista.
+`total_ves` es el equivalente en Bs guardado por método (`null` si el cierre no lo
+tiene). `desglose` es `CierreCajaCantina.desglose` tal como se guardó al cerrar
+(origen del dinero y arqueo por moneda); en cierres anteriores al campo es `{}` y
+no se recalcula.
 `metodo` usa las claves reales de `VentaCantina.METODOS_PAGO` (`efectivo`,
 `efectivo_ves`, `pago_movil`, `tarjeta_prepago`, …) y `etiqueta` su texto.
 `esperado_efectivo_usd` = `conteo_fisico − diferencia` (exacto, incluye
