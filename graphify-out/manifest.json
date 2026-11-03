@@ -2546,8 +2546,8 @@
     "semantic_hash": ""
   },
   "NOTAS_TECNICAS.md": {
-    "mtime": 1793655443.7217395,
-    "ast_hash": "acc300ba352c76e5aeb1bbc4b249decf",
+    "mtime": 1793674267.5209553,
+    "ast_hash": "584eed69c4dc4111ae7eb45aa5735a28",
     "semantic_hash": ""
   },
   "PRD_EXPANSION.md": {
@@ -5355,8 +5355,8 @@
     "semantic_hash": ""
   },
   "docs/manual/33-cantina.md": {
-    "mtime": 1793655442.5575233,
-    "ast_hash": "9e4f1014f88613902dc74d5afe5be3fe",
+    "mtime": 1793674277.8420718,
+    "ast_hash": "b0e6e1ab1369cfcd9b5cedb0838cff01",
     "semantic_hash": ""
   },
   "docs/manual/35-multisede.md": {
@@ -6087,11 +6087,6 @@
   "octopus-frontend/src/components/cantina/MetodoPagoFields.jsx": {
     "mtime": 1793653440.902061,
     "ast_hash": "7ed9bdea2963727bb94b589938b79e9c",
-    "semantic_hash": ""
-  },
-  "octopus-frontend/src/components/cantina/cierre/TotalesPorMetodo.jsx": {
-    "mtime": 1793293627.050496,
-    "ast_hash": "e7dc6b566fd40c4c4720a3618a9b12de",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/cxc/AnularAbonoModal.jsx": {
@@ -7130,8 +7125,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/cantina/auditoria/api/mocks.js": {
-    "mtime": 1793293626.9984672,
-    "ast_hash": "351a061f093cb8dc76ae225025835e0e",
+    "mtime": 1793674237.7949264,
+    "ast_hash": "db6e25bc9305e9b29093ca0e762ebadb",
     "semantic_hash": ""
   },
   "octopus-frontend/src/cantina/auditoria/components/PaginaPendiente.jsx": {
@@ -7145,8 +7140,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/cantina/auditoria/pages/AuditoriaCierreDetalle.jsx": {
-    "mtime": 1793293627.016744,
-    "ast_hash": "b5ff4e7f24a737f0994e88a5ef42cffc",
+    "mtime": 1793674120.1407022,
+    "ast_hash": "1f63b851a1b66851e08f39455ac521c2",
     "semantic_hash": ""
   },
   "octopus-frontend/src/cantina/auditoria/pages/AuditoriaCierres.jsx": {
@@ -7165,8 +7160,8 @@
     "semantic_hash": ""
   },
   "CONTRATO_AUDITORIA_CANTINA.md": {
-    "mtime": 1793293623.0502603,
-    "ast_hash": "7f6f884d36072d137d92e55e0abed275",
+    "mtime": 1793674240.2216022,
+    "ast_hash": "0fe5aa324e351dadfc35d55585c61f22",
     "semantic_hash": ""
   },
   "PLAN_AUDITORIA_CANTINA.md": {
@@ -7175,8 +7170,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cantina/auditoria/serializers_cierres.py": {
-    "mtime": 1793293626.1508734,
-    "ast_hash": "716941684eba69a6772430046858519b",
+    "mtime": 1793673964.9071052,
+    "ast_hash": "42d9764922d22d4e6c002b0c601317a6",
     "semantic_hash": ""
   },
   "octopus-api/cantina/tests_auditoria_instrumentacion.py": {
@@ -7185,8 +7180,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cantina/tests_auditoria_panel_cierres.py": {
-    "mtime": 1793293626.1763248,
-    "ast_hash": "752d3070f3744611f9e02c25c95ded40",
+    "mtime": 1793674672.5133872,
+    "ast_hash": "fddd2d768c88cf65030cff5fabbfcffc",
     "semantic_hash": ""
   },
   "octopus-frontend/src/cantina/auditoria/components/AdjuntoPanel.jsx": {
@@ -8121,8 +8116,8 @@
     "semantic_hash": ""
   },
   ".impeccable/hook.cache.json": {
-    "mtime": 1793654795.1589015,
-    "ast_hash": "8040f55ec43fcf974571be30edb740de",
+    "mtime": 1793674144.2792704,
+    "ast_hash": "73efe321c3888083b54d2c916678aaa1",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/test_ajuste_mensualidades.py": {
@@ -8171,8 +8166,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/cierre/ResultadoCierre.jsx": {
-    "mtime": 1793654324.8000727,
-    "ast_hash": "463ff14d4436c6cd53ec10b3ef1ced9b",
+    "mtime": 1793674065.6994584,
+    "ast_hash": "913ced147f8df80425bd98f8d801dbec",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/cierre/TarjetaCierre.jsx": {
@@ -8181,18 +8176,23 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/cierre/calculosCierre.js": {
-    "mtime": 1793654911.409847,
-    "ast_hash": "d838efe23d8c3dcda2b2dbbc40484596",
+    "mtime": 1793674059.2258408,
+    "ast_hash": "5fd73d958d555e91b4e62db82ec81c94",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/cierre/calculosCierre.test.js": {
-    "mtime": 1793654948.0877223,
-    "ast_hash": "84ad79f99dab0c31be9d3a3d612cb679",
+    "mtime": 1793674143.7415326,
+    "ast_hash": "1d88fd23a2b37b1d5ba45d7e758655e3",
     "semantic_hash": ""
   },
   "octopus-frontend/src/utils/reporteCierreCaja.test.js": {
     "mtime": 1793654335.0004745,
     "ast_hash": "ed69333057c4725d9f419a55b92cb5be",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/cantina/cierre/ArqueoPorMoneda.jsx": {
+    "mtime": 1793674062.358734,
+    "ast_hash": "e64efe2e0cd247b6265acbd36e0a4ef8",
     "semantic_hash": ""
   }
 }
