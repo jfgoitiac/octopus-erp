@@ -267,9 +267,32 @@ class CobroWhatsAppTests(TestCase):
         mock_post.assert_called_once()
         payload_enviado = mock_post.call_args.kwargs['json']
         self.assertEqual(payload_enviado['type'], 'template')
+        # El monto va con el mismo formato que el cuerpo manual (REF. + coma
+        # decimal), no como un decimal crudo "50.00".
+        self.assertIn('REF. 50,00', str(payload_enviado['template']))
+        self.assertNotIn("'50.00'", str(payload_enviado['template']))
         self.assertTrue(
             NotificacionLog.objects.filter(
                 canal='whatsapp', tipo='cobro_whatsapp', modo='automatico',
                 representante_cedula='V1000009',
             ).exists()
         )
+
+    def test_grupo_sin_saldo_no_se_cobra(self):
+        """Una inscripción marcada impaga pero ya cubierta deja al alumno en
+        mora por el flag, pero no debe generar un cobro de "REF. 0,00"."""
+        from cobranza.models import CuotaInscripcion
+        rep, alumnos = crear_representante_con_deuda('V1000011')
+        alumnos[0].mensualidades.all().delete()
+        cuota = CuotaInscripcion.objects.create(
+            alumno=alumnos[0], periodo_escolar='2026-2027',
+            monto_usd=Decimal('30.00'), monto_pagado=Decimal('30.00'),
+        )
+        CuotaInscripcion.objects.filter(pk=cuota.pk).update(pagado=False)
+
+        resp = self.client.post('/api/notificaciones/cobro-whatsapp/previsualizar/', {
+            'representante_cedula': rep.cedula, 'plantilla_id': self.plantilla.id,
+        }, format='json')
+
+        self.assertEqual(resp.status_code, 404, resp.content)
+        self.assertIn('deuda vencida', resp.data['error'])

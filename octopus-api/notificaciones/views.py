@@ -353,7 +353,9 @@ def _grupo_moroso_de(request, representante_cedula):
     qs = ListaMorososView._build_qs(hoy, buscar=representante_cedula, user=request.user)
     grupos = agrupar_morosos_por_representante(qs, hoy)
     for g in grupos:
-        if g['representante_cedula'] == representante_cedula:
+        # Un grupo sin saldo (cuota marcada impaga pero ya cubierta) no se
+        # cobra: evita mensajes con "REF. 0,00".
+        if g['representante_cedula'] == representante_cedula and g['monto_total'] > 0:
             return g
     return None
 
@@ -577,7 +579,7 @@ class RegistrarEnvioManualCobroWhatsAppView(APIView):
         grupo = _grupo_moroso_de(request, cedula)
         if not grupo:
             return Response(
-                {'error': 'El representante no tiene deuda registrada o no es accesible para su sede.'},
+                {'error': 'El representante no tiene deuda vencida o no es accesible para su sede.'},
                 status=404,
             )
         telefono = _normalizar_telefono(grupo['representante_telefono'])
@@ -612,7 +614,7 @@ class EnviarCobroWhatsAppView(APIView):
     def post(self, request):
         from .models import PlantillaWhatsApp, ConfiguracionNotificaciones, NotificacionLog
         from .services import enviar_whatsapp
-        from .cobro_whatsapp import renderizar_mensaje_cobro, hubo_envio_reciente
+        from .cobro_whatsapp import _monto_cobro, renderizar_mensaje_cobro, hubo_envio_reciente
 
         cedula = (request.data.get('representante_cedula') or '').strip()
         plantilla_id = request.data.get('plantilla_id')
@@ -639,7 +641,7 @@ class EnviarCobroWhatsAppView(APIView):
         grupo = _grupo_moroso_de(request, cedula)
         if not grupo:
             return Response(
-                {'error': 'El representante no tiene deuda registrada o no es accesible para su sede.'},
+                {'error': 'El representante no tiene deuda vencida o no es accesible para su sede.'},
                 status=404,
             )
         if hubo_envio_reciente(cedula) and not confirmar:
@@ -657,7 +659,8 @@ class EnviarCobroWhatsAppView(APIView):
             template_data={
                 'nombre': plantilla.nombre_plantilla_meta,
                 'idioma': plantilla.idioma_meta,
-                'parametros': [grupo['representante_nombre'], str(grupo['monto_total'])],
+                # Mismo formato que el cuerpo manual: 'REF. 60,00 (Bs. …)'.
+                'parametros': [grupo['representante_nombre'], _monto_cobro(grupo['monto_total'])],
             },
         )
         if not ok:
