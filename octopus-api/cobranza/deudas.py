@@ -49,10 +49,10 @@ def item_deuda(deuda, *, tipo=None, descripcion=None, alumno_nombre=None, hoy=No
         'estado': estado_deuda(deuda),
     }
     if isinstance(deuda, Mensualidad):
-        from datetime import date
+        from django.utils import timezone
         from .mora import fecha_vencimiento_mensualidad
 
-        hoy = hoy or date.today()
+        hoy = hoy or timezone.localdate()
         vencimiento = fecha_vencimiento_mensualidad(deuda)
         item.update({
             'fecha_vencimiento': vencimiento,
@@ -62,10 +62,18 @@ def item_deuda(deuda, *, tipo=None, descripcion=None, alumno_nombre=None, hoy=No
     else:
         # Los otros conceptos abiertos que devuelve este contrato no tienen
         # fecha límite propia y la regla canónica los considera vencidos.
+        # De los cargos especiales, el cobro por WhatsApp solo incluye los que
+        # bloquean inscripción (los mismos que generan mora, ver
+        # cobranza/mora.py::_condicion_mora y agrupar_morosos_por_representante).
+        cobrable = saldo > ZERO
+        if isinstance(deuda, CuotaProyectoInversion):
+            cobrable = cobrable and bool(
+                deuda.tipo_concepto_id and deuda.tipo_concepto.bloquea_inscripcion
+            )
         item.update({
             'fecha_vencimiento': None,
             'vencida': saldo > ZERO,
-            'cobrable_por_whatsapp': saldo > ZERO,
+            'cobrable_por_whatsapp': cobrable,
         })
     return item
 
