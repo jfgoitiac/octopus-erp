@@ -19,10 +19,9 @@ Deuda detectada durante la revisión; solo se anota, no se implementa.
    pero un recálculo posterior o una reapertura podrían sumar recargas de otro turno.
 4. **Totales fuera de la transacción**: una venta registrada entre el cálculo y el
    guardado del cierre queda fuera de él.
-5. **Auditoría no muestra el desglose**: `AuditoriaCierreDetalle` reduce
-   `totales_por_metodo` a USD y no lee `desglose`, así que el revisor no ve el conteo
-   por moneda ni el origen del dinero. Además, en cierres sin conteo, su esperado
-   (`serializers_cierres.py`) omite los abonos.
+5. **Esperado de auditoría sin conteo**: en cierres sin conteo físico, el esperado
+   de `serializers_cierres.py` omite los abonos, porque `total_abonos_efectivo` no se
+   guarda en el cierre.
 6. **`Modal` sin nombre accesible cuando no lleva `titulo`**: `AperturaCajaModal` no
    puede usar `titulo` porque añade una X que allí no haría nada. Falta una prop de
    tipo `aria-label` o una opción para ocultar la X. El modal tampoco permite corregir

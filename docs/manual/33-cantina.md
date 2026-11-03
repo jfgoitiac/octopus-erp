@@ -516,9 +516,15 @@ Puedes filtrar por Cantina, Librería o ambas.
 ## 22. Revisar un cierre
 
 En **Cierres** filtra por fecha, cajero, caja, estado o "solo con diferencia" y
-abre el cierre. Verás el turno, el desglose por método de pago, el efectivo
-esperado frente al conteo físico, las ventas anuladas, con descuento y manuales,
-y las observaciones del cajero.
+abre el cierre. Verás el turno, el efectivo esperado frente al conteo físico, las
+ventas anuladas, con descuento y manuales, y las observaciones del cajero.
+
+En los cierres contados por moneda verás además el **"Arqueo por moneda"**: cuánto
+contó el cajero en dólares y en bolívares frente a lo que debía haber, y la tasa del
+turno con la que se convirtió la diferencia. También verás las mismas tarjetas que el
+cajero: **"Dinero recibido"** por método de pago y **"De dónde salió"** (ventas,
+recargas cobradas, consumido de recargas, abonos y cargos a cuenta). En los cierres
+anteriores a este cambio solo aparecen los datos que se guardaron entonces.
 
 Cada cierre tiene un **estado de revisión**:
 
