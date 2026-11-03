@@ -7,17 +7,26 @@ const FiltroDeudaEstudiante = ({ alumnos = [], resumen, alumnoId, onChange }) =>
   const deudaPorAlumno = new Map(
     (resumen?.deuda_por_alumno || []).map((item) => [String(item.alumno_id), Number(item.deuda_usd || 0)]),
   );
-  const pendientesPorAlumno = (resumen?.mensualidades_vencidas || []).reduce((acumulado, mensualidad) => {
-    const id = String(mensualidad.alumno_id);
+  // Conceptos vencidos por hijo: mensualidades e inscripción/solvencia, los
+  // mismos que suman a su deuda_por_alumno.
+  const pendientesPorAlumno = [
+    ...(resumen?.mensualidades_vencidas || []),
+    ...(resumen?.otros_conceptos_pendientes || []),
+  ].reduce((acumulado, concepto) => {
+    if (concepto.alumno_id == null) return acumulado;
+    const id = String(concepto.alumno_id);
     acumulado.set(id, (acumulado.get(id) || 0) + 1);
     return acumulado;
   }, new Map());
+  // Cargos de la familia (sin alumno): entran en el total familiar pero no
+  // en el de ningún hijo, así que se avisa en la tarjeta de la familia.
+  const hayCargosFamiliares = (resumen?.otros_conceptos_pendientes || []).some((c) => c.alumno_id == null);
 
   const opciones = [
     {
       id: null,
       nombre: 'Toda la familia',
-      detalle: `${alumnos.length} estudiantes`,
+      detalle: `${alumnos.length} estudiantes${hayCargosFamiliares ? ' · incluye cargos familiares' : ''}`,
       deuda: Number(resumen?.total_deuda_usd || 0),
       Icon: Users,
     },
@@ -28,8 +37,8 @@ const FiltroDeudaEstudiante = ({ alumnos = [], resumen, alumnoId, onChange }) =>
         id,
         nombre: `${alumno.nombre} ${alumno.apellido}`,
         detalle: cantidad
-          ? `${cantidad} mensualidad${cantidad === 1 ? '' : 'es'} pendiente${cantidad === 1 ? '' : 's'}`
-          : 'Sin mensualidades vencidas',
+          ? `${cantidad} concepto${cantidad === 1 ? '' : 's'} vencido${cantidad === 1 ? '' : 's'}`
+          : 'Sin deuda vencida',
         deuda: deudaPorAlumno.get(id) || 0,
       };
     }),

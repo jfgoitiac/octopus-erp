@@ -39,9 +39,14 @@ const PortalDashboard = () => {
   const resumen = dashboardData?.resumen_financiero;
   const alumnos = dashboardData?.alumnos || [];
   const variosAlumnos = (dashboardData?.alumnos?.length || 0) > 1;
-  const deudaVisible = alumnoFinancieroId === null
+  // Si el hijo elegido ya no está en la lista (o queda uno solo y el filtro
+  // se oculta), se vuelve a la vista familiar en vez de mostrar "al día".
+  const alumnoFiltroId = variosAlumnos && alumnos.some((a) => String(a.id) === String(alumnoFinancieroId))
+    ? alumnoFinancieroId
+    : null;
+  const deudaVisible = alumnoFiltroId === null
     ? Number(resumen?.total_deuda_usd || 0)
-    : Number(resumen?.deuda_por_alumno?.find((item) => String(item.alumno_id) === String(alumnoFinancieroId))?.deuda_usd || 0);
+    : Number(resumen?.deuda_por_alumno?.find((item) => String(item.alumno_id) === String(alumnoFiltroId))?.deuda_usd || 0);
   const tieneDeuda = deudaVisible > 0;
 
   // El inicio conserva el total familiar, pero el bloque financiero permite
@@ -56,7 +61,7 @@ const PortalDashboard = () => {
       .filter((m) => (vistas.has(m.id) ? false : vistas.add(m.id)));
   }, [resumen]);
   const idsPagables = useMemo(() => new Set(pagables.map((m) => m.id)), [pagables]);
-  const hayPorReportar =pagables.some((m) => ultimoPorMensualidad[m.id]?.estatus !== 'pendiente');
+  const hayPorReportar = pagables.some((m) => ultimoPorMensualidad[m.id]?.estatus !== 'pendiente');
   // Rechazos vigentes: el último comprobante de una mensualidad que sigue sin pagar.
   const rechazados = pagables
     .map((m) => ultimoPorMensualidad[m.id])
@@ -110,7 +115,7 @@ const PortalDashboard = () => {
         <FiltroDeudaEstudiante
           alumnos={alumnos}
           resumen={resumen}
-          alumnoId={alumnoFinancieroId}
+          alumnoId={alumnoFiltroId}
           onChange={setAlumnoFinancieroId}
         />
 
@@ -121,7 +126,7 @@ const PortalDashboard = () => {
             loading={loading}
             onPagar={abrirPago}
             variosAlumnos={variosAlumnos}
-            alumnoId={alumnoFinancieroId}
+            alumnoId={alumnoFiltroId}
             comprobantePorMensualidad={ultimoPorMensualidad}
           />
 
@@ -136,7 +141,7 @@ const PortalDashboard = () => {
               resumen={resumen}
               loading={loading}
               variosAlumnos={variosAlumnos}
-              alumnoId={alumnoFinancieroId}
+              alumnoId={alumnoFiltroId}
               comprobantePorMensualidad={ultimoPorMensualidad}
               onPagar={abrirPago}
             />

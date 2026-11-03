@@ -70,9 +70,14 @@ test('desglosa la deuda familiar por estudiante sin desbordar la pantalla', asyn
   await expect(page.getByText('Sofía González', { exact: true }).first()).toBeVisible();
   await expect(page.getByText('Mateo González', { exact: true }).first()).toBeVisible();
 
-  await page.getByRole('button', { name: /Sofía González/ }).click();
-  await expect(page.getByRole('button', { name: /Sofía González/ })).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByText('Mateo González', { exact: true })).toHaveCount(1);
+  // Acotado al grupo del filtro: el nombre del hijo también puede aparecer
+  // en otros bloques (encabezado, avisos, próximos vencimientos).
+  const filtro = page.getByRole('group', { name: 'Filtrar deuda por estudiante' });
+  await filtro.getByRole('button', { name: /Sofía González/ }).click();
+  await expect(filtro.getByRole('button', { name: /Sofía González/ })).toHaveAttribute('aria-pressed', 'true');
+  await expect(filtro.getByRole('button', { name: /Toda la familia/ })).toHaveAttribute('aria-pressed', 'false');
+  // Con Sofía elegida, el detalle financiero ya no lista a Mateo.
+  await expect(page.locator('section[aria-labelledby="resumen-financiero"]').getByText('Mateo González')).toHaveCount(0);
 
   const dimensiones = await page.evaluate(() => ({ anchoDocumento: document.documentElement.scrollWidth, anchoVista: document.documentElement.clientWidth }));
   expect(dimensiones.anchoDocumento).toBeLessThanOrEqual(dimensiones.anchoVista);

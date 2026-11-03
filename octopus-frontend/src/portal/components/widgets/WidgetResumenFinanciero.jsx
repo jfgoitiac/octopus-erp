@@ -51,10 +51,8 @@ const WidgetResumenFinanciero = ({ resumen, tieneDeuda, loading, onPagar, varios
   const renderMensualidad = (m) => (
     <li key={m.id} className="flex items-center justify-between gap-3 bg-[var(--portal-canvas)] rounded-[var(--portal-radius-sm)] px-4 py-3.5">
       <div className="min-w-0">
+        {/* El nombre del hijo va en el encabezado de su grupo (vista familiar). */}
         <p className="text-sm font-semibold text-[var(--portal-ink)] sm:text-base">{m.mes_nombre} {m.anio}</p>
-        {variosAlumnos && alumnoId === null && gruposMensualidades.size === 1 && m.alumno_nombre && (
-          <p className="text-xs text-[var(--jet-mid)] truncate">{m.alumno_nombre}</p>
-        )}
         <p className={`text-xs ${Number(m.dias_mora) > 0 ? 'text-[var(--red)] font-medium' : 'text-[var(--portal-muted)]'}`}>{textoVencimiento(m)}</p>
         {m.porcentaje_beca_aplicado > 0 && (
           <span className="inline-block mt-1 text-xs font-semibold px-1.5 py-0.5 rounded-full bg-[var(--portal-tint)] text-[var(--portal-tint-ink)]">
@@ -91,7 +89,7 @@ const WidgetResumenFinanciero = ({ resumen, tieneDeuda, loading, onPagar, varios
       {/* El total ya está en el saludo de arriba: aquí solo el detalle. */}
       {tieneDeuda && (
         <p className="mb-5 text-sm text-[var(--portal-muted)]">
-          {cantidadPendientes} concepto{cantidadPendientes === 1 ? '' : 's'}{variosAlumnos ? ' entre todos tus hijos' : ''}. Toca "Pagar" en el mes que ya pagaste para enviar el comprobante.
+          {cantidadPendientes} concepto{cantidadPendientes === 1 ? '' : 's'}{variosAlumnos && alumnoId === null ? ' entre todos tus hijos' : ''}. Toca "Pagar" en el mes que ya pagaste para enviar el comprobante.
         </p>
       )}
 
