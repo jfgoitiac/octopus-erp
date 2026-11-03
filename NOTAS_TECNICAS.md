@@ -4481,3 +4481,32 @@ tasa). Deuda nueva (solo anotada):
 4. **6 tests de `cobranza` ya fallan sin relación con este cambio** (mismos fallos
    con el `views.py` de `main`): `PantallaDeCobroAdminTest` (2), `DesgloseReciboTest`
    (1), `DesgloseConceptosTest` (2) y `DobleAbonoSucesivoTest` (1).
+
+## Auditoría de saldos vencidos, cobro por WhatsApp y portal (2026-11-02)
+
+1. **"Hoy" no se calcula igual en todo el sistema**: `item_deuda` y el cobro por
+   WhatsApp usan `timezone.localdate()`, pero `cobranza/mora.py::_hoy`,
+   `ListaMorososView`, el dashboard del portal y `MensualidadSerializer` usan
+   `date.today()`. En un servidor sin la zona de Caracas, cerca de medianoche,
+   pueden diferir en un día.
+2. **El cobro por WhatsApp solo incluye cargos especiales que bloquean
+   inscripción**, mientras el portal muestra todos los impagos. Un cargo no
+   bloqueante (p. ej. un paseo) aparece en el portal y no en el mensaje: es
+   intencional (no genera mora), pero el total del portal puede ser mayor.
+3. **Tres criterios para "proyecto de inversión"**: `_condicion_mora` usa
+   `bloquea_inscripcion`, `annotate_mora_detalle` filtra por la semilla
+   "Proyecto de Inversión" y el portal toma todos los cargos especiales.
+4. **`item_deuda` sobre deudas de `AplicacionPago`** (recibos, serializers,
+   motor) lee `tipo_concepto` y `alumno` por cada deuda vía GenericForeignKey:
+   posible N+1 en recibos con muchos conceptos.
+5. **Código muerto de recargas del portal**: el portal ya no ofrece recargar la
+   tarjeta de cantina (decisión de producto), pero quedan
+   `src/portal/components/RecargarTarjetaModal.jsx`, la ruta
+   `cantina/recargar/` en `portal.service.js` y el endpoint de recarga en
+   `portal/views.py`.
+6. **El hero del portal** (`WidgetHeroPortal`) toma la primera mensualidad
+   vencida: ahora que la cuota del mes que aún no vence pasa a próximos
+   vencimientos, entre el día 1 y el vencimiento el hero no la destaca.
+7. **El e2e `portal-finanzas-cantina.spec.js` responde `{}` con 200 a cualquier
+   ruta no mockeada**, lo que puede ocultar llamadas rotas, y no revisa errores
+   de consola.

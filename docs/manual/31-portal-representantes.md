@@ -45,6 +45,12 @@ Arriba verás tu situación en un vistazo:
 - Si no debes nada: **"Solvente — al día con los pagos"**, en verde.
 - Si debes: **"Deuda pendiente"** con el monto, en rojo.
 
+La deuda cuenta solo lo **vencido**: una mensualidad pasa a deuda el día de su
+fecha de vencimiento (por ejemplo, el día 5 del mes). Antes de esa fecha
+aparece en **"Próximos vencimientos"**. También suman la inscripción, la
+solvencia y los cargos especiales (como el Proyecto de Inversión) que tengas
+pendientes, siempre por lo que aún te falta pagar después de cualquier abono.
+
 Si el colegio tiene un recargo o un descuento por pago configurado, la
 mensualidad del mes lo muestra: el monto normal tachado, el monto real al lado
 (en rojo si es un recargo por atraso, en verde si es un descuento por pagar
@@ -63,6 +69,12 @@ Debajo:
 
 Arriba aparece un selector de estudiante. Cambia de hijo y toda la pantalla se
 actualiza: su deuda, sus notas, su cantina.
+
+En **"Pagos y vencimientos"**, **"Consulta por estudiante"** muestra la deuda
+de cada hijo y la de **"Toda la familia"**. Los cargos que son de la familia y
+no de un hijo (como el Proyecto de Inversión) solo suman en **"Toda la
+familia"**; por eso, cuando existen, esa tarjeta dice **"incluye cargos
+familiares"**.
 
 ---
 
