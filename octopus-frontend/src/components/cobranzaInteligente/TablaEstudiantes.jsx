@@ -56,6 +56,12 @@ function Monto({ fila }) {
 function Acciones({ fila, onWhatsApp }) {
     const navigate = useNavigate();
     const rep = fila.representante;
+    const puedeCobrarWhatsApp = Boolean(rep?.telefono?.trim() && fila.estado !== 'pagado' && fila.vencida !== false);
+    const tituloWhatsApp = !rep?.telefono?.trim()
+        ? 'Sin teléfono registrado'
+        : fila.vencida === false
+            ? `Saldo por vencer${fila.fecha_vencimiento ? ` el ${fmtFecha(fila.fecha_vencimiento)}` : ''}`
+            : 'Enviar cobro por WhatsApp';
     return (
         <div className="flex items-center justify-end gap-1">
             <button type="button" className="btn btn-ghost btn-sm !px-2" title="Ver estado de cuenta y cobrar"
@@ -63,8 +69,8 @@ function Acciones({ fila, onWhatsApp }) {
                 onClick={() => navigate(`/cobranza?cedula=${rep?.cedula ?? ''}`)}>
                 <Eye size={16} />
             </button>
-            <button type="button" className="btn btn-ghost btn-sm !px-2" title="Enviar cobro por WhatsApp"
-                aria-label={`WhatsApp a ${rep?.nombre ?? 'representante'}`} disabled={!rep?.telefono?.trim()}
+            <button type="button" className="btn btn-ghost btn-sm !px-2" title={tituloWhatsApp}
+                aria-label={`WhatsApp a ${rep?.nombre ?? 'representante'}`} disabled={!puedeCobrarWhatsApp}
                 onClick={() => onWhatsApp(rep)}>
                 <WhatsAppIcon size={16} />
             </button>

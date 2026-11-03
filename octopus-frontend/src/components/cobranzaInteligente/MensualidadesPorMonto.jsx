@@ -20,6 +20,7 @@ const PAGE_SIZE = 20;
 const ESTADO = [
     { value: 'todos', label: 'Todos los estados' },
     { value: 'pagado', label: 'Pagados' },
+    { value: 'parcial', label: 'Abonos parciales' },
     { value: 'pendiente', label: 'Pendientes' },
 ];
 
@@ -36,8 +37,10 @@ const Estado = ({ estado }) => (
     <span className="inline-flex rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap"
         style={estado === 'pagado'
             ? { background: 'var(--green-light)', color: 'var(--green)' }
-            : { background: 'var(--red-light)', color: 'var(--red)' }}>
-        {estado === 'pagado' ? 'Pagado' : 'Pendiente'}
+            : estado === 'parcial'
+                ? { background: 'var(--yellow-light)', color: 'var(--amber-ink)' }
+                : { background: 'var(--red-light)', color: 'var(--red)' }}>
+        {estado === 'pagado' ? 'Pagado' : estado === 'parcial' ? 'Abono parcial' : 'Pendiente'}
     </span>
 );
 
@@ -53,7 +56,6 @@ function DetalleModal({ grupo, mes, sede, onClose }) {
         ...filtros,
     }), [mes, sede, grupo, page, filtros]);
 
-    useEffect(() => { setPage(1); }, [grupo, filtros.buscar, filtros.grado_seccion, filtros.estado]);
     useEffect(() => {
         if (!grupo || !mes) return undefined;
         const controller = new AbortController();
@@ -72,7 +74,9 @@ function DetalleModal({ grupo, mes, sede, onClose }) {
     const exportarExcel = async () => {
         setExportando(true);
         try {
-            const { page: _page, page_size: _pageSize, ...filtrosExportacion } = params;
+            const filtrosExportacion = { ...params };
+            delete filtrosExportacion.page;
+            delete filtrosExportacion.page_size;
             const response = await exportarMensualidadesPorMontoExcel(filtrosExportacion);
             descargar(new Blob([response.data], { type: response.headers['content-type'] }), `mensualidades_${grupo.monto_usd}_${mes.anio}-${mes.mes}.xlsx`);
         } catch { toast.error('No se pudo generar el Excel.'); }
@@ -104,7 +108,7 @@ function DetalleModal({ grupo, mes, sede, onClose }) {
                 head: [['Alumno', 'Cédula', 'Grado / sección', 'Representante', 'Mensualidad', 'Pagado', 'Saldo', 'Estado']],
                 body: filas.map(f => [f.nombre, f.cedula_escolar || '—', f.grado_seccion || '—', f.representante?.nombre || '—',
                     `$${fmt(f.monto_usd, 2)}`, `$${fmt(f.monto_pagado_usd, 2)}`, `$${fmt(f.saldo_usd, 2)}`,
-                    f.estado === 'pagado' ? 'Pagado' : 'Pendiente']),
+                    f.estado === 'pagado' ? 'Pagado' : f.estado === 'parcial' ? 'Abono parcial' : 'Pendiente']),
                 theme: 'grid',
                 styles: { fontSize: 7, cellPadding: 1.8, overflow: 'linebreak' },
                 headStyles: { fillColor: [31, 78, 121] },
@@ -121,7 +125,10 @@ function DetalleModal({ grupo, mes, sede, onClose }) {
     };
 
     const totalPages = Math.max(1, Math.ceil((datos.count || 0) / PAGE_SIZE));
-    const cambiar = (campo) => (evento) => setFiltros(actual => ({ ...actual, [campo]: evento.target.value }));
+    const cambiar = (campo) => (evento) => {
+        setPage(1);
+        setFiltros(actual => ({ ...actual, [campo]: evento.target.value }));
+    };
     return <Modal open={Boolean(grupo)} onClose={onClose} titulo={`Alumnos con mensualidad de $${fmt(grupo?.monto_usd, 2)}`} size="xl"
         footer={<button type="button" className="btn btn-primary w-full sm:w-auto" onClick={onClose}>Cerrar</button>}>
         <div className="space-y-4">
@@ -129,6 +136,7 @@ function DetalleModal({ grupo, mes, sede, onClose }) {
                 <span><b style={{ color: 'var(--jet)' }}>{datos.resumen.estudiantes}</b> estudiantes</span>
                 <span>Facturado: <b style={{ color: 'var(--jet)' }}>${fmt(datos.resumen.total_facturado_usd, 2)}</b></span>
                 <span>Pagados: <b style={{ color: 'var(--green)' }}>{datos.resumen.pagados}</b></span>
+                <span>Parciales: <b style={{ color: 'var(--amber-ink)' }}>{datos.resumen.parciales || 0}</b></span>
                 <span>Pendientes: <b style={{ color: 'var(--red)' }}>{datos.resumen.pendientes}</b></span>
             </div>}
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -171,7 +179,11 @@ export default function MensualidadesPorMonto({ mes, sede }) {
             if (error.code !== 'ERR_CANCELED' && !silencioso) toast.error('No se pudo cargar la distribución de mensualidades.');
         } finally { if (!silencioso) setLoading(false); }
     }, [numMes, anio, sede]);
-    useEffect(() => { const controller = new AbortController(); cargar(controller.signal); return () => controller.abort(); }, [cargar]);
+    useEffect(() => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => cargar(controller.signal), 0);
+        return () => { clearTimeout(timer); controller.abort(); };
+    }, [cargar]);
     const refrescar = useCallback(() => cargar(undefined, true), [cargar]);
     useAutoRefresh(refrescar);
 
@@ -179,7 +191,7 @@ export default function MensualidadesPorMonto({ mes, sede }) {
     return <section className="rounded-[var(--radius-card)] p-4 sm:p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4"><div className="min-w-0"><h2 className="flex items-center gap-2 text-base font-semibold" style={{ color: 'var(--jet)' }}><Users size={18} style={{ color: 'var(--pb)' }} />Distribución de mensualidades</h2><p className="text-xs mt-1" style={{ color: 'var(--ash)' }}>Montos registrados para {mes?.etiqueta || 'el período seleccionado'}.</p></div><div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3"><span className="text-sm font-semibold tabular-nums" style={{ color: 'var(--jet)' }}>Total: ${fmt(total, 2)}</span><button type="button" className="btn btn-secondary btn-sm w-full sm:w-auto" disabled={!mes || loading || !grupos.length} onClick={() => setPorGradoAbierto(true)}><LayoutList size={16} aria-hidden="true" />Ver detalles</button></div></div>
         {loading ? <div className="skeleton h-36" /> : !grupos.length ? <div className="py-10 text-center text-sm" style={{ color: 'var(--ash)' }}>No hay mensualidades registradas para este período.</div> : <TablaScroll><table className="w-full min-w-[580px] text-sm"><thead><tr className="text-left text-xs uppercase" style={{ color: 'var(--ash)' }}><th className="p-3">Mensualidad</th><th className="p-3 text-right">Estudiantes</th><th className="p-3 text-right">Total mensual</th><th className="p-3 text-right"><span className="sr-only">Ver detalle</span></th></tr></thead><tbody>{grupos.map(grupo => <tr key={grupo.monto_usd} className="hover:bg-[var(--pb-light)] cursor-pointer" style={{ borderTop: '1px solid var(--border)' }} onClick={() => setGrupoActivo(grupo)}><td className="p-3 font-semibold tabular-nums" style={{ color: 'var(--jet)' }}>${fmt(grupo.monto_usd, 2)}</td><td className="p-3 text-right tabular-nums">{grupo.estudiantes}</td><td className="p-3 text-right tabular-nums font-medium">${fmt(grupo.total_facturado_usd, 2)}</td><td className="p-3 text-right"><button type="button" className="btn btn-secondary btn-sm" onClick={(evento) => { evento.stopPropagation(); setGrupoActivo(grupo); }}>Ver detalle</button></td></tr>)}</tbody></table></TablaScroll>}
-        <DetalleModal grupo={grupoActivo} mes={mes} sede={sede} onClose={() => setGrupoActivo(null)} />
+        <DetalleModal key={`${grupoActivo?.monto_usd || 'cerrado'}-${mes?.mes || ''}-${mes?.anio || ''}`} grupo={grupoActivo} mes={mes} sede={sede} onClose={() => setGrupoActivo(null)} />
         <MensualidadesPorGradoModal open={porGradoAbierto} onClose={cerrarPorGrado} mes={mes} sede={sede} />
     </section>;
 }

@@ -62,7 +62,9 @@ def agrupar_morosos_por_representante(alumnos_anotados, hoy=None):
     (la cuota del mes que todavía no vence no se cobra).
     """
     from cobranza.mora import calcular_dias_atraso, q_mensualidad_vencida
-    from cobranza.models import CuotaInscripcion, Mensualidad
+    from cobranza.models import (
+        CuotaInscripcion, CuotaProyectoInversion, CuotaSolvencia, Mensualidad,
+    )
     from cobranza.recargos import resolver_recargo
     from django.db.models import F
     hoy = hoy or timezone.localdate()
@@ -89,6 +91,30 @@ def agrupar_morosos_por_representante(alumnos_anotados, hoy=None):
             'concepto': f'Inscripción {cuota.periodo_escolar}'.strip(),
             'saldo_usd': cuota.monto_usd - cuota.monto_pagado,
         })
+    solvencias = CuotaSolvencia.objects.filter(
+        alumno__in=alumnos, pagado=False, monto_usd__gt=F('monto_pagado'))
+    for cuota in solvencias:
+        otros_por_alumno.setdefault(cuota.alumno_id, []).append({
+            'concepto': cuota.concepto or f'Solvencia {cuota.periodo_escolar}'.strip(),
+            'saldo_usd': cuota.monto_usd - cuota.monto_pagado,
+        })
+
+    # Los cargos especiales que bloquean inscripción forman parte del criterio
+    # canónico de mora, pero pertenecen al representante. Se agregan una sola
+    # vez por familia aunque el representante tenga varios hijos.
+    representante_ids = {a.representante_id for a in alumnos if a.representante_id}
+    otros_por_representante = {}
+    cargos_especiales = CuotaProyectoInversion.objects.filter(
+        representante_id__in=representante_ids,
+        pagado=False,
+        monto_usd__gt=F('monto_pagado'),
+        tipo_concepto__bloquea_inscripcion=True,
+    ).select_related('tipo_concepto')
+    for cuota in cargos_especiales:
+        otros_por_representante.setdefault(cuota.representante_id, []).append({
+            'concepto': f'{cuota.tipo_concepto.nombre} {cuota.periodo_escolar}'.strip(),
+            'saldo_usd': cuota.monto_usd - cuota.monto_pagado,
+        })
 
     grupos = {}
     orden = []
@@ -112,6 +138,11 @@ def agrupar_morosos_por_representante(alumnos_anotados, hoy=None):
                 'mensualidades': [],
                 'otros': [],
             }
+            for otro in otros_por_representante.get(rep.id, []):
+                renglon = {**otro, 'alumno': f'{rep.nombre} {rep.apellido}'}
+                grupos[cedula]['otros'].append(renglon)
+                grupos[cedula]['subtotal_otros'] += renglon['saldo_usd']
+                grupos[cedula]['monto_total'] += renglon['saldo_usd']
             orden.append(cedula)
         nombre = f'{a.nombre} {a.apellido}'
         dias_atraso = calcular_dias_atraso(a, hoy)

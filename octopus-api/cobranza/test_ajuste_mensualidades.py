@@ -23,12 +23,12 @@ class ActualizarMensualidadesViewTests(TestCase):
             cedula='V44444444', nombre='Maria', apellido='Perez',
             telefono='0412', correo='maria4@test.com', direccion='Calle 1',
         )
-        alumno = Alumno.objects.create(
+        self.alumno = Alumno.objects.create(
             cedula_escolar='E4000001', nombre='Ana', apellido='Test',
             fecha_nacimiento=date(2015, 1, 1), representante=representante,
         )
-        self.primera = Mensualidad.objects.create(alumno=alumno, mes=10, anio=2026, monto_usd=Decimal('50.00'))
-        self.segunda = Mensualidad.objects.create(alumno=alumno, mes=11, anio=2026, monto_usd=Decimal('50.00'))
+        self.primera = Mensualidad.objects.create(alumno=self.alumno, mes=10, anio=2026, monto_usd=Decimal('50.00'))
+        self.segunda = Mensualidad.objects.create(alumno=self.alumno, mes=11, anio=2026, monto_usd=Decimal('50.00'))
         user = get_user_model().objects.create_superuser(
             username='ajuste_montos', password='clave123456', email='am@test.com'
         )
@@ -69,3 +69,16 @@ class ActualizarMensualidadesViewTests(TestCase):
         self.assertEqual(self.primera.monto_usd, Decimal('60.00'))
         self.assertFalse(self.primera.pagado)
         self.assertTrue(self.primera.monto_personalizado)
+
+    def test_listado_suma_saldos_y_no_montos_nominales(self):
+        self.primera.monto_pagado = Decimal('20.00')
+        self.primera.save()
+
+        response = self.client.get(reverse('mensualidades-alumno', args=[self.alumno.id]))
+
+        self.assertEqual(response.status_code, 200)
+        primera = next(m for m in response.data['mensualidades_pendientes'] if m['id'] == self.primera.id)
+        self.assertEqual(Decimal(primera['monto_usd']), Decimal('50.00'))
+        self.assertEqual(Decimal(primera['monto_pagado']), Decimal('20.00'))
+        self.assertEqual(Decimal(primera['saldo']), Decimal('30.00'))
+        self.assertEqual(Decimal(response.data['monto_total_deuda']), Decimal('80.00'))

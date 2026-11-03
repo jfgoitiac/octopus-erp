@@ -93,11 +93,14 @@ describe('CobranzaInteligenteDashboard', () => {
 
     it('una mensualidad con saldo que aún no vence se muestra "Por vencer", no "Con deuda"', async () => {
         m.estado.mockResolvedValue({
-            data: { count: 1, results: [{ ...fila, dias_atraso: null, vencida: false }], resumen },
+            data: { count: 1, results: [{ ...fila, dias_atraso: null, vencida: false, fecha_vencimiento: '2026-11-05' }], resumen },
         });
         montar('cajero');
         expect((await screen.findAllByText('Por vencer')).length).toBeGreaterThan(0);
         expect(screen.queryByText(/^Con deuda ·/)).not.toBeInTheDocument();
+        const botones = screen.getAllByRole('button', { name: 'WhatsApp a Luis Rojas' });
+        expect(botones.every(boton => boton.disabled)).toBe(true);
+        expect(botones[0]).toHaveAttribute('title', expect.stringContaining('Saldo por vencer'));
     });
 
     it('avisa cuando el motor de recordatorios (Celery Beat) no está corriendo', async () => {

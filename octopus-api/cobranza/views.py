@@ -341,10 +341,12 @@ class BuscarAlumnoCobranzaView(APIView):
             así que a lo sumo uno de los dos es distinto de cero por fila."""
             from .recargos import resolver_recargo
             from .descuentos import resolver_descuento
+            from .mora import fecha_vencimiento_mensualidad
             cache_reglas = {}
             lineas = []
             for m in qs:
                 saldo = m.monto_usd - m.monto_pagado
+                fecha_vencimiento = fecha_vencimiento_mensualidad(m)
                 resultado_recargo = resolver_recargo(m, hoy, _cache_reglas=cache_reglas)
                 resultado_descuento = resolver_descuento(m, hoy, _cache_reglas=cache_reglas)
                 monto_recargo = resultado_recargo['monto_usd'] if resultado_recargo else Decimal('0.00')
@@ -361,6 +363,9 @@ class BuscarAlumnoCobranzaView(APIView):
                     'monto_descuento':  str(monto_descuento),
                     'nombre_descuento': resultado_descuento['nombre'] if resultado_descuento else None,
                     'saldo_a_pagar_hoy': str(saldo + monto_recargo - monto_descuento),
+                    'fecha_vencimiento': fecha_vencimiento,
+                    'vencida': saldo > 0 and fecha_vencimiento <= hoy,
+                    'cobrable_por_whatsapp': saldo > 0 and fecha_vencimiento <= hoy,
                 })
             return lineas
 
@@ -1570,14 +1575,21 @@ class MensualidadesAlumnoView(APIView):
 
         mensualidades = list(
             Mensualidad.objects.filter(alumno=alumno, pagado=False)
-            .values('id', 'mes', 'anio', 'monto_usd')
+            .values(
+                'id', 'mes', 'anio', 'monto_usd', 'monto_pagado',
+                'monto_original_usd', 'porcentaje_beca_aplicado', 'monto_personalizado',
+            )
             .order_by('anio', 'mes')
         )
         for m in mensualidades:
             m['mes'] = MES_NOMBRES.get(m['mes'], str(m['mes']))
             m['monto_usd'] = str(m['monto_usd'])
+            m['monto_pagado'] = str(m['monto_pagado'])
+            m['saldo'] = str(Decimal(m['monto_usd']) - Decimal(m['monto_pagado']))
+            if m['monto_original_usd'] is not None:
+                m['monto_original_usd'] = str(m['monto_original_usd'])
 
-        total_deuda = sum((Decimal(m['monto_usd']) for m in mensualidades), Decimal('0.00'))
+        total_deuda = sum((Decimal(m['saldo']) for m in mensualidades), Decimal('0.00'))
         return Response({
             'mensualidades_pendientes': mensualidades,
             'monto_total_deuda': str(total_deuda),

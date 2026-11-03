@@ -28,20 +28,46 @@ def estado_deuda(deuda):
     return 'pendiente'
 
 
-def item_deuda(deuda, *, tipo=None, descripcion=None, alumno_nombre=None):
-    """Contrato estable para recibos, APIs y avisos de cobro."""
+def item_deuda(deuda, *, tipo=None, descripcion=None, alumno_nombre=None, hoy=None):
+    """Contrato estable para recibos, APIs y avisos de cobro.
+
+    Además de nominal/abonos/saldo, las mensualidades exponen su vencimiento
+    real. Así los consumidores pueden distinguir un saldo pendiente de una
+    deuda ya cobrable sin reconstruir la regla por su cuenta.
+    """
     nominal = deuda.monto_usd or ZERO
     pagado = deuda.monto_pagado or ZERO
-    return {
+    saldo = saldo_deuda(deuda)
+    item = {
         'id': deuda.id,
         'tipo': tipo or _tipo_deuda(deuda),
         'descripcion': descripcion or _descripcion(deuda),
         'alumno': alumno_nombre or _alumno_nombre(deuda),
         'monto_nominal_usd': nominal.quantize(Decimal('0.01')),
         'monto_pagado_usd': pagado.quantize(Decimal('0.01')),
-        'saldo_pendiente_usd': saldo_deuda(deuda).quantize(Decimal('0.01')),
+        'saldo_pendiente_usd': saldo.quantize(Decimal('0.01')),
         'estado': estado_deuda(deuda),
     }
+    if isinstance(deuda, Mensualidad):
+        from datetime import date
+        from .mora import fecha_vencimiento_mensualidad
+
+        hoy = hoy or date.today()
+        vencimiento = fecha_vencimiento_mensualidad(deuda)
+        item.update({
+            'fecha_vencimiento': vencimiento,
+            'vencida': saldo > ZERO and vencimiento <= hoy,
+            'cobrable_por_whatsapp': saldo > ZERO and vencimiento <= hoy,
+        })
+    else:
+        # Los otros conceptos abiertos que devuelve este contrato no tienen
+        # fecha límite propia y la regla canónica los considera vencidos.
+        item.update({
+            'fecha_vencimiento': None,
+            'vencida': saldo > ZERO,
+            'cobrable_por_whatsapp': saldo > ZERO,
+        })
+    return item
 
 
 def _tipo_deuda(deuda):
@@ -141,11 +167,11 @@ def deudas_pendientes_alumno(alumno, hoy=None):
     mensualidades = Mensualidad.objects.filter(alumno=alumno, pagado=False).filter(
         Q(anio__lt=hoy.year) | Q(anio=hoy.year, mes__lte=hoy.month)
     ).select_related('alumno').order_by('anio', 'mes')
-    items = [item_deuda(m) for m in mensualidades]
-    items += [item_deuda(c) for c in CuotaInscripcion.objects.filter(alumno=alumno, pagado=False).select_related('alumno')]
-    items += [item_deuda(c) for c in CuotaSolvencia.objects.filter(alumno=alumno, pagado=False, monto_usd__gt=0).select_related('alumno')]
+    items = [item_deuda(m, hoy=hoy) for m in mensualidades]
+    items += [item_deuda(c, hoy=hoy) for c in CuotaInscripcion.objects.filter(alumno=alumno, pagado=False).select_related('alumno')]
+    items += [item_deuda(c, hoy=hoy) for c in CuotaSolvencia.objects.filter(alumno=alumno, pagado=False, monto_usd__gt=0).select_related('alumno')]
     if alumno.representante_id:
-        items += [item_deuda(c) for c in CuotaProyectoInversion.objects.filter(
+        items += [item_deuda(c, hoy=hoy) for c in CuotaProyectoInversion.objects.filter(
             representante=alumno.representante, pagado=False
         ).select_related('representante', 'tipo_concepto')]
     return items

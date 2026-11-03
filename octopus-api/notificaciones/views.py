@@ -345,11 +345,11 @@ def _grupo_moroso_de(request, representante_cedula):
     """Busca al representante entre los morosos agrupados, respetando
     filtrar_por_sede. Devuelve el dict del grupo o None si no está en mora
     o no es accesible para el usuario (otra sede)."""
-    from datetime import date
+    from django.utils import timezone
     from cobranza.views import ListaMorososView
     from .cobro_whatsapp import agrupar_morosos_por_representante
 
-    hoy = date.today()
+    hoy = timezone.localdate()
     qs = ListaMorososView._build_qs(hoy, buscar=representante_cedula, user=request.user)
     grupos = agrupar_morosos_por_representante(qs, hoy)
     for g in grupos:
@@ -524,7 +524,7 @@ class PrevisualizarCobroWhatsAppView(APIView):
         grupo = _grupo_moroso_de(request, cedula)
         if not grupo:
             return Response(
-                {'error': 'El representante no tiene deuda registrada o no es accesible para su sede.'},
+                {'error': 'El representante no tiene deuda vencida o no es accesible para su sede.'},
                 status=404,
             )
 

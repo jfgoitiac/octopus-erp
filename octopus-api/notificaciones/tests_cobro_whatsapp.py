@@ -9,7 +9,7 @@ Tests del módulo "Cobros por WhatsApp":
   - Modo B: con plantilla Meta configurada (mockeando requests.post) y sin
     configurar (-> 400 sin llamar a requests.post).
 """
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -18,7 +18,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from authentication.models import PerfilUsuario
-from cobranza.models import Mensualidad
+from cobranza.models import CuotaProyectoInversion, CuotaSolvencia, Mensualidad, TipoCargoEspecial
 from multisede.models import Sede, PermisoSede
 from secretaria.models import Alumno, Representante
 
@@ -102,6 +102,62 @@ class CobroWhatsAppTests(TestCase):
         self.assertIn(' y ', data['mensaje'])
         self.assertEqual(data['meses_total'], 2)
         self.assertEqual(Decimal(data['monto_total']), Decimal('100.00'))
+
+    def test_abono_parcial_cobra_solo_el_saldo_vencido(self):
+        _, alumnos = crear_representante_con_deuda('V1000008')
+        mensualidad = alumnos[0].mensualidades.get()
+        mensualidad.monto_usd = Decimal('100.00')
+        mensualidad.monto_pagado = Decimal('60.00')
+        mensualidad.save()
+
+        resp = self.client.post('/api/notificaciones/cobro-whatsapp/previsualizar/', {
+            'representante_cedula': 'V1000008', 'plantilla_id': self.plantilla.id,
+        }, format='json')
+
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(Decimal(resp.data['monto_total']), Decimal('40.00'))
+        self.assertEqual(Decimal(resp.data['mensualidades'][0]['principal_usd']), Decimal('40.00'))
+
+    def test_saldo_por_vencer_no_se_presenta_como_mora(self):
+        rep, alumnos = crear_representante_con_deuda('V1000009')
+        alumnos[0].mensualidades.all().delete()
+        Mensualidad.objects.create(
+            alumno=alumnos[0], mes=date.today().month, anio=date.today().year,
+            monto_usd=Decimal('100.00'), monto_pagado=Decimal('60.00'),
+            fecha_vencimiento=date.today() + timedelta(days=1),
+        )
+
+        resp = self.client.post('/api/notificaciones/cobro-whatsapp/previsualizar/', {
+            'representante_cedula': rep.cedula, 'plantilla_id': self.plantilla.id,
+        }, format='json')
+
+        self.assertEqual(resp.status_code, 404)
+        self.assertIn('deuda vencida', resp.data['error'])
+
+    def test_incluye_solvencia_y_cargo_especial_que_generan_mora(self):
+        rep, alumnos = crear_representante_con_deuda('V1000010')
+        alumnos[0].mensualidades.all().delete()
+        CuotaSolvencia.objects.create(
+            alumno=alumnos[0], periodo_escolar='2026-2027', concepto='Solvencia anual',
+            monto_usd=Decimal('25.00'), monto_pagado=Decimal('5.00'),
+        )
+        tipo = TipoCargoEspecial.objects.create(
+            nombre='Proyecto familiar', monto_defecto_usd=Decimal('50.00'),
+            bloquea_inscripcion=True,
+        )
+        CuotaProyectoInversion.objects.create(
+            representante=rep, periodo_escolar='2026-2027', tipo_concepto=tipo,
+            monto_usd=Decimal('50.00'), monto_pagado=Decimal('10.00'),
+        )
+
+        resp = self.client.post('/api/notificaciones/cobro-whatsapp/previsualizar/', {
+            'representante_cedula': rep.cedula, 'plantilla_id': self.plantilla.id,
+        }, format='json')
+
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(Decimal(resp.data['monto_total']), Decimal('60.00'))
+        self.assertIn('Solvencia anual', resp.data['mensaje'])
+        self.assertIn('Proyecto familiar', resp.data['mensaje'])
 
     def test_telefono_invalido(self):
         crear_representante_con_deuda('V1000003', telefono='')

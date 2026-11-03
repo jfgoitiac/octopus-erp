@@ -298,6 +298,22 @@ class EstadoPorConceptoDetalleTest(SolvenciaReportesBase):
         )
         self.assertEqual(fila_tercero, 'parcial')
 
+    def test_detalle_accionable_excluye_retirados_y_becados(self):
+        retirado = _crear_alumno('E3100010', self.representante, activo=False)
+        becado = _crear_alumno('E3100011', self.representante, estatus_financiero='becado')
+        activo = _crear_alumno('E3100012', self.representante)
+        for alumno in (retirado, becado, activo):
+            Mensualidad.objects.create(
+                alumno=alumno, mes=10, anio=2026, monto_usd=Decimal('100.00'),
+            )
+
+        response = self.client.get(
+            '/api/cobranza/estado-por-concepto/?concepto=mensualidad&mes=10&anio=2026&page_size=100'
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual({f['alumno_id'] for f in response.data['results']}, {activo.id})
+
     def test_resumen_cuadra_con_total_sin_paginar(self):
         for i in range(25):
             a = _crear_alumno(f'E32{i:05d}', self.representante)
@@ -367,6 +383,22 @@ class MensualidadesPorMontoTest(SolvenciaReportesBase):
         self.assertEqual(detalle.data['resumen']['pagados'], 1)
         self.assertEqual(detalle.data['resumen']['pendientes'], 1)
         self.assertEqual({fila['nombre'] for fila in detalle.data['results']}, {'Alba Uno', 'Bruno Dos'})
+
+    def test_detalle_por_monto_conserva_abono_y_saldo_real(self):
+        mensualidad = self.a2.mensualidades.get(mes=9, anio=2026)
+        mensualidad.monto_pagado = Decimal('20.00')
+        mensualidad.save()
+
+        detalle = self.client.get(
+            '/api/cobranza/inteligente/mensualidades-por-monto/detalle/?mes=9&anio=2026&monto=30'
+        )
+
+        fila = next(f for f in detalle.data['results'] if f['alumno_id'] == self.a2.id)
+        self.assertEqual(fila['estado'], 'parcial')
+        self.assertEqual(Decimal(fila['monto_pagado_usd']), Decimal('20.00'))
+        self.assertEqual(Decimal(fila['saldo_usd']), Decimal('10.00'))
+        self.assertEqual(detalle.data['resumen']['parciales'], 1)
+        self.assertEqual(detalle.data['resumen']['pendientes'], 0)
 
     def test_excel_contiene_hojas_legibles_de_resumen_y_detalle(self):
         respuesta = self.client.get('/api/cobranza/inteligente/mensualidades-por-monto/exportar-excel/?mes=9&anio=2026&monto=30')

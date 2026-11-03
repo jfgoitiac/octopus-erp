@@ -370,6 +370,11 @@ def _resolver_y_filtrar(request):
 
     select_related = ('alumno', 'alumno__representante') if nivel == 'alumno' else ('representante',)
     qs = modelo.objects.filter(**filtro_extra).select_related(*select_related)
+    if nivel == 'alumno':
+        # El detalle accionable de cobranza debe trabajar con el mismo universo
+        # que Morosos/WhatsApp. Las filas históricas de retirados se conservan
+        # en BD, pero no deben ofrecer acciones de cobro.
+        qs = qs.filter(alumno__activo=True).exclude(alumno__estatus_financiero='becado')
     if nivel == 'representante':
         qs = qs.prefetch_related('representante__alumnos')
 
@@ -592,17 +597,20 @@ def _mensualidades_por_monto_qs(request):
             'alumno__representante__cedula',
         ]).distinct()
     estado = request.query_params.get('estado', 'todos')
-    if estado not in ('todos', 'pagado', 'pendiente'):
-        return None, Response({'error': 'estado debe ser todos, pagado o pendiente.'}, status=status.HTTP_400_BAD_REQUEST)
+    if estado not in ('todos', 'pagado', 'parcial', 'pendiente'):
+        return None, Response(
+            {'error': 'estado debe ser todos, pagado, parcial o pendiente.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
     if estado != 'todos':
-        qs = qs.filter(pagado=(estado == 'pagado'))
+        qs = qs.filter(_filtro_estado(estado, tiene_monto_pagado=True))
     return qs, None
 
 
 def _serializar_mensualidad_por_monto(mensualidad):
     alumno = mensualidad.alumno
     representante = alumno.representante
-    pagado = mensualidad.monto_usd if mensualidad.pagado else Decimal('0.00')
+    estado, pagado, saldo = _estado_monto_saldo(mensualidad, tiene_monto_pagado=True)
     return {
         'alumno_id': alumno.id,
         'nombre': f'{alumno.nombre} {alumno.apellido}',
@@ -616,8 +624,8 @@ def _serializar_mensualidad_por_monto(mensualidad):
         } if representante else None,
         'monto_usd': str(mensualidad.monto_usd),
         'monto_pagado_usd': str(pagado),
-        'saldo_usd': str(mensualidad.monto_usd - pagado),
-        'estado': 'pagado' if mensualidad.pagado else 'pendiente',
+        'saldo_usd': str(saldo),
+        'estado': estado,
         'fecha_pago': mensualidad.fecha_pago,
     }
 
@@ -661,7 +669,9 @@ class DetalleMensualidadesPorMontoView(APIView):
         qs = qs.filter(monto_usd=monto).order_by('alumno__apellido', 'alumno__nombre', 'id')
         resumen = qs.aggregate(
             estudiantes=Count('alumno_id', distinct=True), total_facturado_usd=Sum('monto_usd'),
-            pagados=Count('id', filter=Q(pagado=True)), pendientes=Count('id', filter=Q(pagado=False)),
+            pagados=Count('id', filter=Q(pagado=True)),
+            parciales=Count('id', filter=Q(pagado=False, monto_pagado__gt=0)),
+            pendientes=Count('id', filter=Q(pagado=False, monto_pagado__lte=0)),
         )
         paginator = StandardResultsPagination()
         pagina = paginator.paginate_queryset(qs, request, view=self)
@@ -669,7 +679,8 @@ class DetalleMensualidadesPorMontoView(APIView):
         response.data['resumen'] = {
             'monto_usd': str(monto), 'estudiantes': resumen['estudiantes'],
             'total_facturado_usd': str(resumen['total_facturado_usd'] or Decimal('0.00')),
-            'pagados': resumen['pagados'], 'pendientes': resumen['pendientes'],
+            'pagados': resumen['pagados'], 'parciales': resumen['parciales'],
+            'pendientes': resumen['pendientes'],
         }
         return response
 
@@ -726,7 +737,8 @@ class MensualidadesPorGradoView(APIView):
             grupo['alumnos'].append({
                 'alumno_id': alumno.id, 'nombre': alumno.nombre, 'apellido': alumno.apellido,
                 'representante': f'{representante.nombre} {representante.apellido}' if representante else None,
-                'monto_usd': str(item.monto_usd), 'estado': 'pagado' if item.pagado else 'pendiente',
+                'monto_usd': str(item.monto_usd),
+                'estado': _estado_monto_saldo(item, tiene_monto_pagado=True)[0],
             })
 
         # Los sin grado ('') al final; el resto en orden académico natural.
@@ -783,12 +795,13 @@ class ExportarMensualidadesPorMontoExcelView(APIView):
         detalle_ws.append(['Nombre', 'Apellido', 'Cédula escolar', 'Grado / Sección', 'Representante', 'Teléfono', 'Mensualidad (USD)', 'Pagado (USD)', 'Saldo (USD)', 'Estado', 'Fecha de pago'])
         for item in qs.order_by('monto_usd', 'alumno__apellido', 'alumno__nombre'):
             alumno, representante = item.alumno, item.alumno.representante
-            pagado = item.monto_usd if item.pagado else Decimal('0.00')
+            estado, pagado, saldo = _estado_monto_saldo(item, tiene_monto_pagado=True)
             detalle_ws.append([
                 alumno.nombre, alumno.apellido, alumno.cedula_escolar, alumno.grado_seccion,
                 f'{representante.nombre} {representante.apellido}' if representante else '',
                 representante.telefono if representante else '', float(item.monto_usd), float(pagado),
-                float(item.monto_usd - pagado), 'Pagado' if item.pagado else 'Pendiente', item.fecha_pago or '',
+                float(saldo), {'pagado': 'Pagado', 'parcial': 'Parcial', 'pendiente': 'Pendiente'}[estado],
+                item.fecha_pago or '',
             ])
         for hoja in (resumen_ws, detalle_ws):
             hoja.freeze_panes = 'A2'
