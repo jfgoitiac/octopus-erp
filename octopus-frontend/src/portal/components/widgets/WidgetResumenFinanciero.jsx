@@ -23,9 +23,10 @@ const AccionMensualidad = ({ mensualidad, comprobante, onPagar }) => {
   );
 };
 
-// La deuda es SIEMPRE la de todos los hijos del representante (el backend la
-// suma); con varios hijos cada mensualidad indica a qué hijo corresponde.
-const WidgetResumenFinanciero = ({ resumen, tieneDeuda, loading, onPagar, variosAlumnos = false, comprobantePorMensualidad = {} }) => {
+// El backend entrega la deuda familiar y el desglose por alumno. Este widget
+// muestra el consolidado o filtra el detalle cuando el representante elige
+// uno de sus hijos.
+const WidgetResumenFinanciero = ({ resumen, tieneDeuda, loading, onPagar, variosAlumnos = false, alumnoId = null, comprobantePorMensualidad = {} }) => {
   if (loading) {
     return <SkeletonCard lines={3} />;
   }
@@ -33,9 +34,46 @@ const WidgetResumenFinanciero = ({ resumen, tieneDeuda, loading, onPagar, varios
   if (!resumen) return null;
 
   const tasaBcv = resumen.tasa_bcv;
-  const mensualidades = resumen.mensualidades_vencidas || [];
-  const otrosConceptos = resumen.otros_conceptos_pendientes || [];
+  const mensualidades = (resumen.mensualidades_vencidas || []).filter(
+    (mensualidad) => alumnoId === null || String(mensualidad.alumno_id) === String(alumnoId),
+  );
+  const otrosConceptos = (resumen.otros_conceptos_pendientes || []).filter(
+    (concepto) => alumnoId === null || String(concepto.alumno_id) === String(alumnoId),
+  );
   const cantidadPendientes = mensualidades.length + otrosConceptos.length;
+  const gruposMensualidades = mensualidades.reduce((grupos, mensualidad) => {
+    const clave = String(mensualidad.alumno_id ?? 'sin-alumno');
+    if (!grupos.has(clave)) grupos.set(clave, []);
+    grupos.get(clave).push(mensualidad);
+    return grupos;
+  }, new Map());
+
+  const renderMensualidad = (m) => (
+    <li key={m.id} className="flex items-center justify-between gap-3 bg-[var(--portal-canvas)] rounded-[var(--portal-radius-sm)] px-4 py-3.5">
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-[var(--portal-ink)] sm:text-base">{m.mes_nombre} {m.anio}</p>
+        {variosAlumnos && alumnoId === null && gruposMensualidades.size === 1 && m.alumno_nombre && (
+          <p className="text-xs text-[var(--jet-mid)] truncate">{m.alumno_nombre}</p>
+        )}
+        <p className={`text-xs ${Number(m.dias_mora) > 0 ? 'text-[var(--red)] font-medium' : 'text-[var(--portal-muted)]'}`}>{textoVencimiento(m)}</p>
+        {m.porcentaje_beca_aplicado > 0 && (
+          <span className="inline-block mt-1 text-xs font-semibold px-1.5 py-0.5 rounded-full bg-[var(--portal-tint)] text-[var(--portal-tint-ink)]">
+            Beca -{m.porcentaje_beca_aplicado}%
+          </span>
+        )}
+        {m.monto_recargo > 0 && (
+          <p className="text-xs text-[var(--red)] font-medium">Incluye REF. {fmtMonto(m.monto_recargo)} de {m.nombre_recargo || 'recargo'}</p>
+        )}
+        {m.monto_descuento > 0 && (
+          <p className="text-xs text-[var(--green)] font-medium">Ahorras REF. {fmtMonto(m.monto_descuento)} ({m.nombre_descuento || 'descuento'})</p>
+        )}
+      </div>
+      <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+        <MontoRef usd={m.monto_total ?? m.monto_usd} tasaBcv={tasaBcv} />
+        <AccionMensualidad mensualidad={m} comprobante={comprobantePorMensualidad[m.id]} onPagar={onPagar} />
+      </div>
+    </li>
+  );
 
   return (
     <section className="portal-card p-5 sm:p-6 h-full" aria-labelledby="resumen-financiero">
@@ -58,34 +96,21 @@ const WidgetResumenFinanciero = ({ resumen, tieneDeuda, loading, onPagar, varios
       )}
 
       {mensualidades.length > 0 && (
-        <ul className="space-y-2.5">
-          {mensualidades.map((m) => (
-            <li key={m.id} className="flex items-center justify-between gap-3 bg-[var(--portal-canvas)] rounded-[var(--portal-radius-sm)] px-4 py-3.5">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-[var(--portal-ink)] sm:text-base">{m.mes_nombre} {m.anio}</p>
-                {variosAlumnos && m.alumno_nombre && (
-                  <p className="text-xs text-[var(--jet-mid)] truncate">{m.alumno_nombre}</p>
-                )}
-                <p className={`text-xs ${Number(m.dias_mora) > 0 ? 'text-[var(--red)] font-medium' : 'text-[var(--portal-muted)]'}`}>{textoVencimiento(m)}</p>
-                {m.porcentaje_beca_aplicado > 0 && (
-                  <span className="inline-block mt-1 text-xs font-semibold px-1.5 py-0.5 rounded-full bg-[var(--portal-tint)] text-[var(--portal-tint-ink)]">
-                    Beca -{m.porcentaje_beca_aplicado}%
-                  </span>
-                )}
-                {m.monto_recargo > 0 && (
-                  <p className="text-xs text-[var(--red)] font-medium">Incluye REF. {fmtMonto(m.monto_recargo)} de {m.nombre_recargo || 'recargo'}</p>
-                )}
-                {m.monto_descuento > 0 && (
-                  <p className="text-xs text-[var(--green)] font-medium">Ahorras REF. {fmtMonto(m.monto_descuento)} ({m.nombre_descuento || 'descuento'})</p>
-                )}
+        variosAlumnos && alumnoId === null ? (
+          <div className="space-y-5">
+            {[...gruposMensualidades.values()].map((grupo) => (
+              <div key={grupo[0].alumno_id}>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <p className="truncate text-sm font-semibold text-[var(--portal-ink)]">{grupo[0].alumno_nombre}</p>
+                  <p className="shrink-0 text-xs text-[var(--portal-muted)]">{grupo.length} mensualidad{grupo.length === 1 ? '' : 'es'}</p>
+                </div>
+                <ul className="space-y-2.5">{grupo.map(renderMensualidad)}</ul>
               </div>
-              <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                <MontoRef usd={m.monto_total ?? m.monto_usd} tasaBcv={tasaBcv} />
-                <AccionMensualidad mensualidad={m} comprobante={comprobantePorMensualidad[m.id]} onPagar={onPagar} />
-              </div>
-            </li>
-          ))}
-        </ul>
+            ))}
+          </div>
+        ) : (
+          <ul className="space-y-2.5">{mensualidades.map(renderMensualidad)}</ul>
+        )
       )}
 
       {/* Otros conceptos pendientes: inscripción y proyecto de inversión.

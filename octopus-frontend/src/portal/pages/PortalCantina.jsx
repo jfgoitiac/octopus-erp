@@ -7,7 +7,6 @@ import EstudianteSelector from '../components/EstudianteSelector';
 import SaldoTarjetaCard from '../components/SaldoTarjetaCard';
 import EstadoCuentaConsumos from '../components/EstadoCuentaConsumos';
 import DetalleConsumoModal from '../components/DetalleConsumoModal';
-import RecargarTarjetaModal from '../components/RecargarTarjetaModal';
 import CuentaCantinaCard from '../components/CuentaCantinaCard';
 
 const PortalCantina = () => {
@@ -25,10 +24,6 @@ const PortalCantina = () => {
   const [pagina, setPagina] = useState(1);
   const [loadingConsumos, setLoadingConsumos] = useState(false);
   const [consumoAbierto, setConsumoAbierto] = useState(null);
-
-  const [modalOpen, setModalOpen] = useState(false);
-  // Se incrementa tras una recarga para volver a pedir saldo y consumos.
-  const [recargasEnviadas, setRecargasEnviadas] = useState(0);
 
   // Cuenta por cobrar de cantina/librería (es del representante, no de un alumno)
   const [cuenta, setCuenta] = useState(null);
@@ -56,7 +51,7 @@ const PortalCantina = () => {
     if (dashboardData) sincronizarConLista(alumnos);
   }, [dashboardData, alumnos, sincronizarConLista]);
 
-  // Cargar saldo cuando cambia el alumno activo o tras una recarga
+  // Cargar saldo cuando cambia el alumno activo.
   useEffect(() => {
     if (!alumnoActivo) return;
     const controller = new AbortController();
@@ -79,9 +74,9 @@ const PortalCantina = () => {
 
     cargarSaldo();
     return () => controller.abort();
-  }, [alumnoActivo, recargasEnviadas]);
+  }, [alumnoActivo]);
 
-  // Cargar consumos cuando cambia el alumno activo, la página o tras una recarga
+  // Cargar consumos cuando cambia el alumno activo o la página.
   useEffect(() => {
     if (!alumnoActivo) return;
     const controller = new AbortController();
@@ -101,16 +96,11 @@ const PortalCantina = () => {
 
     cargarConsumos();
     return () => controller.abort();
-  }, [alumnoActivo, pagina, recargasEnviadas]);
+  }, [alumnoActivo, pagina]);
 
   const handleSelectAlumno = (alumno) => {
     setAlumnoActivo(alumno);
     setPagina(1);
-  };
-
-  const handleRecargaExitosa = () => {
-    setModalOpen(false);
-    setRecargasEnviadas((n) => n + 1);
   };
 
   return (
@@ -150,7 +140,6 @@ const PortalCantina = () => {
       <SaldoTarjetaCard
         saldoTarjeta={saldoTarjeta}
         loading={loadingAlumnos || loadingSaldo}
-        onRecargar={() => setModalOpen(true)}
       />
 
       {/* Estado de cuenta de consumos — también para alumnos sin tarjeta, que
@@ -171,13 +160,6 @@ const PortalCantina = () => {
 
       <DetalleConsumoModal consumo={consumoAbierto} onClose={() => setConsumoAbierto(null)} />
 
-      {/* Modal de recarga */}
-      <RecargarTarjetaModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        alumno={alumnoActivo}
-        onSuccess={handleRecargaExitosa}
-      />
     </div>
   );
 };

@@ -7,9 +7,8 @@ import { fmtMonto } from '../utils/montos';
  * Props:
  *   saldoTarjeta: { tiene_tarjeta, saldo, limite_credito, estado, dias_negativo } | null
  *   loading: boolean
- *   onRecargar: () => void
  */
-const SaldoTarjetaCard = ({ saldoTarjeta, loading, onRecargar }) => {
+const SaldoTarjetaCard = ({ saldoTarjeta, loading }) => {
   if (loading) {
     return <SkeletonCard lines={2} />;
   }
@@ -58,13 +57,6 @@ const SaldoTarjetaCard = ({ saldoTarjeta, loading, onRecargar }) => {
         <p className="text-xs text-[var(--yellow)] mt-1">Tarjeta: {saldoTarjeta.estado_display || saldoTarjeta.estado}</p>
       )}
 
-      <button
-        onClick={onRecargar}
-        className="mt-3 w-full flex items-center justify-center gap-2 bg-[var(--portal-primary)] text-white font-medium py-3 rounded-xl text-sm hover:bg-[color-mix(in_srgb,var(--portal-primary)_85%,black)] transition-colors min-h-[44px]"
-      >
-        <Wallet size={16} aria-hidden="true" />
-        Recargar saldo
-      </button>
     </div>
   );
 };

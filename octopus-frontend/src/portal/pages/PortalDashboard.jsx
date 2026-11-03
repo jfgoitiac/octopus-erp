@@ -13,6 +13,7 @@ import WidgetProximosVencimientos from '../components/widgets/WidgetProximosVenc
 import WidgetMisComprobantes from '../components/widgets/WidgetMisComprobantes';
 import WidgetUltimosPagos from '../components/widgets/WidgetUltimosPagos';
 import WidgetFamiliaHoy from '../components/widgets/WidgetFamiliaHoy';
+import FiltroDeudaEstudiante from '../components/FiltroDeudaEstudiante';
 
 const PortalDashboard = () => {
   const { user } = useContext(PortalAuthContext);
@@ -25,6 +26,7 @@ const PortalDashboard = () => {
   const { alumnoActivo, sincronizarConLista } = useAlumnoActivo();
   const [modalOpen, setModalOpen] = useState(false);
   const [mensualidadInicialId, setMensualidadInicialId] = useState(null);
+  const [alumnoFinancieroId, setAlumnoFinancieroId] = useState(null);
   const { comprobantes, ultimoPorMensualidad, recargar: recargarComprobantes } = useComprobantesPortal();
 
   useEffect(() => {
@@ -35,11 +37,15 @@ const PortalDashboard = () => {
     usePortalHeroExtra(dashboardData?.alumnos);
 
   const resumen = dashboardData?.resumen_financiero;
+  const alumnos = dashboardData?.alumnos || [];
   const variosAlumnos = (dashboardData?.alumnos?.length || 0) > 1;
-  const tieneDeuda = resumen && Number(resumen.total_deuda_usd) > 0;
+  const deudaVisible = alumnoFinancieroId === null
+    ? Number(resumen?.total_deuda_usd || 0)
+    : Number(resumen?.deuda_por_alumno?.find((item) => String(item.alumno_id) === String(alumnoFinancieroId))?.deuda_usd || 0);
+  const tieneDeuda = deudaVisible > 0;
 
-  // El inicio es de toda la familia: deuda, comprobantes y últimos pagos
-  // suman a todos los hijos. El detalle por hijo vive en Historial.
+  // El inicio conserva el total familiar, pero el bloque financiero permite
+  // consultar el detalle de un hijo sin afectar comprobantes ni pagos.
   const ultimosPagos = dashboardData?.ultimos_pagos || [];
 
   // Todo lo que se puede reportar desde el portal: las vencidas primero y
@@ -101,6 +107,13 @@ const PortalDashboard = () => {
           )}
         </div>
 
+        <FiltroDeudaEstudiante
+          alumnos={alumnos}
+          resumen={resumen}
+          alumnoId={alumnoFinancieroId}
+          onChange={setAlumnoFinancieroId}
+        />
+
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6 lg:items-start">
           <WidgetResumenFinanciero
             resumen={resumen}
@@ -108,6 +121,7 @@ const PortalDashboard = () => {
             loading={loading}
             onPagar={abrirPago}
             variosAlumnos={variosAlumnos}
+            alumnoId={alumnoFinancieroId}
             comprobantePorMensualidad={ultimoPorMensualidad}
           />
 
@@ -122,6 +136,7 @@ const PortalDashboard = () => {
               resumen={resumen}
               loading={loading}
               variosAlumnos={variosAlumnos}
+              alumnoId={alumnoFinancieroId}
               comprobantePorMensualidad={ultimoPorMensualidad}
               onPagar={abrirPago}
             />

@@ -6,12 +6,14 @@ import EstadoBadge from '../EstadoBadge';
 
 // Mensualidades que aún no vencen (hasta 2 por hijo). Se pueden pagar por
 // adelantado desde aquí mismo.
-const WidgetProximosVencimientos = ({ resumen, loading, variosAlumnos = false, comprobantePorMensualidad = {}, onPagar }) => {
+const WidgetProximosVencimientos = ({ resumen, loading, variosAlumnos = false, alumnoId = null, comprobantePorMensualidad = {}, onPagar }) => {
   if (loading) {
     return <SkeletonCard lines={2} />;
   }
 
-  const vencimientos = resumen?.proximos_vencimientos || [];
+  const vencimientos = (resumen?.proximos_vencimientos || []).filter(
+    (mensualidad) => alumnoId === null || String(mensualidad.alumno_id) === String(alumnoId),
+  );
   if (!vencimientos.length) return null;
 
   return (
