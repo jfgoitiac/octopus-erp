@@ -21,8 +21,16 @@ import { etiquetaMetodo } from '../components/cantina/metodoPagoUtils';
 const CLAVE_CONFIG = 'cantina_impresora';
 
 export const MODOS = { DIALOGO: 'dialogo', BLE: 'ble', SERIAL: 'serial', RAWBT: 'rawbt' };
+export const MARGENES_FINALES = { COMPACTO: 'compacto', NORMAL: 'normal' };
 
-const CONFIG_BASE = { modo: MODOS.DIALOGO, nombre: '', deviceId: '', baudRate: 9600, bleRapido: false };
+const CONFIG_BASE = {
+  modo: MODOS.DIALOGO,
+  nombre: '',
+  deviceId: '',
+  baudRate: 9600,
+  bleRapido: false,
+  margenFinal: MARGENES_FINALES.COMPACTO,
+};
 
 export const getConfigImpresora = () => {
   try {
@@ -37,6 +45,14 @@ export const guardarConfigImpresora = (parcial) => {
   try { localStorage.setItem(CLAVE_CONFIG, JSON.stringify(nueva)); } catch { /* sin persistencia */ }
   return nueva;
 };
+
+export const getLineasFinales = () => (
+  getConfigImpresora().margenFinal === MARGENES_FINALES.NORMAL ? 3 : 1
+);
+
+export const getMargenFinalMm = () => (
+  getConfigImpresora().margenFinal === MARGENES_FINALES.NORMAL ? 7 : 2
+);
 
 export const soporteBluetooth = () => typeof navigator !== 'undefined' && !!navigator.bluetooth;
 export const soporteSerial = () => typeof navigator !== 'undefined' && !!navigator.serial;
@@ -258,8 +274,12 @@ export class Ticket {
     for (let i = 0; i < bits.length; i++) this.buf.push(bits[i]);
     return this;
   }
-  // GS V 66 0 ya avanza el papel hasta la cuchilla antes de cortar: basta un avance mínimo.
-  cortar() { return this.raw(LF, GS, 0x56, 0x42, 0x00); }
+  // GS V 66 0 avanza hasta la cuchilla. Una sola línea es el modo compacto;
+  // tres dejan espacio para sujetar el papel en equipos de corte manual.
+  cortar(lineas = 1) {
+    for (let i = 0; i < lineas; i += 1) this.raw(LF);
+    return this.raw(GS, 0x56, 0x42, 0x00);
+  }
   bytes() { return new Uint8Array(this.buf); }
 }
 
@@ -365,7 +385,7 @@ export async function construirReciboEscPos(venta, ancho, logoUrl) {
       .negrita(true).fila('Saldo restante', bs(venta.saldo_tarjeta_despues)).negrita(false);
   }
   t.guiones().alinear(1).negrita(true).linea('ENTREGAR AL ALUMNO').negrita(false).alinear(0);
-  return t.cortar().bytes();
+  return t.cortar(getLineasFinales()).bytes();
 }
 
 export async function imprimirReciboDirecto(venta, ancho, logoUrl) {
@@ -379,5 +399,5 @@ export async function imprimirPrueba(ancho) {
     .linea(format(new Date(), 'dd/MM/yyyy HH:mm', { locale: es }))
     .linea('áéíóú ñ Ñ ¿? ¡!').alinear(0).guiones()
     .fila('Producto de ejemplo', '$1.50');
-  await enviarBytes(t.cortar().bytes());
+  await enviarBytes(t.cortar(getLineasFinales()).bytes());
 }

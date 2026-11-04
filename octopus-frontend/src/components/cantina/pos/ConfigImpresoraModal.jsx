@@ -4,7 +4,7 @@ import { Bluetooth, Cable, Printer, Unplug, Loader2, Smartphone } from 'lucide-r
 import { Modal } from '../../ui/Modal';
 import { getAnchoPapel, setAnchoPapel } from '../../../utils/imprimirReciboCantina';
 import {
-  MODOS, getConfigImpresora, guardarConfigImpresora, soporteBluetooth, soporteSerial,
+  MODOS, MARGENES_FINALES, getConfigImpresora, guardarConfigImpresora, soporteBluetooth, soporteSerial,
   conectarBluetooth, conectarSerial, activarRawBT, desconectarImpresora, impresoraConectada, imprimirPrueba,
 } from '../../../utils/impresoraTermica';
 
@@ -168,6 +168,31 @@ export default function ConfigImpresoraModal({ onCerrar }) {
             ))}
           </div>
         </div>
+
+        <div className="flex items-center justify-between gap-3 text-xs" style={{ color: 'var(--ash)' }}>
+          Margen final
+          <div className="flex items-center gap-1.5">
+            {[
+              [MARGENES_FINALES.COMPACTO, 'Compacto'],
+              [MARGENES_FINALES.NORMAL, 'Normal'],
+            ].map(([valor, etiqueta]) => (
+              <button
+                key={valor}
+                type="button"
+                onClick={() => setConfig(guardarConfigImpresora({ margenFinal: valor }))}
+                className="px-2.5 rounded-lg min-h-[32px]"
+                style={config.margenFinal === valor
+                  ? { background: 'var(--pb)', color: '#fff' }
+                  : { border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
+              >
+                {etiqueta}
+              </button>
+            ))}
+          </div>
+        </div>
+        <p className="text-xs" style={{ color: 'var(--ash)' }}>
+          Compacto deja solo el espacio mínimo para cortar. Usa Normal si la impresora no tiene cuchilla automática.
+        </p>
 
         {configurada && (
           <div className="flex flex-col gap-2 sm:flex-row">

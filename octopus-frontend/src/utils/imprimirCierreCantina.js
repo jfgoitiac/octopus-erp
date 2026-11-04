@@ -1,6 +1,9 @@
 import { toast } from 'react-toastify';
 import { getAnchoPapel } from './imprimirReciboCantina';
-import { getConfigImpresora, enviarBytes, MODOS, Ticket, logoRaster } from './impresoraTermica';
+import {
+  getConfigImpresora, getLineasFinales, getMargenFinalMm, enviarBytes, MODOS, Ticket, logoRaster,
+} from './impresoraTermica';
+import { imprimirHtmlTermico } from './imprimirHtmlTermico';
 import { lineasReporteCierre } from './reporteCierreCaja';
 
 /**
@@ -78,7 +81,7 @@ export async function construirCierreEscPos(lineas, ancho, logoUrl) {
       default: break;
     }
   }
-  return t.cortar().bytes();
+  return t.cortar(getLineasFinales()).bytes();
 }
 
 export function imprimirCierreCantina(cierre, ancho = getAnchoPapel()) {
@@ -95,26 +98,9 @@ export function imprimirCierreCantina(cierre, ancho = getAnchoPapel()) {
     return;
   }
 
-  const iframe = document.createElement('iframe');
-  iframe.style.cssText = 'position:fixed;width:0;height:0;border:0;visibility:hidden;';
-  document.body.appendChild(iframe);
-
-  const doc = iframe.contentDocument || iframe.contentWindow.document;
-  doc.open();
-  doc.write(construirHtml(lineas, ancho, `Cierre #${cierre.id}`));
-  doc.close();
-
-  const limpiar = () => setTimeout(() => iframe.remove(), 1000);
-  const imprimir = () => {
-    iframe.contentWindow.focus();
-    iframe.contentWindow.print();
-    limpiar();
-  };
-  const img = doc.querySelector('img');
-  if (img && !img.complete) {
-    img.onload = imprimir;
-    img.onerror = imprimir;
-  } else {
-    setTimeout(imprimir, 100);
-  }
+  imprimirHtmlTermico(
+    construirHtml(lineas, ancho, `Cierre #${cierre.id}`),
+    ancho,
+    getMargenFinalMm(),
+  );
 }

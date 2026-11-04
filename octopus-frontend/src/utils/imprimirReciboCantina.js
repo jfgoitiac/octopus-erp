@@ -4,8 +4,9 @@ import { ETIQUETA_AREA } from '../cantina/aperturaEvento';
 import { toast } from 'react-toastify';
 import { etiquetaMetodo } from '../components/cantina/metodoPagoUtils';
 import {
-  getConfigImpresora, imprimirReciboDirecto, precalentarLogo, MODOS, tasaVenta, bsDesdeUsd, formatoBs,
+  getConfigImpresora, getMargenFinalMm, imprimirReciboDirecto, precalentarLogo, MODOS, tasaVenta, bsDesdeUsd, formatoBs,
 } from './impresoraTermica';
+import { imprimirHtmlTermico } from './imprimirHtmlTermico';
 
 /**
  * Recibo de la caja de cantina para impresora térmica (Bluetooth o USB).
@@ -121,27 +122,5 @@ export function imprimirReciboCantina(venta, ancho = getAnchoPapel()) {
     });
     return;
   }
-  const iframe = document.createElement('iframe');
-  iframe.style.cssText = 'position:fixed;width:0;height:0;border:0;visibility:hidden;';
-  document.body.appendChild(iframe);
-
-  const doc = iframe.contentDocument || iframe.contentWindow.document;
-  doc.open();
-  doc.write(construirHtml(venta, ancho));
-  doc.close();
-
-  const limpiar = () => setTimeout(() => iframe.remove(), 1000);
-  const imprimir = () => {
-    iframe.contentWindow.focus();
-    iframe.contentWindow.print();
-    limpiar();
-  };
-  // Esperar al logo para que no salga el recibo sin imagen.
-  const img = doc.querySelector('img');
-  if (img && !img.complete) {
-    img.onload = imprimir;
-    img.onerror = imprimir;
-  } else {
-    setTimeout(imprimir, 0);
-  }
+  imprimirHtmlTermico(construirHtml(venta, ancho), ancho, getMargenFinalMm());
 }
