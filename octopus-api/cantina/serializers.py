@@ -177,6 +177,8 @@ class RecargaTarjetaSerializer(serializers.ModelSerializer):
     cajero_nombre = serializers.CharField(source='cajero.nombre_completo', read_only=True, default=None)
     revisado_por_username = serializers.CharField(source='revisado_por.username', read_only=True, default=None)
     revisado_por_nombre = serializers.CharField(source='revisado_por.nombre_completo', read_only=True, default=None)
+    anulada_por_username = serializers.CharField(source='anulada_por.username', read_only=True, default=None)
+    reemplazo_id = serializers.IntegerField(source='recarga_correctiva.id', read_only=True, default=None)
 
     class Meta:
         model = RecargaTarjeta
@@ -186,12 +188,18 @@ class RecargaTarjetaSerializer(serializers.ModelSerializer):
             'banco_procedencia', 'referencia', 'numero_lote', 'estatus',
             'comprobante', 'registrado_por_portal', 'cajero', 'cajero_username', 'cajero_nombre',
             'revisado_por', 'revisado_por_username', 'revisado_por_nombre', 'creado_en', 'revisado_en',
+            'apertura', 'anulada_en', 'anulada_por', 'anulada_por_username',
+            'motivo_anulacion', 'devolucion_dinero', 'apertura_reverso',
+            'cierre_afectado', 'reemplaza_a', 'reemplazo_id',
         )
         # monto_usd/monto_ves/saldo derivados nunca se aceptan del cliente si
         # son calculados por el backend — ver §10 checklist de cantina.md.
         read_only_fields = (
             'tasa_aplicada', 'monto_ves', 'estatus', 'registrado_por_portal',
             'cajero', 'revisado_por', 'creado_en', 'revisado_en',
+            'apertura', 'anulada_en', 'anulada_por', 'motivo_anulacion',
+            'devolucion_dinero', 'apertura_reverso', 'cierre_afectado',
+            'reemplaza_a',
         )
 
     def get_alumno_nombre(self, obj):
@@ -212,7 +220,10 @@ class RecargaTarjetaSerializer(serializers.ModelSerializer):
             data.get('referencia'),
             data.get('numero_lote'),
             data.get('banco_receptor'),
-            excluir_recarga_id=(self.instance.pk if self.instance else None),
+            excluir_recarga_id=(
+                self.context.get('excluir_recarga_id')
+                or (self.instance.pk if self.instance else None)
+            ),
         )
         if errores:
             raise serializers.ValidationError(errores)

@@ -1,0 +1,24 @@
+{% extends "notificaciones/base_email.html" %}
+{% block content %}
+<p style="font-size:16px;">Estimado/a <strong>{{ nombre_representante }}</strong>,</p>
+
+<div class="alert">
+  <strong>{% if corregida %}Recarga de cantina corregida.{% else %}Recarga de cantina anulada.{% endif %}</strong>
+</div>
+
+<p style="font-size:14px; color:#555; line-height:1.7;">
+  Se realizó una corrección sobre la tarjeta de {{ nombre_alumno }}. La operación original permanece registrada para auditoría.
+</p>
+
+<table class="data">
+  <tr><th>Alumno</th><td>{{ nombre_alumno }}</td></tr>
+  <tr><th>Monto original</th><td><strong>${{ monto }} USD</strong></td></tr>
+  {% if corregida %}<tr><th>Monto corregido</th><td><strong>${{ monto_corregido }} USD</strong></td></tr>{% endif %}
+  <tr><th>Saldo actual</th><td><strong>${{ saldo_actual }} USD</strong></td></tr>
+  <tr><th>Motivo</th><td>{{ motivo }}</td></tr>
+</table>
+
+<div style="text-align:center;">
+  <a href="{{ portal_url }}" class="btn">Ver Cantina en el Portal</a>
+</div>
+{% endblock %}

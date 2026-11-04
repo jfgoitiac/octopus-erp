@@ -5,6 +5,7 @@ import { getTarjetas } from '../../api/cantina.service';
 
 vi.mock('../../api/cantina.service', () => ({ getTarjetas: vi.fn() }));
 vi.mock('../../components/cantina/tarjetas/GestionQrPanel', () => ({ default: () => <div /> }));
+vi.mock('../../components/cantina/tarjetas/HistorialRecargas', () => ({ default: () => <div /> }));
 vi.mock('../../components/cantina/tarjetas/TarjetasTable', () => ({ default: () => <div /> }));
 vi.mock('../../components/cantina/tarjetas/ConsultarSaldoModal', () => ({ default: () => null }));
 vi.mock('../../components/cantina/tarjetas/GenerarLoteModal', () => ({ default: () => null }));

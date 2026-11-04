@@ -21,6 +21,7 @@ const ICONO_ORIGEN = {
   abonos: HandCoins,
   cargado_a_cuenta: FileClock,
   anuladas: Ban,
+  reversos_recarga: Ban,
   recargas_portal: Globe,
 };
 

@@ -137,6 +137,20 @@ export const aprobarRecarga = (id, signal) =>
 export const rechazarRecarga = (id, signal) =>
   cantinaApiClient.post(`recargas/${id}/rechazar/`, {}, { signal });
 
+// Historial operativo y reversos de recargas. Una anulación nunca borra la
+// recarga original; el backend devuelve el saldo proyectado y permisos.
+export const getHistorialRecargas = (params, signal) =>
+  cantinaApiClient.get('recargas/', { params, signal });
+
+export const anularRecarga = (id, payload, signal) =>
+  cantinaApiClient.post(`recargas/${id}/anular/`, payload, { signal });
+
+export const corregirRecarga = (id, payload, signal) =>
+  cantinaApiClient.post(`recargas/${id}/corregir/`, payload, { signal });
+
+export const descargarComprobanteAnulacionRecarga = (id, signal) =>
+  cantinaApiClient.get(`recargas/${id}/comprobante-anulacion/`, { signal, responseType: 'blob' });
+
 /* ── Ventas / POS (§5.6/§7.2/§8 FASE 4 cantina.md) ──
  *
  * Estas dos funciones son el ÚNICO punto de contacto con los nombres de

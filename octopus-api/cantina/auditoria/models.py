@@ -53,6 +53,8 @@ class EventoAuditoriaCantina(models.Model):
         ('cambio_precio', 'Cambio de precio o costo'),
         ('producto_creado', 'Producto creado'),
         ('anulacion_venta', 'Anulación de venta'),
+        ('anulacion_recarga', 'Anulación de recarga'),
+        ('correccion_recarga', 'Corrección de recarga'),
         ('descuento_venta', 'Venta con descuento'),
         ('venta_manual', 'Venta manual'),
         ('movimiento_inventario', 'Entrada de inventario'),

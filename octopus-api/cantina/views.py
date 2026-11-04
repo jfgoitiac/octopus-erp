@@ -9,12 +9,13 @@ import qrcode
 from django.core.cache import cache
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
-from django.db.models import Count, F, Sum
+from django.db.models import Count, F, Q, Sum
 from django.db.models.functions import TruncDate
 from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import permissions, serializers as drf_serializers, status
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -57,8 +58,15 @@ from .serializers import (
 )
 from .services_inventario import aplicar_movimiento_inventario
 from .services_tarjeta import aplicar_movimiento_tarjeta, generar_codigo_tarjeta
+from .services_recargas import (
+    ReversoRequiereAutorizacion,
+    anular_recarga,
+    apertura_abierta_usuario,
+    es_admin_cantina,
+    evaluar_anulacion,
+)
 from pagos_comunes.referencias import buscar_referencia_duplicada
-from .utils import generar_pdf_ticket, tasa_cantina_activa, validar_datos_bancarios
+from .utils import generar_pdf_reverso_recarga, generar_pdf_ticket, tasa_cantina_activa, validar_datos_bancarios
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +114,15 @@ def _texto_seguro(valor):
     if valor is None or isinstance(valor, (dict, list)):
         return ''
     return str(valor).strip()
+
+
+def _booleano(valor):
+    """Booleano estricto para payloads JSON/form; la cadena 'false' no es True."""
+    if isinstance(valor, bool):
+        return valor
+    if isinstance(valor, (int, Decimal)):
+        return valor == 1
+    return str(valor).strip().lower() in {'1', 'true', 'sí', 'si', 'yes', 'on'}
 
 
 def _mensaje_error(exc):
@@ -701,6 +718,7 @@ class AsignarYRecargarTarjetaView(APIView):
                 cajero=request.user,
                 revisado_por=request.user,
                 revisado_en=timezone.now(),
+                apertura=apertura_abierta_usuario(request.user),
             )
             aplicar_movimiento_tarjeta(
                 tarjeta, 'recarga', recarga.monto_usd,
@@ -950,6 +968,7 @@ class RecargarTarjetaCajeroView(APIView):
                 cajero=request.user,
                 revisado_por=request.user,
                 revisado_en=timezone.now(),
+                apertura=apertura_abierta_usuario(request.user),
             )
             aplicar_movimiento_tarjeta(
                 recarga.tarjeta, 'recarga', recarga.monto_usd,
@@ -1045,6 +1064,180 @@ class RechazarRecargaView(APIView):
         recarga.save(update_fields=['estatus', 'revisado_por', 'revisado_en'])
 
         return Response(RecargaTarjetaSerializer(recarga).data, status=status.HTTP_200_OK)
+
+
+class RecargasPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 50
+
+
+def _recarga_operable_data(recarga, request):
+    data = RecargaTarjetaSerializer(recarga, context={'request': request}).data
+    evaluacion = evaluar_anulacion(recarga, request.user)
+    data.update({
+        'puede_anular': evaluacion['puede_anular'],
+        'puede_corregir': evaluacion['puede_corregir'],
+        'requiere_admin': evaluacion['requiere_admin'],
+        'caja_cerrada': evaluacion['caja_cerrada'],
+        'saldo_actual': str(evaluacion['saldo_actual']),
+        'saldo_proyectado': str(evaluacion['saldo_proyectado']),
+        'requiere_forzar_saldo': evaluacion['requiere_forzar_saldo'],
+        'puede_forzar_saldo': es_admin_cantina(request.user),
+    })
+    return data
+
+
+class RecargasHistorialView(APIView):
+    """Historial paginado y buscable de recargas, incluidas las anuladas."""
+    permission_classes = [permissions.IsAuthenticated, EsCajeroOAdmin]
+
+    def get(self, request):
+        qs = RecargaTarjeta.objects.select_related(
+            'tarjeta__alumno', 'tarjeta__cliente', 'cajero', 'revisado_por',
+            'anulada_por', 'apertura', 'apertura_reverso', 'cierre_afectado',
+        ).all()
+        estatus = request.query_params.get('estatus')
+        if estatus and estatus in dict(RecargaTarjeta.ESTATUS):
+            qs = qs.filter(estatus=estatus)
+        q = _texto_seguro(request.query_params.get('q'))
+        if q:
+            qs = qs.filter(
+                Q(tarjeta__serial__icontains=q)
+                | Q(tarjeta__alumno__nombre__icontains=q)
+                | Q(tarjeta__alumno__apellido__icontains=q)
+                | Q(tarjeta__cliente__nombre__icontains=q)
+                | Q(tarjeta__cliente__apellido__icontains=q)
+                | Q(referencia__icontains=q)
+                | Q(cajero__username__icontains=q)
+            )
+        paginator = RecargasPagination()
+        pagina = paginator.paginate_queryset(qs, request, view=self)
+        return paginator.get_paginated_response([
+            _recarga_operable_data(recarga, request) for recarga in pagina
+        ])
+
+
+class AnularRecargaView(APIView):
+    permission_classes = [permissions.IsAuthenticated, EsCajeroOAdmin]
+
+    def post(self, request, pk):
+        motivo = _texto_seguro(request.data.get('motivo'))
+        if len(motivo) < 5:
+            return Response({'error': 'Debe indicar un motivo de al menos 5 caracteres.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            recarga = anular_recarga(
+                pk, user=request.user, motivo=motivo,
+                devolucion_dinero=_booleano(request.data.get('devolucion_dinero', False)),
+                forzar_saldo_negativo=_booleano(request.data.get('forzar_saldo_negativo', False)),
+                request=request,
+            )
+        except RecargaTarjeta.DoesNotExist:
+            return Response({'detail': 'Recarga no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+        except PermissionError as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_403_FORBIDDEN)
+        except ReversoRequiereAutorizacion as exc:
+            return Response({
+                'error': exc.messages[0], 'requiere_autorizacion': True,
+                'saldo_actual': str(exc.saldo_actual),
+                'saldo_proyectado': str(exc.saldo_proyectado),
+                'limite_credito': str(exc.limite_credito),
+            }, status=status.HTTP_409_CONFLICT)
+        except (DjangoValidationError, drf_serializers.ValidationError) as exc:
+            return Response({'error': _mensaje_error(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        from cantina.tasks import task_notificar_recarga_anulada
+        try:
+            task_notificar_recarga_anulada.delay(recarga.id)
+        except Exception:
+            logger.exception('No se pudo encolar la notificación de anulación de recarga id=%s', recarga.id)
+        recarga.refresh_from_db()
+        return Response(_recarga_operable_data(recarga, request))
+
+
+class CorregirRecargaView(APIView):
+    """Anula la recarga original y crea la correcta en una sola transacción."""
+    permission_classes = [permissions.IsAuthenticated, EsCajeroOAdmin]
+
+    def post(self, request, pk):
+        motivo = _texto_seguro(request.data.get('motivo'))
+        datos = request.data.get('recarga')
+        if len(motivo) < 5:
+            return Response({'error': 'Debe indicar un motivo de al menos 5 caracteres.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not isinstance(datos, dict):
+            return Response({'error': 'Debe enviar los datos de la recarga corregida.'}, status=status.HTTP_400_BAD_REQUEST)
+        original = get_object_or_404(
+            RecargaTarjeta.objects.select_related('tarjeta', 'apertura', 'cajero'), pk=pk,
+        )
+        evaluacion = evaluar_anulacion(original, request.user)
+        if not evaluacion['puede_corregir']:
+            return Response(
+                {'error': 'Solo se puede corregir una recarga mientras su caja original siga abierta.'},
+                status=status.HTTP_403_FORBIDDEN if evaluacion['requiere_admin'] else status.HTTP_400_BAD_REQUEST,
+            )
+        serializer = RecargaTarjetaSerializer(
+            data={**datos, 'tarjeta': original.tarjeta_id},
+            context={'request': request, 'excluir_recarga_id': original.id},
+        )
+        serializer.is_valid(raise_exception=True)
+        try:
+            with transaction.atomic():
+                original = anular_recarga(
+                    original.id, user=request.user, motivo=motivo,
+                    devolucion_dinero=False,
+                    forzar_saldo_negativo=_booleano(request.data.get('forzar_saldo_negativo', False)),
+                    request=request,
+                )
+                nueva = serializer.save(
+                    tasa_aplicada=original.tasa_aplicada,
+                    estatus='aprobado', registrado_por_portal=False,
+                    cajero=original.cajero, revisado_por=request.user,
+                    revisado_en=timezone.now(), apertura=original.apertura,
+                    reemplaza_a=original,
+                )
+                aplicar_movimiento_tarjeta(
+                    nueva.tarjeta, 'recarga', nueva.monto_usd,
+                    recarga=nueva, usuario=request.user,
+                )
+                registrar_evento(
+                    'correccion_recarga', objeto=nueva, request=request,
+                    area=nueva.apertura.area if nueva.apertura else None,
+                    antes={'recarga_original_id': original.id, 'monto_usd': str(original.monto_usd)},
+                    despues={'recarga_corregida_id': nueva.id, 'monto_usd': str(nueva.monto_usd)},
+                    motivo=motivo,
+                )
+        except ReversoRequiereAutorizacion as exc:
+            return Response({
+                'error': exc.messages[0], 'requiere_autorizacion': True,
+                'saldo_actual': str(exc.saldo_actual), 'saldo_proyectado': str(exc.saldo_proyectado),
+                'limite_credito': str(exc.limite_credito),
+            }, status=status.HTTP_409_CONFLICT)
+        except (DjangoValidationError, drf_serializers.ValidationError) as exc:
+            return Response({'error': _mensaje_error(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        from cantina.tasks import task_notificar_recarga_corregida
+        try:
+            task_notificar_recarga_corregida.delay(original.id, nueva.id)
+        except Exception:
+            logger.exception('No se pudo encolar la notificación de corrección de recarga id=%s', original.id)
+        nueva.refresh_from_db()
+        return Response({
+            'original': RecargaTarjetaSerializer(original, context={'request': request}).data,
+            'recarga': _recarga_operable_data(nueva, request),
+        }, status=status.HTTP_201_CREATED)
+
+
+class ComprobanteAnulacionRecargaView(APIView):
+    permission_classes = [permissions.IsAuthenticated, EsCajeroOAdmin]
+
+    def get(self, request, pk):
+        recarga = get_object_or_404(
+            RecargaTarjeta.objects.select_related('tarjeta', 'anulada_por'), pk=pk, estatus='anulado',
+        )
+        return FileResponse(
+            generar_pdf_reverso_recarga(recarga), content_type='application/pdf',
+            as_attachment=True, filename=f'anulacion-recarga-{recarga.id}.pdf',
+        )
 
 
 # ─────────────────────────────────────────────
@@ -1836,8 +2029,9 @@ def _calcular_totales_apertura(cajero, apertura):
     `CierreCajaCantina` — nunca se confía en totales enviados por el
     cliente).
 
-    Las recargas de tarjeta no tienen FK a la apertura: se atribuyen a la
-    apertura por cajero y ventana de tiempo (desde que se abrió la caja).
+    Las recargas nuevas quedan vinculadas a su apertura. Para los registros
+    históricos sin ese vínculo se conserva la atribución por cajero y ventana
+    de tiempo (desde que se abrió la caja).
 
     Devuelve un dict con los 4 `Decimal` históricos (compatibilidad), más:
       - `totales_por_metodo` (D11): `{metodo: {ventas, abonos, recargas,
@@ -1863,13 +2057,25 @@ def _calcular_totales_apertura(cajero, apertura):
         metodo_pago__in=METODOS_EFECTIVO,
     ).aggregate(total=Sum('total_usd'))['total'] or Decimal('0.00')
 
+    # Las recargas nuevas quedan enlazadas a la apertura. El segundo OR
+    # conserva compatibilidad con registros históricos sin ese vínculo.
     recargas = RecargaTarjeta.objects.filter(
-        cajero=cajero, estatus='aprobado', registrado_por_portal=False,
-        creado_en__gte=apertura.fecha_hora_apertura,
+        estatus='aprobado', registrado_por_portal=False,
+    ).filter(
+        Q(apertura=apertura)
+        | Q(apertura__isnull=True, cajero=cajero, creado_en__gte=apertura.fecha_hora_apertura)
     )
-    total_recargas_efectivo = recargas.filter(
+    # Solo los reversos de una caja anterior afectan esta apertura. Si la
+    # recarga se anuló dentro de su propia caja, basta con excluirla arriba.
+    reversos_recarga = RecargaTarjeta.objects.filter(
+        estatus='anulado', devolucion_dinero=True, apertura_reverso=apertura,
+    ).exclude(apertura=apertura)
+    total_recargas_efectivo = (recargas.filter(
         metodo_pago__in=METODOS_EFECTIVO,
-    ).aggregate(total=Sum('monto_usd'))['total'] or Decimal('0.00')
+    ).aggregate(total=Sum('monto_usd'))['total'] or Decimal('0.00')) - (
+        reversos_recarga.filter(metodo_pago__in=METODOS_EFECTIVO)
+        .aggregate(total=Sum('monto_usd'))['total'] or Decimal('0.00')
+    )
 
     abonos = AbonoCantina.objects.filter(apertura=apertura, estatus='completado')
     total_abonos_efectivo = abonos.filter(
@@ -1879,18 +2085,19 @@ def _calcular_totales_apertura(cajero, apertura):
     cero = Decimal('0.00')
     por_metodo = {}
 
-    def _acumular(queryset, campo_usd, campo_ves, clave):
+    def _acumular(queryset, campo_usd, campo_ves, clave, factor=Decimal('1')):
         for fila in queryset.values('metodo_pago').annotate(usd=Sum(campo_usd), ves=Sum(campo_ves)):
             entrada = por_metodo.setdefault(
                 fila['metodo_pago'],
                 {'ventas': cero, 'abonos': cero, 'recargas': cero, 'total_ves': cero},
             )
-            entrada[clave] += fila['usd'] or cero
-            entrada['total_ves'] += fila['ves'] or cero
+            entrada[clave] += (fila['usd'] or cero) * factor
+            entrada['total_ves'] += (fila['ves'] or cero) * factor
 
     _acumular(ventas_apertura, 'total_usd', 'total_ves', 'ventas')
     _acumular(abonos, 'monto_usd', 'monto_ves', 'abonos')
     _acumular(recargas, 'monto_usd', 'monto_ves', 'recargas')
+    _acumular(reversos_recarga, 'monto_usd', 'monto_ves', 'recargas', Decimal('-1'))
 
     totales_por_metodo = {
         metodo: {
@@ -1935,6 +2142,7 @@ def _calcular_totales_apertura(cajero, apertura):
                 ),
                 'monto_usd',
             ),
+            'reversos_recarga': _resumen_origen(reversos_recarga, 'monto_usd'),
         },
         'arqueo': {
             'esperado_usd': _monto_str(apertura.monto_inicial + _total_usd_metodo('efectivo')),

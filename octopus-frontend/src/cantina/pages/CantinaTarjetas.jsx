@@ -8,6 +8,7 @@ import ParametrosCreditoModal from '../../components/cantina/tarjetas/Parametros
 import AjustarCreditoModal from '../../components/cantina/tarjetas/AjustarCreditoModal';
 import TarjetasTable from '../../components/cantina/tarjetas/TarjetasTable';
 import GestionQrPanel from '../../components/cantina/tarjetas/GestionQrPanel';
+import HistorialRecargas from '../../components/cantina/tarjetas/HistorialRecargas';
 import { getTarjetas } from '../../api/cantina.service';
 
 // La operación diaria de asignación/recarga vive en GestionQrPanel. Estas
@@ -53,6 +54,7 @@ export default function CantinaTarjetas() {
   const [tarjetaAAjustar, setTarjetaAAjustar] = useState(null);
   const [tarjetas, setTarjetas] = useState([]);
   const [cargandoTarjetas, setCargandoTarjetas] = useState(true);
+  const [refreshRecargas, setRefreshRecargas] = useState(0);
   const abortRef = useRef(null);
 
   const resumenTarjetas = useMemo(() => {
@@ -119,7 +121,7 @@ export default function CantinaTarjetas() {
       </div>
 
       <GestionQrPanel
-        onOperacionCompletada={cargarTarjetas}
+        onOperacionCompletada={() => { cargarTarjetas(); setRefreshRecargas(v => v + 1); }}
         onReponer={abrirReponer}
       />
 
@@ -216,6 +218,11 @@ export default function CantinaTarjetas() {
           onAjustarCredito={(t) => { setTarjetaAAjustar(t); setModalActivo('ajustar-credito'); }}
         />
       </div>
+
+      <HistorialRecargas
+        refreshSignal={refreshRecargas}
+        onCambio={cargarTarjetas}
+      />
 
       {modalActivo === 'generar' && (
         <GenerarLoteModal onClose={cerrarModal} />

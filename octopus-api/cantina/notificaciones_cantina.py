@@ -55,6 +55,42 @@ def notificar_recarga_aprobada(recarga):
         )
 
 
+def notificar_recarga_anulada(recarga, recarga_corregida=None):
+    """Avisa el reverso o la corrección sin bloquear la operación principal."""
+    tarjeta = recarga.tarjeta
+    alumno = tarjeta.alumno
+    if not alumno:
+        return
+    rep = alumno.representante
+    ctx = {
+        'nombre_representante': f'{rep.nombre} {rep.apellido}',
+        'nombre_alumno': f'{alumno.nombre} {alumno.apellido}',
+        'monto': str(recarga.monto_usd),
+        'saldo_actual': str(tarjeta.saldo),
+        'motivo': recarga.motivo_anulacion,
+        'corregida': bool(recarga_corregida),
+        'monto_corregido': str(recarga_corregida.monto_usd) if recarga_corregida else '',
+    }
+    asunto = 'Recarga de cantina corregida' if recarga_corregida else 'Recarga de cantina anulada'
+    if rep.correo:
+        html = _render_email('cantina_recarga_anulada.html', ctx)
+        enviar_email(
+            rep.correo, asunto, html, tipo='cantina_recarga_anulada',
+            representante_cedula=rep.cedula, alumno_nombre=ctx['nombre_alumno'],
+        )
+    usuario_portal = _usuario_portal_de(rep)
+    if usuario_portal:
+        detalle = (
+            f'La recarga de ${ctx["monto"]} fue corregida a ${ctx["monto_corregido"]}.'
+            if recarga_corregida else f'La recarga de ${ctx["monto"]} fue anulada.'
+        )
+        _push_representante(
+            usuario_portal, TIPO_PUSH_CANTINA, asunto, detalle,
+            url='/portal', tipo_log='cantina_recarga_anulada',
+            representante_cedula=rep.cedula, alumno_nombre=ctx['nombre_alumno'],
+        )
+
+
 def notificar_saldo_negativo(tarjeta, dias_mora):
     """Al representante del alumno (email + push) o, si la tarjeta es de
     una persona de CxC, a esa persona solo por email (no tiene portal)."""

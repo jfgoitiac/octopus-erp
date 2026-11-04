@@ -18,6 +18,43 @@ from pagos_comunes.referencias import buscar_referencia_duplicada, normalizar_re
 logger = logging.getLogger(__name__)
 
 
+def generar_pdf_reverso_recarga(recarga):
+    """Comprobante regenerable de anulación, sin guardar archivos derivados."""
+    buffer = BytesIO()
+    c = canvas.Canvas(buffer, pagesize=letter)
+    ancho, alto = letter
+    y = alto - 0.7 * inch
+    c.setFont('Helvetica-Bold', 15)
+    c.drawString(0.7 * inch, y, 'COMPROBANTE DE ANULACIÓN DE RECARGA')
+    y -= 0.35 * inch
+    c.setFont('Helvetica', 10)
+    filas = [
+        ('Recarga', f'#{recarga.id}'),
+        ('Tarjeta', recarga.tarjeta.serial),
+        ('Titular', recarga.tarjeta.titular_nombre or 'Sin titular'),
+        ('Monto anulado', f'$ {recarga.monto_usd:.2f}'),
+        ('Método', recarga.get_metodo_pago_display() if hasattr(recarga, 'get_metodo_pago_display') else recarga.metodo_pago),
+        ('Referencia', recarga.referencia or '—'),
+        ('Fecha original', recarga.creado_en.strftime('%d/%m/%Y %H:%M')),
+        ('Anulada el', recarga.anulada_en.strftime('%d/%m/%Y %H:%M') if recarga.anulada_en else '—'),
+        ('Anulada por', recarga.anulada_por.nombre_completo if recarga.anulada_por_id else '—'),
+        ('Devolución de dinero', 'Sí' if recarga.devolucion_dinero else 'No'),
+        ('Motivo', recarga.motivo_anulacion or '—'),
+    ]
+    for etiqueta, valor in filas:
+        c.setFont('Helvetica-Bold', 9)
+        c.drawString(0.7 * inch, y, f'{etiqueta}:')
+        c.setFont('Helvetica', 9)
+        c.drawString(2.15 * inch, y, str(valor)[:85])
+        y -= 0.24 * inch
+    c.setFont('Helvetica-Oblique', 8)
+    c.drawString(0.7 * inch, 0.65 * inch, 'Este documento acredita el reverso; la operación original permanece en la auditoría.')
+    c.showPage()
+    c.save()
+    buffer.seek(0)
+    return buffer
+
+
 def tasa_cantina_activa():
     """
     Tasa que Cantina aplica a ventas, recargas y abonos: la BCV vigente, la

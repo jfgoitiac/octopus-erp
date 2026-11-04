@@ -225,6 +225,7 @@ const TEXTOS_ORIGEN = {
   abonos: { titulo: 'Abonos cobrados', detalle: 'Cuentas por cobrar' },
   cargado_a_cuenta: { titulo: 'Cargado a cuenta', detalle: 'No entra dinero: queda por cobrar' },
   anuladas: { titulo: 'Ventas anuladas', detalle: 'Ya descontadas de los totales' },
+  reversos_recarga: { titulo: 'Devoluciones de recargas', detalle: 'Dinero devuelto por recargas de cajas anteriores' },
   recargas_portal: { titulo: 'Recargas del portal aprobadas', detalle: 'Por banco: no entran a la gaveta' },
 };
 
@@ -247,7 +248,8 @@ const detalleRecargas = (efectivo, banco) => (
 
 const origenDesdeDesglose = (origen) => {
   const base = ['ventas', 'recargas_cobradas', 'consumo_recargas', 'abonos', 'cargado_a_cuenta'];
-  const opcionales = ['anuladas', 'recargas_portal'].filter((id) => (aNumero(origen[id]?.usd) ?? 0) > 0);
+  const opcionales = ['anuladas', 'reversos_recarga', 'recargas_portal']
+    .filter((id) => (aNumero(origen[id]?.usd) ?? 0) > 0);
   return [...base, ...opcionales]
     .filter((id) => origen[id])
     .map((id) => tarjetaOrigen(id, origen[id].usd, {

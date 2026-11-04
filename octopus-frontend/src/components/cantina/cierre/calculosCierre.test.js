@@ -190,9 +190,15 @@ describe('tarjetasDeOrigen', () => {
     expect(tarjetas[3].operaciones).toBe('1 operación');
   });
 
-  it('anuladas y portal solo aparecen si son mayores que cero', () => {
-    const origen = { ...ORIGEN, anuladas: { usd: '4.00', operaciones: 1 }, recargas_portal: { usd: '9.00', operaciones: 2 } };
+  it('anuladas, reversos y portal solo aparecen si son mayores que cero', () => {
+    const origen = {
+      ...ORIGEN,
+      anuladas: { usd: '4.00', operaciones: 1 },
+      reversos_recarga: { usd: '6.00', operaciones: 1 },
+      recargas_portal: { usd: '9.00', operaciones: 2 },
+    };
     expect(tarjetasDeOrigen({ desglose: { origen } }).map((t) => t.id)).toContain('anuladas');
+    expect(tarjetasDeOrigen({ desglose: { origen } }).map((t) => t.id)).toContain('reversos_recarga');
     expect(tarjetasDeOrigen({ desglose: { origen } }).map((t) => t.id)).toContain('recargas_portal');
   });
 

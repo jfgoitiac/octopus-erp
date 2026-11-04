@@ -26,6 +26,30 @@ def task_notificar_recarga_aprobada(recarga_id):
 
 
 @shared_task
+def task_notificar_recarga_anulada(recarga_id):
+    from cantina.models import RecargaTarjeta
+    from cantina.notificaciones_cantina import notificar_recarga_anulada
+    try:
+        recarga = RecargaTarjeta.objects.select_related('tarjeta__alumno__representante').get(id=recarga_id)
+        notificar_recarga_anulada(recarga)
+    except Exception:
+        logger.exception('Error notificando recarga anulada id=%s', recarga_id)
+
+
+@shared_task
+def task_notificar_recarga_corregida(recarga_original_id, recarga_nueva_id):
+    from cantina.models import RecargaTarjeta
+    from cantina.notificaciones_cantina import notificar_recarga_anulada
+    try:
+        qs = RecargaTarjeta.objects.select_related('tarjeta__alumno__representante')
+        original = qs.get(id=recarga_original_id)
+        nueva = qs.get(id=recarga_nueva_id)
+        notificar_recarga_anulada(original, nueva)
+    except Exception:
+        logger.exception('Error notificando corrección de recarga id=%s', recarga_original_id)
+
+
+@shared_task
 def verificar_saldos_negativos_cantina():
     """Recorre tarjetas en negativo y notifica según ParametroCantina.dias_alerta_saldo_negativo.
 

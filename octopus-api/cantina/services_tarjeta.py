@@ -19,6 +19,7 @@ from django.db import transaction
 from .models import MovimientoTarjeta, TarjetaPrepago
 
 TIPOS_QUE_SUMAN = ('recarga', 'reverso')
+TIPOS_QUE_RESTAN = ('consumo', 'anulacion_recarga')
 
 # Base32 sin ambigüedad: sin 0/O, 1/I/L (§5.1 de cantina.md) — evita que un
 # cajero que tenga que teclear el código a mano (QR dañado) confunda
@@ -59,12 +60,15 @@ class SaldoInsuficienteError(ValidationError):
 
 
 @transaction.atomic
-def aplicar_movimiento_tarjeta(tarjeta, tipo, monto, *, venta=None, recarga=None, usuario=None):
+def aplicar_movimiento_tarjeta(
+    tarjeta, tipo, monto, *, venta=None, recarga=None, usuario=None,
+    permitir_exceder_limite=False,
+):
     """
     Aplica un movimiento de saldo sobre `tarjeta` y devuelve el MovimientoTarjeta creado.
 
     - 'recarga' y 'reverso': `monto` (positivo) suma al saldo.
-    - 'consumo': `monto` (positivo) resta del saldo; si el resultado queda por
+    - 'consumo' y 'anulacion_recarga': `monto` (positivo) resta del saldo; si el resultado queda por
       debajo de -tarjeta.limite_credito, se lanza SaldoInsuficienteError sin
       escribir nada (ni movimiento ni cambio de saldo).
     - 'ajuste': `monto` trae su propio signo (puede ser positivo o negativo) y
@@ -81,16 +85,16 @@ def aplicar_movimiento_tarjeta(tarjeta, tipo, monto, *, venta=None, recarga=None
     saldo_antes = tarjeta.saldo
     if tipo in TIPOS_QUE_SUMAN:
         saldo_despues = saldo_antes + monto
-    elif tipo == 'consumo':
+    elif tipo in TIPOS_QUE_RESTAN:
         saldo_despues = saldo_antes - monto
     elif tipo == 'ajuste':
         saldo_despues = saldo_antes + monto
     else:
         raise ValueError(f"Tipo de movimiento inválido: {tipo!r}")
 
-    if tipo == 'consumo' and saldo_despues < -tarjeta.limite_credito:
+    if tipo in TIPOS_QUE_RESTAN and saldo_despues < -tarjeta.limite_credito and not permitir_exceder_limite:
         raise SaldoInsuficienteError(
-            f"El consumo de {monto} excede el límite de crédito de la tarjeta "
+            f"El movimiento de {monto} excede el límite de crédito de la tarjeta "
             f"{tarjeta.serial} (saldo actual {saldo_antes}, límite {tarjeta.limite_credito})."
         )
 

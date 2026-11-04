@@ -180,9 +180,10 @@ class MovimientoTarjeta(models.Model):
         ('consumo', 'Consumo'),
         ('ajuste', 'Ajuste manual'),
         ('reverso', 'Reverso'),
+        ('anulacion_recarga', 'Anulación de recarga'),
     )
     tarjeta = models.ForeignKey(TarjetaPrepago, on_delete=models.CASCADE, related_name='movimientos')
-    tipo = models.CharField(max_length=15, choices=TIPOS)
+    tipo = models.CharField(max_length=20, choices=TIPOS)
     monto = models.DecimalField(max_digits=10, decimal_places=2)
     saldo_antes = models.DecimalField(max_digits=10, decimal_places=2)
     saldo_despues = models.DecimalField(max_digits=10, decimal_places=2)
@@ -207,6 +208,7 @@ class RecargaTarjeta(models.Model):
         ('pendiente', 'Pendiente de revisión'),
         ('aprobado', 'Aprobado'),
         ('rechazado', 'Rechazado'),
+        ('anulado', 'Anulado'),
     )
     tarjeta = models.ForeignKey(TarjetaPrepago, on_delete=models.CASCADE, related_name='recargas')
     metodo_pago = models.CharField(max_length=20)  # choices = METODOS (importado de cobranza, ver arriba)
@@ -227,9 +229,39 @@ class RecargaTarjeta(models.Model):
     revisado_por = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='recargas_revisadas')
     creado_en = models.DateTimeField(auto_now_add=True)
     revisado_en = models.DateTimeField(null=True, blank=True)
+    # Caja en la que se recibió la recarga. Es null para solicitudes del
+    # portal y registros históricos anteriores a esta relación.
+    apertura = models.ForeignKey(
+        'AperturaCajaCantina', null=True, blank=True, on_delete=models.PROTECT,
+        related_name='recargas',
+    )
+    # Una anulación nunca borra ni edita el cobro original: conserva quién,
+    # cuándo y por qué lo revirtió, además de la caja donde ocurrió el ajuste.
+    anulada_en = models.DateTimeField(null=True, blank=True)
+    anulada_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='recargas_cantina_anuladas',
+    )
+    motivo_anulacion = models.TextField(blank=True)
+    devolucion_dinero = models.BooleanField(default=False)
+    apertura_reverso = models.ForeignKey(
+        'AperturaCajaCantina', null=True, blank=True, on_delete=models.PROTECT,
+        related_name='reversos_recarga',
+    )
+    cierre_afectado = models.ForeignKey(
+        'CierreCajaCantina', null=True, blank=True, on_delete=models.PROTECT,
+        related_name='recargas_anuladas_posteriormente',
+    )
+    # La corrección crea una nueva recarga y la enlaza con la original
+    # anulada. OneToOne impide corregir dos veces la misma operación.
+    reemplaza_a = models.OneToOneField(
+        'self', null=True, blank=True, on_delete=models.PROTECT,
+        related_name='recarga_correctiva',
+    )
 
     class Meta:
         ordering = ['-creado_en']
+        indexes = [models.Index(fields=['estatus', 'creado_en'], name='cantina_rec_estatus_66aac4_idx')]
 
 
 class CategoriaProducto(models.Model):
