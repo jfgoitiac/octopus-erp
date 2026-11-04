@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { CreditCard, AlertTriangle, Layers, Percent, Search } from 'lucide-react';
 import ConsultarSaldoModal from '../../components/cantina/tarjetas/ConsultarSaldoModal';
@@ -54,6 +54,13 @@ export default function CantinaTarjetas() {
   const [tarjetas, setTarjetas] = useState([]);
   const [cargandoTarjetas, setCargandoTarjetas] = useState(true);
   const abortRef = useRef(null);
+
+  const resumenTarjetas = useMemo(() => {
+    const total = tarjetas.length;
+    const sinAsignar = tarjetas.filter(t => t.estado === 'sin_asignar').length;
+    const asignadas = total - sinAsignar;
+    return { total, asignadas, sinAsignar };
+  }, [tarjetas]);
 
   const cargarTarjetas = useCallback(() => {
     setCargandoTarjetas(true);
@@ -142,7 +149,67 @@ export default function CantinaTarjetas() {
       </div>
 
       <div>
-        <h2 className="text-sm font-semibold mb-2" style={{ color: 'var(--jet)' }}>Listado de tarjetas</h2>
+        <div className="flex flex-col gap-3 mb-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>Listado de tarjetas</h2>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--ash)' }}>
+                Consulta y organiza el inventario de tarjetas emitidas.
+              </p>
+            </div>
+          </div>
+
+          <div
+            className="rounded-2xl p-4 sm:p-5"
+            style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}
+            aria-label="Resumen de tarjetas"
+          >
+            <div className="grid grid-cols-3 gap-3 sm:gap-6 mb-3">
+              {[
+                { etiqueta: 'Total', valor: resumenTarjetas.total, color: 'var(--jet)' },
+                { etiqueta: 'Asignadas', valor: resumenTarjetas.asignadas, color: 'var(--pb)' },
+                { etiqueta: 'Sin asignar', valor: resumenTarjetas.sinAsignar, color: 'var(--amber-ink)' },
+              ].map(item => (
+                <div key={item.etiqueta} className="min-w-0">
+                  <p className="text-[11px] sm:text-xs font-medium truncate" style={{ color: 'var(--ash)' }}>
+                    {item.etiqueta}
+                  </p>
+                  <p className="text-xl sm:text-2xl font-semibold leading-tight mt-0.5" style={{ color: item.color }}>
+                    {cargandoTarjetas ? '—' : item.valor.toLocaleString('es-VE')}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div
+              className="h-2.5 rounded-full overflow-hidden flex"
+              style={{ background: 'var(--porcelain)' }}
+              role="img"
+              aria-label={`${resumenTarjetas.asignadas} tarjetas asignadas y ${resumenTarjetas.sinAsignar} sin asignar`}
+            >
+              {resumenTarjetas.total > 0 && (
+                <>
+                  <div
+                    style={{
+                      width: `${(resumenTarjetas.asignadas / resumenTarjetas.total) * 100}%`,
+                      background: 'linear-gradient(90deg, var(--pb), var(--pb-mid))',
+                    }}
+                  />
+                  <div
+                    style={{
+                      width: `${(resumenTarjetas.sinAsignar / resumenTarjetas.total) * 100}%`,
+                      background: 'var(--yellow)',
+                    }}
+                  />
+                </>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2 text-[11px]" style={{ color: 'var(--ash)' }}>
+              <span className="flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[var(--pb)]" /> Asignadas</span>
+              <span className="flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[var(--yellow)]" /> Sin asignar</span>
+            </div>
+          </div>
+        </div>
         <TarjetasTable
           tarjetas={tarjetas}
           cargando={cargandoTarjetas}
