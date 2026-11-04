@@ -153,7 +153,7 @@ export const rechazarRecarga = (id, signal) =>
  *       ('transferencia' | 'pago_movil' | 'punto_de_venta' | 'zelle' | 'efectivo' | 'efectivo_ves'),
  *     tarjeta_codigo: 'CANT-XXXXXXXXXX',   // solo si metodo_pago === 'tarjeta_prepago'
  *     // Métodos bancarios (transferencia/pago_movil/punto_de_venta/zelle):
- *     banco_receptor, banco_procedencia, referencia, numero_lote (solo punto_de_venta),
+ *     banco_receptor, referencia, numero_lote (solo punto_de_venta),
  *     // Cargo a cuenta (CxC, §3.3 PROMPT_CANTINA_CXC.md):
  *     representante_id, alumno_id?,
  *     // Auditoría (CONTRATO_AUDITORIA_CANTINA.md §8):
@@ -307,7 +307,7 @@ export const getReporteMorosos = ({ diasMin } = {}, signal) =>
  *   limite_usd, bloqueado, alumnos: [{ id, nombre, apellido, grado_seccion }] }]
  * POST cxc/abonos/ body { representante_id, fecha_pago?, motivo?, lineas: [{
  *   metodo_pago, monto_usd?, monto_ves?, tasa_aplicada?, banco_receptor?,
- *   banco_procedencia?, referencia?, numero_lote? }] }
+ *   referencia?, numero_lote? }] }
  */
 // Búsqueda unificada: devuelve representantes y clientes generales (campo `tipo`).
 // `paraVenta` excluye clientes inactivos (no admiten ventas nuevas).

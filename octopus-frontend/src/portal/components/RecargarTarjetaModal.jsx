@@ -16,7 +16,7 @@ const METODOS_PORTAL = [
   { value: 'efectivo_ves', label: 'Efectivo Bolívares' },
 ];
 
-// Métodos que requieren banco receptor/procedencia + referencia (§5.9)
+// Métodos que requieren banco receptor + referencia (§5.9)
 const METODOS_CON_BANCO = ['transferencia', 'pago_movil'];
 // Métodos que requieren número de referencia
 const METODOS_CON_REFERENCIA = ['transferencia', 'pago_movil', 'zelle'];
@@ -41,7 +41,6 @@ const RecargarTarjetaModal = ({ isOpen, onClose, alumno, onSuccess }) => {
   const [bancos, setBancos] = useState([]);
   const [metodoPago, setMetodoPago] = useState('transferencia');
   const [bancoReceptorId, setBancoReceptorId] = useState('');
-  const [bancoProcedencia, setBancoProcedencia] = useState('');
   const [referencia, setReferencia] = useState('');
   const [moneda, setMoneda] = useState('usd');
   const [monto, setMonto] = useState('');
@@ -57,7 +56,6 @@ const RecargarTarjetaModal = ({ isOpen, onClose, alumno, onSuccess }) => {
     setEstado('idle');
     setMetodoPago('transferencia');
     setBancoReceptorId('');
-    setBancoProcedencia('');
     setReferencia('');
     setMoneda('usd');
     setMonto('');
@@ -79,11 +77,6 @@ const RecargarTarjetaModal = ({ isOpen, onClose, alumno, onSuccess }) => {
       .then((res) => setBancos(res.data))
       .catch(() => setBancos([]));
   }, [isOpen]);
-
-  // Efectivo Bolívares es cash físico → moneda fija en VES, sin datos bancarios
-  useEffect(() => {
-    if (metodoPago === 'efectivo_ves') setMoneda('ves');
-  }, [metodoPago]);
 
   if (!isOpen || !alumno) return null;
 
@@ -160,7 +153,6 @@ const RecargarTarjetaModal = ({ isOpen, onClose, alumno, onSuccess }) => {
         monto_usd: moneda === 'usd' ? monto : undefined,
         monto_ves: moneda === 'ves' ? monto : undefined,
         banco_receptor_id: requiereBanco ? bancoReceptorId : undefined,
-        banco_procedencia: requiereBanco ? bancoProcedencia.trim() : undefined,
         referencia: requiereReferencia ? referencia.trim() : undefined,
         archivo: archivo || undefined,
       });
@@ -202,7 +194,11 @@ const RecargarTarjetaModal = ({ isOpen, onClose, alumno, onSuccess }) => {
           <label htmlFor="recarga-metodo" className="text-xs font-semibold text-[var(--jet-mid)] block">Método de pago</label>
           <select id="recarga-metodo"
             value={metodoPago}
-            onChange={(e) => setMetodoPago(e.target.value)}
+            onChange={(e) => {
+              const nuevoMetodo = e.target.value;
+              setMetodoPago(nuevoMetodo);
+              if (nuevoMetodo === 'efectivo_ves') setMoneda('ves');
+            }}
             className="w-full border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-[var(--jet-mid)] focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary)] bg-[var(--surface)]"
           >
             {METODOS_PORTAL.map((m) => (
@@ -211,7 +207,7 @@ const RecargarTarjetaModal = ({ isOpen, onClose, alumno, onSuccess }) => {
           </select>
         </div>
 
-        {/* Banco receptor + procedencia — transferencia / pago móvil */}
+        {/* Banco receptor — transferencia / pago móvil */}
         {requiereBanco && (
           <>
             <div className="space-y-1">
@@ -240,17 +236,6 @@ const RecargarTarjetaModal = ({ isOpen, onClose, alumno, onSuccess }) => {
               </div>
             )}
 
-            <div className="space-y-1">
-              <label htmlFor="recarga-banco-procedencia" className="text-xs font-semibold text-[var(--jet-mid)] block">Banco de procedencia (tuyo)</label>
-              <input id="recarga-banco-procedencia"
-                type="text"
-                value={bancoProcedencia}
-                onChange={(e) => setBancoProcedencia(e.target.value)}
-                placeholder="Ej: Banesco"
-                className="w-full border border-[var(--border)] rounded-xl px-3 py-3 text-base text-[var(--jet-mid)] focus:outline-none focus:ring-2 focus:ring-[var(--portal-primary)]"
-                maxLength={100}
-              />
-            </div>
           </>
         )}
 

@@ -6,8 +6,8 @@ import {
 
 // Campos de un método de pago de cobranza. Lo usan el modal de abono CxC y
 // el POS. Controlado: `value` tiene la forma de `valorInicialMetodo()`
-// ({ metodo_pago, monto_usd, monto_ves, banco_receptor, banco_procedencia,
-// referencia, numero_lote }; mismos nombres que una línea de cxc/abonos/) y `onChange(nuevoValue)` recibe el objeto completo.
+// ({ metodo_pago, monto_usd, monto_ves, banco_receptor, referencia,
+// numero_lote }; mismos nombres que una línea de cxc/abonos/) y `onChange(nuevoValue)` recibe el objeto completo.
 //
 // Props fijas del contrato: { value, onChange, bancos, tasa, metodosPermitidos }
 //  - bancos: catálogo de GET cantina/bancos/ ([{ id, nombre, tipos }]); se
@@ -133,7 +133,7 @@ export default function MetodoPagoFields({
 
       {esMetodoBancario(metodo) && (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
             <Campo label="Banco receptor" error={err('banco_receptor')}>
               {(id) => (<>
               <select
@@ -152,20 +152,6 @@ export default function MetodoPagoFields({
                 <p className="text-xs mt-1" style={{ color: 'var(--amber-ink)' }}>No hay bancos configurados para este método.</p>
               )}
               </>)}
-            </Campo>
-            <Campo label="Banco de procedencia">
-              {(id) => (
-              <input
-                id={id}
-                className={INPUT_CLASS}
-                style={FIELD_STYLE}
-                value={v.banco_procedencia}
-                onChange={e => set({ banco_procedencia: e.target.value })}
-                placeholder="Banco del representante"
-                maxLength={100}
-                disabled={disabled}
-              />
-              )}
             </Campo>
           </div>
 

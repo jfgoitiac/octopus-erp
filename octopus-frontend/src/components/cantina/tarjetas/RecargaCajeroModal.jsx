@@ -15,7 +15,7 @@ const IDLE_STYLE = { border: '0.5px solid var(--border-md)', color: 'var(--ash)'
 const ACTIVE_STYLE = { border: '1.5px solid var(--pb)', color: 'var(--pb)', background: 'var(--pb-light)' };
 
 // Métodos que el cajero puede cobrar en caja (§7.3bis cantina.md): efectivo
-// USD/VES sin aprobación previa, y transferencia/pago móvil/zelle solo
+// USD/VES sin aprobación previa, y transferencia/pago móvil/punto de venta/zelle solo
 // cuando el representante paga presente mostrando el comprobante — todos
 // aprobados al instante (RecargarTarjetaCajeroView), a diferencia del
 // portal donde una recarga siempre queda 'pendiente'.
@@ -24,23 +24,25 @@ const METODOS = [
   { value: 'efectivo_ves', label: 'Efectivo Bs.' },
   { value: 'transferencia', label: 'Transferencia' },
   { value: 'pago_movil', label: 'Pago Móvil' },
+  { value: 'punto_de_venta', label: 'Punto de venta' },
   { value: 'zelle', label: 'Zelle' },
 ];
 
-const requiereBanco = (m) => m === 'transferencia' || m === 'pago_movil';
+const requiereBanco = (m) => ['transferencia', 'pago_movil', 'punto_de_venta'].includes(m);
 const requiereReferencia = (m) => m !== 'efectivo' && m !== 'efectivo_ves';
 // Convención local de comprobantes bancarios (§5.9 cantina.md): 6 dígitos
 // para transferencia/pago móvil. Zelle no tiene un formato fijo (número de
 // confirmación alfanumérico), por eso no se restringe con el mismo regex.
 const referenciaInvalida = (m, ref) => {
   if (m === 'transferencia' || m === 'pago_movil') return !/^\d{6}$/.test(ref || '');
+  if (m === 'punto_de_venta') return !/^\d{4}$/.test(ref || '');
   if (m === 'zelle') return !(ref || '').trim();
   return false;
 };
 
 // Moneda por defecto según método — el cajero puede cambiarla igual (§7.3bis
 // pide selector explícito de moneda, no solo inferirla del método).
-const monedaDefault = (m) => (m === 'efectivo_ves' || m === 'transferencia' || m === 'pago_movil' ? 'VES' : 'USD');
+const monedaDefault = (m) => (['efectivo_ves', 'transferencia', 'pago_movil', 'punto_de_venta'].includes(m) ? 'VES' : 'USD');
 
 export default function RecargaCajeroModal({ onClose, onRecargada }) {
   // Tarjeta a recargar (resuelta por código QR, serial o nombre del alumno/representante)
@@ -53,8 +55,8 @@ export default function RecargaCajeroModal({ onClose, onRecargada }) {
   const [bancos, setBancos] = useState([]);
   const [tasaVigente, setTasaVigente] = useState(0);
   const [bancoReceptorId, setBancoReceptorId] = useState('');
-  const [bancoProcedencia, setBancoProcedencia] = useState('');
   const [referencia, setReferencia] = useState('');
+  const [numeroLote, setNumeroLote] = useState('');
   const [tocado, setTocado] = useState({});
   const [enviando, setEnviando] = useState(false);
 
@@ -87,8 +89,9 @@ export default function RecargaCajeroModal({ onClose, onRecargada }) {
   const handleCambiarMetodo = (m) => {
     setMetodoPago(m);
     setMoneda(monedaDefault(m));
-    if (!requiereBanco(m)) { setBancoReceptorId(''); setBancoProcedencia(''); }
+    if (!requiereBanco(m)) setBancoReceptorId('');
     setReferencia('');
+    setNumeroLote('');
     setTocado({});
   };
 
@@ -116,8 +119,12 @@ export default function RecargaCajeroModal({ onClose, onRecargada }) {
       toast.warning(
         metodoPago === 'zelle'
           ? 'Ingresa el número de confirmación de Zelle.'
-          : 'La referencia debe tener exactamente 6 dígitos numéricos.'
+          : `La referencia debe tener exactamente ${metodoPago === 'punto_de_venta' ? 4 : 6} dígitos numéricos.`
       );
+      return false;
+    }
+    if (metodoPago === 'punto_de_venta' && !/^\d{4}$/.test(numeroLote)) {
+      toast.warning('El lote debe tener exactamente 4 dígitos numéricos.');
       return false;
     }
     return true;
@@ -144,8 +151,8 @@ export default function RecargaCajeroModal({ onClose, onRecargada }) {
       metodo_pago: metodoPago,
       monto_usd: montoUsd.toFixed(2),
       banco_receptor: requiereBanco(metodoPago) ? bancoReceptorId || null : null,
-      banco_procedencia: requiereBanco(metodoPago) ? bancoProcedencia || '' : '',
       referencia: requiereReferencia(metodoPago) ? referencia.trim() : '',
+      numero_lote: metodoPago === 'punto_de_venta' ? numeroLote : '',
     };
     try {
       await recargarTarjetaCajero(payload);
@@ -281,8 +288,7 @@ export default function RecargaCajeroModal({ onClose, onRecargada }) {
 
           {/* Datos bancarios / referencia según método (§5.9 cantina.md) */}
           {requiereBanco(metodoPago) && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
+            <div>
                 <label htmlFor="recargacajeromodal-banco-receptor" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Banco receptor</label>
                 <select id="recargacajeromodal-banco-receptor"
                   className="w-full px-3 py-2 rounded-lg text-sm outline-none min-h-[44px]"
@@ -301,25 +307,14 @@ export default function RecargaCajeroModal({ onClose, onRecargada }) {
                 {tocado.banco && !bancoReceptorId && (
                   <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>Selecciona un banco</p>
                 )}
-              </div>
-              <div>
-                <label htmlFor="recargacajeromodal-banco-de-procedencia" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Banco de procedencia</label>
-                <input id="recargacajeromodal-banco-de-procedencia"
-                  className="w-full px-3 py-2 rounded-lg text-sm outline-none min-h-[44px]"
-                  style={FIELD_STYLE}
-                  value={bancoProcedencia}
-                  onChange={e => setBancoProcedencia(e.target.value)}
-                  placeholder="Banco del representante"
-                  disabled={enviando}
-                />
-              </div>
             </div>
           )}
 
           {requiereReferencia(metodoPago) && (
-            <div>
+            <div className={metodoPago === 'punto_de_venta' ? 'grid grid-cols-1 sm:grid-cols-2 gap-3' : ''}>
+              <div>
               <label htmlFor="recargacajeromodal-campo" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>
-                {metodoPago === 'zelle' ? 'Número de confirmación Zelle' : 'Referencia (6 dígitos)'}
+                {metodoPago === 'zelle' ? 'Número de confirmación Zelle' : `Referencia (${metodoPago === 'punto_de_venta' ? 4 : 6} dígitos)`}
               </label>
               <input id="recargacajeromodal-campo"
                 type="text"
@@ -330,17 +325,24 @@ export default function RecargaCajeroModal({ onClose, onRecargada }) {
                 }}
                 value={referencia}
                 onChange={e => setReferencia(
-                  metodoPago === 'zelle' ? e.target.value : e.target.value.replace(/\D/g, '').slice(0, 6)
+                  metodoPago === 'zelle' ? e.target.value : e.target.value.replace(/\D/g, '').slice(0, metodoPago === 'punto_de_venta' ? 4 : 6)
                 )}
                 onBlur={() => marcarTocado('referencia')}
-                maxLength={metodoPago === 'zelle' ? 100 : 6}
-                placeholder={metodoPago === 'zelle' ? 'Ej: ZL-2026-XXXXXXXX' : 'Ej: 123456'}
+                maxLength={metodoPago === 'zelle' ? 100 : metodoPago === 'punto_de_venta' ? 4 : 6}
+                placeholder={metodoPago === 'zelle' ? 'Ej: ZL-2026-XXXXXXXX' : metodoPago === 'punto_de_venta' ? 'Ej: 1234' : 'Ej: 123456'}
                 disabled={enviando}
               />
               {tocado.referencia && referenciaInvalida(metodoPago, referencia) && (
                 <p className="text-xs mt-1" style={{ color: 'var(--red)' }}>
-                  {metodoPago === 'zelle' ? 'Ingresa el número de confirmación.' : 'Debe tener exactamente 6 dígitos numéricos.'}
+                  {metodoPago === 'zelle' ? 'Ingresa el número de confirmación.' : `Debe tener exactamente ${metodoPago === 'punto_de_venta' ? 4 : 6} dígitos numéricos.`}
                 </p>
+              )}
+              </div>
+              {metodoPago === 'punto_de_venta' && (
+                <div>
+                  <label htmlFor="recargacajeromodal-lote" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Lote (4 dígitos)</label>
+                  <input id="recargacajeromodal-lote" type="text" inputMode="numeric" className="w-full px-3 py-2 rounded-lg text-sm outline-none min-h-[44px]" style={FIELD_STYLE} value={numeroLote} onChange={e => setNumeroLote(e.target.value.replace(/\D/g, '').slice(0, 4))} maxLength={4} placeholder="0000" disabled={enviando} />
+                </div>
               )}
             </div>
           )}

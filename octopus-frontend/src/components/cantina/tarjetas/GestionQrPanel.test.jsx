@@ -53,8 +53,8 @@ describe('GestionQrPanel', () => {
       metodo_pago: 'efectivo',
       monto_usd: '10.00',
       banco_receptor: null,
-      banco_procedencia: '',
       referencia: '',
+      numero_lote: '',
     }));
     expect(await screen.findByText('Recarga completada')).toBeInTheDocument();
     expect(screen.getByText('$15.00')).toBeInTheDocument();
@@ -76,5 +76,20 @@ describe('GestionQrPanel', () => {
     expect(await screen.findByText('¿Quién recibirá la tarjeta?')).toBeInTheDocument();
     expect(screen.getByText('Recarga inicial')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Asignar y recargar' })).toBeInTheDocument();
+  });
+
+  it('pide referencia y lote para punto de venta, sin banco de procedencia', async () => {
+    const user = userEvent.setup();
+    buscarTarjetaOperacion.mockResolvedValue({ data: activa });
+    getBancosCantina.mockResolvedValue({ data: [{ id: 3, nombre: 'Banco escolar' }] });
+    render(<GestionQrPanel />);
+
+    await user.type(screen.getByLabelText(/QR, serial, nombre o cédula/i), `${activa.codigo}{enter}`);
+    await user.click(await screen.findByRole('button', { name: 'Punto de venta' }));
+
+    expect(screen.getByLabelText('Banco receptor')).toBeInTheDocument();
+    expect(screen.getByLabelText('Referencia (4 dígitos)')).toBeInTheDocument();
+    expect(screen.getByLabelText('Lote (4 dígitos)')).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Banco de procedencia/i)).not.toBeInTheDocument();
   });
 });

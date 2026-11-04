@@ -23,16 +23,17 @@ const METODOS = [
   { value: 'efectivo_ves', label: 'Efectivo Bs.' },
   { value: 'transferencia', label: 'Transferencia' },
   { value: 'pago_movil', label: 'Pago móvil' },
+  { value: 'punto_de_venta', label: 'Punto de venta' },
   { value: 'zelle', label: 'Zelle' },
 ];
 const ESTADO_LABELS = {
   sin_asignar: 'Sin asignar', activa: 'Activa', bloqueada: 'Bloqueada', extraviada: 'Extraviada',
 };
 const ES_SERIAL = /^L\d+-\d+$/i;
-const requiereBanco = metodo => metodo === 'transferencia' || metodo === 'pago_movil';
+const requiereBanco = metodo => ['transferencia', 'pago_movil', 'punto_de_venta'].includes(metodo);
 const requiereReferencia = metodo => !['efectivo', 'efectivo_ves'].includes(metodo);
 const monedaDefault = metodo => (
-  ['efectivo_ves', 'transferencia', 'pago_movil'].includes(metodo) ? 'VES' : 'USD'
+  ['efectivo_ves', 'transferencia', 'pago_movil', 'punto_de_venta'].includes(metodo) ? 'VES' : 'USD'
 );
 
 function mensajeError(err, fallback) {
@@ -83,8 +84,8 @@ function RecargaFormulario({ onSubmit, enviando, textoBoton }) {
   const [bancos, setBancos] = useState([]);
   const [tasa, setTasa] = useState(0);
   const [bancoReceptor, setBancoReceptor] = useState('');
-  const [bancoProcedencia, setBancoProcedencia] = useState('');
   const [referencia, setReferencia] = useState('');
+  const [numeroLote, setNumeroLote] = useState('');
 
   useEffect(() => {
     const controller = new AbortController();
@@ -99,8 +100,8 @@ function RecargaFormulario({ onSubmit, enviando, textoBoton }) {
     setMetodo(value);
     setMoneda(monedaDefault(value));
     setBancoReceptor('');
-    setBancoProcedencia('');
     setReferencia('');
+    setNumeroLote('');
   };
 
   const confirmar = () => {
@@ -111,6 +112,12 @@ function RecargaFormulario({ onSubmit, enviando, textoBoton }) {
     if (['transferencia', 'pago_movil'].includes(metodo) && !/^\d{6}$/.test(referencia)) {
       return toast.warning('La referencia debe tener exactamente 6 dígitos.');
     }
+    if (metodo === 'punto_de_venta' && !/^\d{4}$/.test(referencia)) {
+      return toast.warning('La referencia del punto de venta debe tener exactamente 4 dígitos.');
+    }
+    if (metodo === 'punto_de_venta' && !/^\d{4}$/.test(numeroLote)) {
+      return toast.warning('El lote del punto de venta debe tener exactamente 4 dígitos.');
+    }
     if (metodo === 'zelle' && !referencia.trim()) return toast.warning('Ingresa el número de confirmación de Zelle.');
 
     const montoUsd = moneda === 'USD' ? valor : valor / tasa;
@@ -118,8 +125,8 @@ function RecargaFormulario({ onSubmit, enviando, textoBoton }) {
       metodo_pago: metodo,
       monto_usd: montoUsd.toFixed(2),
       banco_receptor: requiereBanco(metodo) ? bancoReceptor : null,
-      banco_procedencia: requiereBanco(metodo) ? bancoProcedencia.trim() : '',
       referencia: requiereReferencia(metodo) ? referencia.trim() : '',
+      numero_lote: metodo === 'punto_de_venta' ? numeroLote : '',
     }, { moneda, monto: valor, montoUsd });
   };
 
@@ -191,36 +198,38 @@ function RecargaFormulario({ onSubmit, enviando, textoBoton }) {
       </div>
 
       {requiereBanco(metodo) && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
+        <div>
             <label htmlFor="gestion-qr-banco" className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Banco receptor</label>
             <select id="gestion-qr-banco" value={bancoReceptor} onChange={e => setBancoReceptor(e.target.value)} disabled={enviando} className="w-full px-3 py-2.5 rounded-xl outline-none min-h-[44px]" style={FIELD_STYLE}>
               <option value="">Seleccionar banco…</option>
               {bancos.map(banco => <option key={banco.id} value={banco.id}>{banco.nombre}</option>)}
             </select>
-          </div>
-          <div>
-            <label htmlFor="gestion-qr-procedencia" className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Banco de procedencia</label>
-            <input id="gestion-qr-procedencia" value={bancoProcedencia} onChange={e => setBancoProcedencia(e.target.value)} disabled={enviando} placeholder="Banco del representante" className="w-full px-3 py-2.5 rounded-xl outline-none min-h-[44px]" style={FIELD_STYLE} />
-          </div>
         </div>
       )}
 
       {requiereReferencia(metodo) && (
-        <div>
+        <div className={metodo === 'punto_de_venta' ? 'grid grid-cols-1 sm:grid-cols-2 gap-3' : ''}>
+          <div>
           <label htmlFor="gestion-qr-referencia" className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
-            {metodo === 'zelle' ? 'Confirmación Zelle' : 'Referencia (6 dígitos)'}
+            {metodo === 'zelle' ? 'Confirmación Zelle' : `Referencia (${metodo === 'punto_de_venta' ? 4 : 6} dígitos)`}
           </label>
           <input
             id="gestion-qr-referencia"
             value={referencia}
-            onChange={e => setReferencia(metodo === 'zelle' ? e.target.value : e.target.value.replace(/\D/g, '').slice(0, 6))}
+            onChange={e => setReferencia(metodo === 'zelle' ? e.target.value : e.target.value.replace(/\D/g, '').slice(0, metodo === 'punto_de_venta' ? 4 : 6))}
             disabled={enviando}
-            maxLength={metodo === 'zelle' ? 100 : 6}
-            placeholder={metodo === 'zelle' ? 'Ej: ZL-2026-XXXXXXXX' : 'Ej: 123456'}
+            maxLength={metodo === 'zelle' ? 100 : metodo === 'punto_de_venta' ? 4 : 6}
+            placeholder={metodo === 'zelle' ? 'Ej: ZL-2026-XXXXXXXX' : metodo === 'punto_de_venta' ? 'Ej: 1234' : 'Ej: 123456'}
             className="w-full px-3 py-2.5 rounded-xl outline-none min-h-[44px]"
             style={FIELD_STYLE}
           />
+          </div>
+          {metodo === 'punto_de_venta' && (
+            <div>
+              <label htmlFor="gestion-qr-lote" className="block text-xs uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>Lote (4 dígitos)</label>
+              <input id="gestion-qr-lote" value={numeroLote} onChange={e => setNumeroLote(e.target.value.replace(/\D/g, '').slice(0, 4))} disabled={enviando} inputMode="numeric" maxLength={4} placeholder="0000" className="w-full px-3 py-2.5 rounded-xl outline-none min-h-[44px]" style={FIELD_STYLE} />
+            </div>
+          )}
         </div>
       )}
 

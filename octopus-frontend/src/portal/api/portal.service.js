@@ -168,7 +168,6 @@ export const getConsumosCantina = (alumnoId, page = 1, pageSize = 10, signal) =>
  *   monto_usd?: string|number,
  *   monto_ves?: string|number,
  *   banco_receptor_id?: number|string,
- *   banco_procedencia?: string,
  *   referencia?: string,
  *   archivo?: File,
  * }} payload  Se requiere monto_usd O monto_ves (al menos uno) — el otro se

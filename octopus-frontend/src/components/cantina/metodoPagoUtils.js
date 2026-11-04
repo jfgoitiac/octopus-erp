@@ -35,8 +35,8 @@ export const esPuntoDeVenta = (m) => m === 'punto_de_venta';
 
 /**
  * Forma del `value` que maneja MetodoPagoFields:
- * { metodo_pago, monto_usd, monto_ves, banco_receptor, banco_procedencia,
- *   referencia, numero_lote }  (mismos nombres que una línea de cxc/abonos/).
+ * { metodo_pago, monto_usd, monto_ves, banco_receptor, referencia,
+ *   numero_lote }  (mismos nombres que una línea de cxc/abonos/).
  * Solo se captura el monto de la moneda del método (monto_ves si
  * esMetodoVes, si no monto_usd); el otro queda ''. Acepta valores parciales.
  */
@@ -45,7 +45,6 @@ export const valorInicialMetodo = (metodo = 'efectivo') => ({
   monto_usd: '',
   monto_ves: '',
   banco_receptor: '',
-  banco_procedencia: '',
   referencia: '',
   numero_lote: '',
 });
@@ -113,7 +112,6 @@ export const camposMetodoVenta = (value) => {
   const campos = { metodo_pago: m };
   if (esMetodoBancario(m)) {
     campos.banco_receptor = value.banco_receptor || null;
-    campos.banco_procedencia = (value.banco_procedencia || '').trim();
     campos.referencia = (value.referencia || '').trim();
     if (esPuntoDeVenta(m)) campos.numero_lote = value.numero_lote;
   }

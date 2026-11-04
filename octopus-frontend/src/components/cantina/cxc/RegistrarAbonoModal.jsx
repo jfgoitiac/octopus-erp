@@ -25,7 +25,6 @@ const lineaVacia = () => ({
   monto_usd: '',
   monto_ves: '',
   banco_receptor: '',
-  banco_procedencia: '',
   referencia: '',
   numero_lote: '',
 });
@@ -155,7 +154,7 @@ const RegistrarAbonoModal = ({ open, onClose, representante, saldoUsd, areaFiltr
         if (bs) linea.monto_ves = num(l.monto_ves).toFixed(2);
         else linea.monto_usd = num(l.monto_usd).toFixed(2);
         if (retro && tasaUsada > 0) linea.tasa_aplicada = tasaUsada;
-        ['banco_receptor', 'banco_procedencia', 'referencia', 'numero_lote'].forEach(campo => {
+        ['banco_receptor', 'referencia', 'numero_lote'].forEach(campo => {
           const v = typeof l[campo] === 'string' ? l[campo].trim() : l[campo];
           if (v) linea[campo] = v;
         });
