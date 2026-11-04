@@ -12,14 +12,23 @@ import PanelDiferencias from '../components/PanelDiferencias';
 import PanelFiltroArea from '../components/PanelFiltroArea';
 import PanelSkeleton from '../components/PanelSkeleton';
 import PanelTopProductos from '../components/PanelTopProductos';
+import PanelRendicion from '../components/PanelRendicion';
 import { fmtFecha } from '../components/PanelFormato';
 
 const esCancelacion = (err) => err?.name === 'CanceledError' || err?.code === 'ERR_CANCELED';
+const hoyLocalISO = () => {
+  const fecha = new Date();
+  fecha.setMinutes(fecha.getMinutes() - fecha.getTimezoneOffset());
+  return fecha.toISOString().slice(0, 10);
+};
 
 // Panel ejecutivo de la Auditoría de Cantina (Fase 1 · F1).
 // Datos: GET panel/?area= — forma en CONTRATO_AUDITORIA_CANTINA.md §2.
 const AuditoriaPanel = () => {
+  const hoy = hoyLocalISO();
+  const inicioMes = `${hoy.slice(0, 8)}01`;
   const [area, setArea] = useState('');
+  const [periodo, setPeriodo] = useState({ fecha_inicio: inicioMes, fecha_fin: hoy });
   const [recarga, setRecarga] = useState(0);
   const [panel, setPanel] = useState(null);
   const [cargando, setCargando] = useState(true);
@@ -28,7 +37,7 @@ const AuditoriaPanel = () => {
     const controller = new AbortController();
     (async () => {
       try {
-        const { data } = await getPanel(area ? { area } : undefined, controller.signal);
+        const { data } = await getPanel({ ...periodo, ...(area ? { area } : {}) }, controller.signal);
         // Con mocks la promesa no se cancela: se descarta si ya se abortó.
         if (controller.signal.aborted) return;
         setPanel(data ?? null);
@@ -42,7 +51,7 @@ const AuditoriaPanel = () => {
       }
     })();
     return () => controller.abort();
-  }, [area, recarga]);
+  }, [area, periodo, recarga]);
 
   const cambiarArea = useCallback((valor) => {
     setCargando(true);
@@ -110,6 +119,13 @@ const AuditoriaPanel = () => {
             <KpiVenta etiqueta="Esta semana" comparacion="vs. semana pasada" datos={ventas.semana} />
             <KpiVenta etiqueta="Este mes" comparacion="vs. mes pasado" datos={ventas.mes} className="sm:col-span-2 lg:col-span-1" />
           </div>
+
+          <PanelRendicion
+            datos={panel.rendicion}
+            periodo={periodo}
+            onPeriodo={(valor) => { setCargando(true); setPeriodo(valor); }}
+            deshabilitado={cargando}
+          />
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <PanelCajaHoy caja={panel.caja_hoy} />

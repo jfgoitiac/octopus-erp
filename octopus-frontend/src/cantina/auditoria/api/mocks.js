@@ -22,10 +22,53 @@ const turno42 = {
 /* ── §2 Panel ── */
 export const panel = {
   generado_en: '2026-10-15T14:05:00-04:00',
+  periodo: { fecha_inicio: '2026-10-01', fecha_fin: '2026-10-15' },
   ventas: {
     hoy: { total_usd: '182.50', cantidad: 96, variacion_pct: '12.40' },
     semana: { total_usd: '940.00', cantidad: 512, variacion_pct: '-3.10' },
     mes: { total_usd: '3820.75', cantidad: 2101, variacion_pct: '5.00' },
+  },
+  rendicion: {
+    ventas: { total_usd: '3820.75', cantidad: 2101 },
+    por_area: [
+      { area: 'cantina', total_usd: '2510.25', cantidad: 1450, consumo_recargas_usd: '980.00' },
+      { area: 'libreria', total_usd: '1310.50', cantidad: 651, consumo_recargas_usd: '440.00' },
+    ],
+    por_metodo: [
+      { metodo: 'tarjeta_prepago', etiqueta: 'Tarjeta prepago', total_usd: '1420.00', cantidad: 940 },
+      { metodo: 'pago_movil', etiqueta: 'Pago móvil', total_usd: '1100.75', cantidad: 510 },
+      { metodo: 'efectivo', etiqueta: 'Efectivo divisas', total_usd: '800.00', cantidad: 430 },
+      { metodo: 'punto_de_venta', etiqueta: 'Punto de venta', total_usd: '500.00', cantidad: 221 },
+    ],
+    recargas: {
+      captado_periodo_usd: '1800.00', captado_periodo_cantidad: 122,
+      consumido_periodo_usd: '1420.00', consumido_periodo_cantidad: 940,
+      captado_historico_usd: '12800.00', consumido_historico_usd: '10740.00',
+      saldo_disponible_usd: '2015.50', saldo_neto_usd: '1988.25', tarjetas_con_saldo: 184,
+      por_metodo: [
+        { metodo: 'pago_movil', etiqueta: 'Pago móvil', total_usd: '1100.00', cantidad: 74 },
+        { metodo: 'efectivo', etiqueta: 'Efectivo divisas', total_usd: '700.00', cantidad: 48 },
+      ],
+    },
+    por_dia: [
+      { fecha: '2026-10-14', total_usd: '278.50', cantidad: 141, por_metodo: [
+        { metodo: 'tarjeta_prepago', etiqueta: 'Tarjeta prepago', total_usd: '130.00', cantidad: 76 },
+        { metodo: 'pago_movil', etiqueta: 'Pago móvil', total_usd: '98.50', cantidad: 40 },
+      ] },
+      { fecha: '2026-10-15', total_usd: '182.50', cantidad: 96, por_metodo: [
+        { metodo: 'tarjeta_prepago', etiqueta: 'Tarjeta prepago', total_usd: '70.00', cantidad: 31 },
+        { metodo: 'efectivo', etiqueta: 'Efectivo divisas', total_usd: '40.00', cantidad: 25 },
+      ] },
+    ],
+    cajas: [
+      { apertura_id: 41, area: 'cantina', cajero: ana, inicio: turno41.inicio, fin: turno41.fin, estado: 'cerrada', total_usd: '182.50', cantidad: 96, por_metodo: [
+        { metodo: 'tarjeta_prepago', etiqueta: 'Tarjeta prepago', total_usd: '70.00', cantidad: 31 },
+        { metodo: 'pago_movil', etiqueta: 'Pago móvil', total_usd: '62.50', cantidad: 30 },
+      ] },
+      { apertura_id: 42, area: 'libreria', cajero: luis, inicio: turno42.inicio, fin: turno42.fin, estado: 'cerrada', total_usd: '96.00', cantidad: 42, por_metodo: [
+        { metodo: 'punto_de_venta', etiqueta: 'Punto de venta', total_usd: '96.00', cantidad: 42 },
+      ] },
+    ],
   },
   caja_hoy: {
     esperado_usd: '120.00',

@@ -25,7 +25,9 @@ from .models import (
     DetalleVentaCantina,
     EventoAuditoriaCantina,
     ProductoCantina,
+    RecargaTarjeta,
     RevisionCierre,
+    TarjetaPrepago,
     VentaCantina,
 )
 from .tests_auditoria_base import crear_usuario
@@ -95,9 +97,10 @@ class BaseAuditoriaB2(TestCase):
         return CierreCajaCantina.objects.create(**datos)
 
     def crear_venta(self, total='10.00', estado='completada', apertura=None, area='cantina', dias_atras=0,
+                    metodo_pago='efectivo',
                     producto=None, cantidad=1, **extra):
         venta = VentaCantina.objects.create(
-            cajero=self.cajero, apertura=apertura, metodo_pago='efectivo', area=area,
+            cajero=self.cajero, apertura=apertura, metodo_pago=metodo_pago, area=area,
             total_usd=Decimal(total), tasa_aplicada=Decimal('36.0000'),
             total_ves=Decimal(total) * 36, estado=estado, **extra,
         )
@@ -121,8 +124,12 @@ class PanelEjecutivoTests(BaseAuditoriaB2):
         resp = self.client.get(self.url)
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.assertEqual(set(resp.data), {
-            'generado_en', 'ventas', 'caja_hoy', 'diferencias_pendientes', 'top_productos',
+            'generado_en', 'periodo', 'ventas', 'rendicion', 'caja_hoy', 'diferencias_pendientes', 'top_productos',
             'bajo_inventario', 'alertas',
+        })
+        self.assertEqual(set(resp.data['periodo']), {'fecha_inicio', 'fecha_fin'})
+        self.assertEqual(set(resp.data['rendicion']), {
+            'ventas', 'por_dia', 'por_metodo', 'por_area', 'recargas', 'cajas',
         })
         self.assertEqual(set(resp.data['ventas']), {'hoy', 'semana', 'mes'})
         for periodo in resp.data['ventas'].values():
@@ -221,6 +228,36 @@ class PanelEjecutivoTests(BaseAuditoriaB2):
         resp = self.client.get(self.url, {'area': 'kiosco'})
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('error', resp.data)
+
+    def test_rendicion_separa_area_metodo_recargas_y_caja(self):
+        caja_cantina = self.crear_apertura(area='cantina')
+        caja_libreria = self.crear_apertura(area='libreria')
+        self.crear_venta('12.00', apertura=caja_cantina, area='cantina', metodo_pago='pago_movil')
+        self.crear_venta('8.00', apertura=caja_cantina, area='cantina', metodo_pago='tarjeta_prepago')
+        self.crear_venta('15.00', apertura=caja_libreria, area='libreria', metodo_pago='tarjeta_prepago')
+        tarjeta = TarjetaPrepago.objects.create(serial='AUD-1', codigo='CANT-AUD-1', saldo=Decimal('20.00'))
+        RecargaTarjeta.objects.create(
+            tarjeta=tarjeta, metodo_pago='transferencia', monto_usd=Decimal('30.00'),
+            monto_ves=Decimal('1080.00'), tasa_aplicada=Decimal('36.0000'), estatus='aprobado',
+            revisado_por=self.director, revisado_en=timezone.now(),
+        )
+
+        rendicion = self.client.get(self.url).data['rendicion']
+        self.assertEqual(rendicion['ventas'], {'total_usd': '35.00', 'cantidad': 3})
+        self.assertEqual(
+            {f['area']: f['consumo_recargas_usd'] for f in rendicion['por_area']},
+            {'cantina': '8.00', 'libreria': '15.00'},
+        )
+        self.assertEqual(
+            {f['metodo']: f['total_usd'] for f in rendicion['por_metodo']},
+            {'tarjeta_prepago': '23.00', 'pago_movil': '12.00'},
+        )
+        self.assertEqual(rendicion['recargas']['captado_periodo_usd'], '30.00')
+        self.assertEqual(rendicion['recargas']['consumido_periodo_usd'], '23.00')
+        self.assertEqual(rendicion['recargas']['saldo_disponible_usd'], '20.00')
+        cajas = {fila['apertura_id']: fila for fila in rendicion['cajas']}
+        self.assertEqual(cajas[caja_cantina.id]['total_usd'], '20.00')
+        self.assertEqual(cajas[caja_libreria.id]['total_usd'], '15.00')
 
 
 # ─────────────────────────────────────────────
