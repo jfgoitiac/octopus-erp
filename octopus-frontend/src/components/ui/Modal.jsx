@@ -81,7 +81,7 @@ export const Modal = forwardRef(function Modal(
           </div>
         )}
 
-        <div className={`flex-1 overflow-y-auto scroll-fino ${bodyClassName}`}>
+        <div className={`flex-1 overflow-y-auto scroll-fino scroll-fino-y ${bodyClassName}`}>
           {children}
         </div>
 

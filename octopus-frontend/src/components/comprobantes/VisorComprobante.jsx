@@ -125,7 +125,7 @@ export default function VisorComprobante({ archivoUrl, archivoTipo }) {
         </BotonHerramienta>
       </div>
 
-      <div className="relative min-h-0 flex-1 overflow-auto scroll-fino" style={{ background: 'var(--surface-sunken)' }}>
+      <div className="relative min-h-0 flex-1 overflow-auto scroll-fino scroll-fino-y" style={{ background: 'var(--surface-sunken)' }}>
         {estado.cargando && (
           <div className="flex h-full items-center justify-center p-6">
             <Bone className="h-full w-full max-w-md rounded-xl" />

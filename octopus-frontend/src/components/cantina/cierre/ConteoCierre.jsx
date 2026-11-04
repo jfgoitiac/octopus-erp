@@ -81,7 +81,7 @@ export default function ConteoCierre({
       onSubmit={enviar}
       noValidate
       aria-label="Conteo de la gaveta"
-      className="rounded-2xl p-4 sm:p-5 flex flex-col gap-5 lg:max-h-[calc(100dvh-2rem)] lg:overflow-y-auto scroll-fino"
+      className="rounded-2xl p-4 sm:p-5 flex flex-col gap-5 lg:max-h-[calc(100dvh-2rem)] lg:overflow-y-auto scroll-fino scroll-fino-y"
       style={{ background: '#fff', border: '0.5px solid var(--border-md)', boxShadow: 'var(--shadow-sm)' }}
     >
       <FilaConteo

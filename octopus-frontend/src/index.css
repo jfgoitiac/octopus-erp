@@ -458,13 +458,17 @@ h1, h2, h3, h4, h5, h6 {
 .custom-scrollbar::-webkit-scrollbar-thumb { background-color: var(--pb); border-radius: 20px; opacity: 0.4; }
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
 
-/* Scroll interno fino y contenido: no arrastra el scroll de la página al llegar al borde */
+/* Scroll interno fino. La contención horizontal evita que las tablas anchas
+   desplacen la página sin bloquear la rueda vertical sobre su contenido. */
 .scroll-fino {
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--pb) 40%, transparent) transparent;
-  overscroll-behavior: contain;
+  overscroll-behavior-x: contain;
 }
-.scroll-fino-y { scrollbar-gutter: stable; }
+.scroll-fino-y {
+  scrollbar-gutter: stable;
+  overscroll-behavior-y: contain;
+}
 
 button, a {
   transition-property: background-color, border-color, color, box-shadow, opacity, transform;
