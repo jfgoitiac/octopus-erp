@@ -6,9 +6,11 @@ from .views import (
     AperturaCajaCantinaView,
     AprobarRecargaView,
     AsignarTarjetaView,
+    AsignarYRecargarTarjetaView,
     BancosCantinaView,
     BuscarRepresentantePorCedulaView,
     BuscarTarjetaParaReponerView,
+    BuscarTarjetaOperacionView,
     BuscarTarjetaSinAsignarView,
     BuscarTarjetaView,
     CategoriasListCreateView,
@@ -56,9 +58,11 @@ urlpatterns = [
     # Fase 2 — Generación y asignación de tarjetas QR (§8 FASE 2 de cantina.md)
     path('tarjetas/generar-lote/', GenerarLoteTarjetasView.as_view(), name='cantina-generar-lote'),
     path('tarjetas/sin-asignar/buscar/', BuscarTarjetaSinAsignarView.as_view(), name='cantina-buscar-sin-asignar'),
+    path('tarjetas/operacion/buscar/', BuscarTarjetaOperacionView.as_view(), name='cantina-buscar-operacion'),
     path('tarjetas/reponer/buscar/', BuscarTarjetaParaReponerView.as_view(), name='cantina-buscar-para-reponer'),
     path('representantes/buscar/', BuscarRepresentantePorCedulaView.as_view(), name='cantina-buscar-representante'),
     path('tarjetas/<int:tarjeta_id>/asignar/', AsignarTarjetaView.as_view(), name='cantina-asignar-tarjeta'),
+    path('tarjetas/<int:tarjeta_id>/asignar-y-recargar/', AsignarYRecargarTarjetaView.as_view(), name='cantina-asignar-y-recargar-tarjeta'),
     path('tarjetas/<int:tarjeta_id>/reponer/', ReponerTarjetaView.as_view(), name='cantina-reponer-tarjeta'),
 
     # Fase 3 — Recargas, moneda dual y validación de referencias cruzada (§8 FASE 3 de cantina.md)

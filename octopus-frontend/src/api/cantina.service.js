@@ -69,6 +69,11 @@ export const generarLoteTarjetas = (cantidad, signal) =>
 export const buscarTarjetaSinAsignar = (query, signal) =>
   cantinaApiClient.get('tarjetas/sin-asignar/buscar/', { params: query, signal });
 
+// Búsqueda operacional única: resuelve QR/serial sin filtrar estado y permite
+// buscar tarjetas asignadas por nombre/cédula para la pantalla unificada.
+export const buscarTarjetaOperacion = (query, signal) =>
+  cantinaApiClient.get('tarjetas/operacion/buscar/', { params: query, signal });
+
 // Paso 2 del wizard: trae el representante y la lista de sus alumnos por cédula.
 export const buscarRepresentantePorCedula = (cedula, signal) =>
   cantinaApiClient.get('representantes/buscar/', { params: { cedula }, signal });
@@ -76,6 +81,10 @@ export const buscarRepresentantePorCedula = (cedula, signal) =>
 // Paso 3 del wizard: vincula la tarjeta al titular elegido — { alumno_id } o { cliente_id }.
 export const asignarTarjeta = (tarjetaId, titular, signal) =>
   cantinaApiClient.post(`tarjetas/${tarjetaId}/asignar/`, titular, { signal });
+
+// Asignación + primera recarga atómicas: el backend confirma ambas o ninguna.
+export const asignarYRecargarTarjeta = (tarjetaId, payload, signal) =>
+  cantinaApiClient.post(`tarjetas/${tarjetaId}/asignar-y-recargar/`, payload, { signal });
 
 // Reposición por extravío/daño — regenera el código, mismo alumno y saldo.
 export const reponerTarjeta = (tarjetaId, motivo, signal) =>

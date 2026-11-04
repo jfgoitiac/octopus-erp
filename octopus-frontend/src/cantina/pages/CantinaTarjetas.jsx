@@ -1,22 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'react-toastify';
-import { CreditCard, ScanLine, AlertTriangle, Layers, Wallet, Percent, Search } from 'lucide-react';
+import { CreditCard, AlertTriangle, Layers, Percent, Search } from 'lucide-react';
 import ConsultarSaldoModal from '../../components/cantina/tarjetas/ConsultarSaldoModal';
 import GenerarLoteModal from '../../components/cantina/tarjetas/GenerarLoteModal';
-import AsignarTarjetaModal from '../../components/cantina/tarjetas/AsignarTarjetaModal';
 import ReponerTarjetaModal from '../../components/cantina/tarjetas/ReponerTarjetaModal';
-import RecargaCajeroModal from '../../components/cantina/tarjetas/RecargaCajeroModal';
-import RecargasPendientesList from '../../components/cantina/tarjetas/RecargasPendientesList';
 import ParametrosCreditoModal from '../../components/cantina/tarjetas/ParametrosCreditoModal';
 import AjustarCreditoModal from '../../components/cantina/tarjetas/AjustarCreditoModal';
 import TarjetasTable from '../../components/cantina/tarjetas/TarjetasTable';
+import GestionQrPanel from '../../components/cantina/tarjetas/GestionQrPanel';
 import { getTarjetas } from '../../api/cantina.service';
 
-// Fase 2 de cantina.md (§7.3bis): pantalla desktop-first con las tres
-// acciones del ciclo de vida de la tarjeta QR, más el panel de configuración
-// de crédito por defecto y el listado general de tarjetas (Fase 3,
-// TarjetasListView) que ahora sí existe, mínimo, para poder ajustar el
-// límite de crédito por fila.
+// La operación diaria de asignación/recarga vive en GestionQrPanel. Estas
+// acciones quedan como herramientas administrativas complementarias.
 const ACCIONES = [
   {
     key: 'generar',
@@ -35,28 +30,12 @@ const ACCIONES = [
     bg: 'var(--teal-light)',
   },
   {
-    key: 'asignar',
-    icon: ScanLine,
-    titulo: 'Asignar tarjeta',
-    descripcion: 'Escanea o busca por serial una tarjeta sin asignar y vincúlala a un alumno por la cédula de su representante.',
-    color: 'var(--pb)',
-    bg: 'var(--pb-light)',
-  },
-  {
     key: 'reponer',
     icon: AlertTriangle,
     titulo: 'Reponer tarjeta extraviada/dañada',
     descripcion: 'Genera un nuevo código para una tarjeta activa, conservando el saldo. El código físico anterior queda inválido.',
     color: 'var(--amber-ink)',
     bg: 'var(--yellow-light)',
-  },
-  {
-    key: 'recargar',
-    icon: Wallet,
-    titulo: 'Recargar tarjeta',
-    descripcion: 'Acredita saldo en caja: efectivo USD/VES, o transferencia/pago móvil/zelle si el representante paga presente. Aprobación instantánea.',
-    color: 'var(--teal)',
-    bg: 'var(--teal-light)',
   },
   {
     key: 'parametros',
@@ -69,11 +48,9 @@ const ACCIONES = [
 ];
 
 export default function CantinaTarjetas() {
-  const [modalActivo, setModalActivo] = useState(null); // 'generar' | 'asignar' | 'reponer' | 'recargar' | 'parametros' | null
+  const [modalActivo, setModalActivo] = useState(null); // 'generar' | 'consultar' | 'reponer' | 'parametros' | 'ajustar-credito' | null
   const [tarjetaAReponer, setTarjetaAReponer] = useState(null);
   const [tarjetaAAjustar, setTarjetaAAjustar] = useState(null);
-  const [refreshPendientes, setRefreshPendientes] = useState(0);
-
   const [tarjetas, setTarjetas] = useState([]);
   const [cargandoTarjetas, setCargandoTarjetas] = useState(true);
   const abortRef = useRef(null);
@@ -93,9 +70,17 @@ export default function CantinaTarjetas() {
   }, []);
 
   useEffect(() => {
-    cargarTarjetas();
-    return () => abortRef.current?.abort();
-  }, [cargarTarjetas]);
+    const controller = new AbortController();
+    abortRef.current = controller;
+    getTarjetas(undefined, controller.signal)
+      .then(res => setTarjetas(Array.isArray(res.data) ? res.data : res.data?.results || []))
+      .catch(err => {
+        if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
+        toast.error(err.response?.data?.detail || 'No se pudo cargar el listado de tarjetas.');
+      })
+      .finally(() => setCargandoTarjetas(false));
+    return () => controller.abort();
+  }, []);
 
   const abrirReponer = (tarjeta) => {
     setTarjetaAReponer(tarjeta || null);
@@ -126,7 +111,14 @@ export default function CantinaTarjetas() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <GestionQrPanel
+        onOperacionCompletada={cargarTarjetas}
+        onReponer={abrirReponer}
+      />
+
+      <div>
+        <h2 className="text-sm font-semibold mb-2" style={{ color: 'var(--jet)' }}>Otras acciones</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {ACCIONES.map(({ key, icon: Icon, titulo, descripcion, color, bg }) => (
           <button
             key={key}
@@ -147,6 +139,7 @@ export default function CantinaTarjetas() {
           </button>
         ))}
       </div>
+      </div>
 
       <div>
         <h2 className="text-sm font-semibold mb-2" style={{ color: 'var(--jet)' }}>Listado de tarjetas</h2>
@@ -157,34 +150,17 @@ export default function CantinaTarjetas() {
         />
       </div>
 
-      <RecargasPendientesList refreshSignal={refreshPendientes} />
-
       {modalActivo === 'generar' && (
         <GenerarLoteModal onClose={cerrarModal} />
       )}
 
       {modalActivo === 'consultar' && <ConsultarSaldoModal onClose={cerrarModal} />}
 
-      {modalActivo === 'asignar' && (
-        <AsignarTarjetaModal
-          onClose={cerrarModal}
-          onAsignada={() => { cerrarModal(); cargarTarjetas(); }}
-          onSugerirReponer={(tarjeta) => abrirReponer(tarjeta)}
-        />
-      )}
-
       {modalActivo === 'reponer' && (
         <ReponerTarjetaModal
           tarjetaInicial={tarjetaAReponer}
           onClose={cerrarModal}
           onRepuesta={() => { cerrarModal(); cargarTarjetas(); }}
-        />
-      )}
-
-      {modalActivo === 'recargar' && (
-        <RecargaCajeroModal
-          onClose={cerrarModal}
-          onRecargada={() => setRefreshPendientes(n => n + 1)}
         />
       )}
 

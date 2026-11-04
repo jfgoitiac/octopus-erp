@@ -627,6 +627,93 @@ class AsignarTarjetaView(APIView):
         return Response(TarjetaPrepagoSerializer(tarjeta).data, status=status.HTTP_200_OK)
 
 
+class AsignarYRecargarTarjetaView(APIView):
+    """Asigna una tarjeta y aplica su primera recarga en una transacción."""
+    permission_classes = [permissions.IsAuthenticated, EsCajeroOAdmin]
+
+    def post(self, request, tarjeta_id):
+        alumno_id = request.data.get('alumno_id')
+        cliente_id = request.data.get('cliente_id')
+        if bool(alumno_id) == bool(cliente_id):
+            return Response(
+                {'detail': "Debe indicar 'alumno_id' o 'cliente_id' (solo uno)."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        recarga_data = request.data.get('recarga')
+        if not isinstance(recarga_data, dict):
+            return Response(
+                {'detail': "Debe indicar los datos de 'recarga'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        get_object_or_404(TarjetaPrepago, pk=tarjeta_id)
+        if alumno_id:
+            titular, campo = get_object_or_404(Alumno, pk=alumno_id), 'alumno'
+            nombre_titular = f'{titular.nombre} {titular.apellido}'
+        else:
+            titular, campo = get_object_or_404(ClienteCantina, pk=cliente_id), 'cliente'
+            nombre_titular = titular.nombre_completo
+            if not titular.activo:
+                return Response(
+                    {'detail': f'{nombre_titular} está inactivo; actívelo antes de asignarle una tarjeta.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        serializer_recarga = RecargaTarjetaSerializer(data={**recarga_data, 'tarjeta': tarjeta_id})
+        serializer_recarga.is_valid(raise_exception=True)
+        tasa = tasa_cantina_activa()
+        if tasa is None:
+            return Response(
+                {'detail': 'No se ha registrado ninguna tasa de cambio.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        with transaction.atomic():
+            tarjeta = TarjetaPrepago.objects.select_for_update().get(pk=tarjeta_id)
+            if tarjeta.estado != 'sin_asignar':
+                return Response(
+                    {'detail': f'La tarjeta {tarjeta.serial} no está disponible para asignar (estado actual: {tarjeta.get_estado_display()}).'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            tarjeta_existente = TarjetaPrepago.objects.filter(**{campo: titular}).first()
+            if tarjeta_existente:
+                return Response(
+                    {
+                        'conflicto': True,
+                        'detail': f'{nombre_titular} ya tiene una tarjeta asignada ({tarjeta_existente.serial}). '
+                                  'Si la tarjeta actual se extravió o dañó, use el flujo de reposición en vez de asignar una nueva.',
+                        'tarjeta_existente_id': tarjeta_existente.id,
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                )
+
+            setattr(tarjeta, campo, titular)
+            tarjeta.estado = 'activa'
+            tarjeta.asignada_en = timezone.now()
+            tarjeta.save(update_fields=[campo, 'estado', 'asignada_en', 'actualizado_en'])
+
+            recarga = serializer_recarga.save(
+                tasa_aplicada=tasa.valor_bs,
+                estatus='aprobado',
+                registrado_por_portal=False,
+                cajero=request.user,
+                revisado_por=request.user,
+                revisado_en=timezone.now(),
+            )
+            aplicar_movimiento_tarjeta(
+                tarjeta, 'recarga', recarga.monto_usd,
+                recarga=recarga, usuario=request.user,
+            )
+
+        tarjeta.refresh_from_db()
+        return Response({
+            'tarjeta': TarjetaPrepagoSerializer(tarjeta, context={'request': request}).data,
+            'recarga': RecargaTarjetaSerializer(recarga, context={'request': request}).data,
+        }, status=status.HTTP_201_CREATED)
+
+
 class ReponerTarjetaView(APIView):
     """
     POST <tarjeta_id>/reponer/ {motivo}: reposición por extravío/daño.
@@ -684,6 +771,45 @@ class BancosCantinaView(APIView):
             'id', 'nombre', 'numero_cuenta', 'tipos',
         )
         return Response(list(bancos))
+
+
+class BuscarTarjetaOperacionView(APIView):
+    """Búsqueda única, sin filtrar estado, para asignación y recarga."""
+    permission_classes = [permissions.IsAuthenticated, EsCajeroOAdmin]
+
+    def get(self, request):
+        codigo = request.query_params.get('codigo')
+        serial = request.query_params.get('serial')
+        nombre = (request.query_params.get('nombre') or '').strip()
+        tarjetas = TarjetaPrepago.objects.select_related(
+            'alumno', 'alumno__representante', 'cliente',
+        ).all()
+
+        if nombre and not codigo and not serial:
+            resultados_qs = filtrar_busqueda(
+                tarjetas.exclude(estado='sin_asignar'), nombre, CAMPOS_BUSQUEDA_TITULAR,
+            ).order_by('alumno__apellido', 'alumno__nombre', 'cliente__apellido', 'cliente__nombre', 'id')
+            resultados = list(resultados_qs[:TOPE_BUSQUEDA_TARJETAS + 1])
+            return Response({
+                'resultados': TarjetaPrepagoSerializer(
+                    resultados[:TOPE_BUSQUEDA_TARJETAS], many=True, context={'request': request},
+                ).data,
+                'hay_mas': len(resultados) > TOPE_BUSQUEDA_TARJETAS,
+            })
+
+        if not codigo and not serial:
+            return Response(
+                {'detail': "Debe indicar el parámetro 'codigo', 'serial' o 'nombre'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        tarjeta = _resolver_tarjeta(codigo, serial, tarjetas)
+        if not tarjeta:
+            return Response(
+                {'detail': 'No se encontró ninguna tarjeta con ese código/serial.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(TarjetaPrepagoSerializer(tarjeta, context={'request': request}).data)
 
 
 class BuscarTarjetaView(APIView):

@@ -1,15 +1,20 @@
 import io
 import zipfile
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from cobranza.models import TasaCambio
 from secretaria.models import Alumno, Representante
 
-from .models import ClienteCantina, HistorialCodigoTarjeta, LoteTarjetas, TarjetaPrepago
+from .models import (
+    ClienteCantina, HistorialCodigoTarjeta, LoteTarjetas, MovimientoTarjeta,
+    RecargaTarjeta, TarjetaPrepago,
+)
 from .services_tarjeta import ALFABETO_CODIGO, PREFIJO_CODIGO, generar_codigo_tarjeta
 
 User = get_user_model()
@@ -239,6 +244,66 @@ class CantinaFase2ViewsTests(TestCase):
             f'/api/cantina/tarjetas/{tarjeta.id}/asignar/', {'alumno_id': self.otro_alumno.id}, format='json',
         )
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_busqueda_operacional_resuelve_tarjetas_sin_filtrar_estado(self):
+        sin_asignar = TarjetaPrepago.objects.create(serial='L001-0010', codigo='CANT-MMMMMMMMMM')
+        activa = TarjetaPrepago.objects.create(
+            serial='L001-0011', codigo='CANT-NNNNNNNNNN', alumno=self.alumno, estado='activa',
+        )
+        self.client.force_authenticate(user=self.cajero_user)
+
+        resp = self.client.get('/api/cantina/tarjetas/operacion/buscar/', {'codigo': sin_asignar.codigo})
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data['estado'], 'sin_asignar')
+
+        resp = self.client.get('/api/cantina/tarjetas/operacion/buscar/', {'serial': activa.serial})
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data['estado'], 'activa')
+
+    def test_asignar_y_recargar_es_una_sola_operacion(self):
+        tarjeta = TarjetaPrepago.objects.create(serial='L001-0012', codigo='CANT-PPPPPPPPPP')
+        TasaCambio.objects.create(valor_bs=Decimal('50.0000'))
+        self.client.force_authenticate(user=self.cajero_user)
+
+        resp = self.client.post(
+            f'/api/cantina/tarjetas/{tarjeta.id}/asignar-y-recargar/',
+            {
+                'alumno_id': self.alumno.id,
+                'recarga': {'metodo_pago': 'efectivo', 'monto_usd': '12.50'},
+            },
+            format='json',
+        )
+
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.data)
+        tarjeta.refresh_from_db()
+        self.assertEqual(tarjeta.estado, 'activa')
+        self.assertEqual(tarjeta.alumno_id, self.alumno.id)
+        self.assertEqual(tarjeta.saldo, Decimal('12.50'))
+        recarga = RecargaTarjeta.objects.get(tarjeta=tarjeta)
+        self.assertEqual(recarga.estatus, 'aprobado')
+        self.assertTrue(MovimientoTarjeta.objects.filter(tarjeta=tarjeta, recarga=recarga).exists())
+        self.assertEqual(Decimal(resp.data['tarjeta']['saldo']), Decimal('12.50'))
+
+    def test_asignar_y_recargar_revierte_asignacion_si_falla_movimiento(self):
+        tarjeta = TarjetaPrepago.objects.create(serial='L001-0013', codigo='CANT-QQQQQQQQQQ')
+        TasaCambio.objects.create(valor_bs=Decimal('50.0000'))
+        self.client.force_authenticate(user=self.cajero_user)
+
+        with patch('cantina.views.aplicar_movimiento_tarjeta', side_effect=RuntimeError('fallo simulado')):
+            with self.assertRaises(RuntimeError):
+                self.client.post(
+                    f'/api/cantina/tarjetas/{tarjeta.id}/asignar-y-recargar/',
+                    {
+                        'alumno_id': self.alumno.id,
+                        'recarga': {'metodo_pago': 'efectivo', 'monto_usd': '8.00'},
+                    },
+                    format='json',
+                )
+
+        tarjeta.refresh_from_db()
+        self.assertEqual(tarjeta.estado, 'sin_asignar')
+        self.assertIsNone(tarjeta.alumno_id)
+        self.assertFalse(RecargaTarjeta.objects.filter(tarjeta=tarjeta).exists())
 
     # --- Reposición ---
 
