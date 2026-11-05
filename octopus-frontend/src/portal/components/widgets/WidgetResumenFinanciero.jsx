@@ -18,7 +18,7 @@ const AccionMensualidad = ({ mensualidad, comprobante, onPagar }) => {
       onClick={() => onPagar(mensualidad)}
       className="px-4 rounded-full bg-[var(--portal-hero)] text-white text-sm font-semibold min-h-[44px] flex items-center hover:bg-[color-mix(in_srgb,var(--portal-hero)_85%,black)] transition-colors whitespace-nowrap"
     >
-      {rechazado ? 'Enviar de nuevo' : 'Pagar'}
+      {rechazado ? 'Enviar de nuevo' : 'Reportar pago'}
     </button>
   );
 };
@@ -89,7 +89,7 @@ const WidgetResumenFinanciero = ({ resumen, tieneDeuda, loading, onPagar, varios
       {/* El total ya está en el saludo de arriba: aquí solo el detalle. */}
       {tieneDeuda && (
         <p className="mb-5 text-sm text-[var(--portal-muted)]">
-          {cantidadPendientes} concepto{cantidadPendientes === 1 ? '' : 's'}{variosAlumnos && alumnoId === null ? ' entre todos tus hijos' : ''}. Toca "Pagar" en el mes que ya pagaste para enviar el comprobante.
+          {cantidadPendientes} concepto{cantidadPendientes === 1 ? '' : 's'}{variosAlumnos && alumnoId === null ? ' entre todos tus hijos' : ''}. Puedes reunir varias mensualidades vencidas en un solo comprobante.
         </p>
       )}
 

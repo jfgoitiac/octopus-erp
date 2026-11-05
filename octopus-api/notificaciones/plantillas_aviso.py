@@ -84,26 +84,37 @@ def valores_comprobante(comprobante):
     from cobranza.recibo_cobranza import fmt_bs
     from .services import _config_colegio
 
-    mensualidad = comprobante.mensualidad
+    mensualidades = comprobante.mensualidades_incluidas()
+    mensualidad = mensualidades[0]
     alumno = mensualidad.alumno
     rep = alumno.representante
     cfg = _config_colegio()
     if comprobante.estatus == 'aprobado' and comprobante.pago_id:
         from cobranza.deudas import aplicaciones_operacion
-        abono = next((
+        mensualidad_ids = {m.id for m in mensualidades}
+        abonos = [
             a.monto_abonado_usd for a in aplicaciones_operacion(comprobante.pago)
-            if a.content_type.model == 'mensualidad' and a.object_id == mensualidad.id
-        ), None)
-        monto = abono if abono is not None else comprobante.pago.monto_usd
+            if a.content_type.model == 'mensualidad' and a.object_id in mensualidad_ids
+        ]
+        monto = sum(abonos, Decimal('0.00')) if abonos else comprobante.pago.monto_usd
     else:
-        monto = saldo_deuda(mensualidad)
+        monto = sum((saldo_deuda(m) for m in mensualidades), Decimal('0.00'))
+    alumnos = {
+        m.alumno_id: f'{m.alumno.nombre} {m.alumno.apellido}'.strip()
+        for m in mensualidades
+    }
+    etiqueta_alumno = next(iter(alumnos.values())) if len(alumnos) == 1 else f'{len(alumnos)} estudiantes'
+    etiqueta_mensualidad = (
+        f'{mensualidad.get_mes_display()} {mensualidad.anio}'
+        if len(mensualidades) == 1 else f'{len(mensualidades)} mensualidades'
+    )
     referencia = comprobante.referencia_bancaria or (
         comprobante.pago.referencia if comprobante.pago_id else ''
     )
     return {
         '{{representante.nombre}}': f'{rep.nombre} {rep.apellido}'.strip(),
-        '{{alumno.nombre}}': f'{alumno.nombre} {alumno.apellido}'.strip(),
-        '{{mensualidad}}': f'{mensualidad.get_mes_display()} {mensualidad.anio}',
+        '{{alumno.nombre}}': etiqueta_alumno,
+        '{{mensualidad}}': etiqueta_mensualidad,
         '{{monto}}': f'REF. {fmt_bs(Decimal(str(monto or 0)))}',
         '{{referencia}}': referencia or '',
         '{{motivo}}': comprobante.observaciones or '',

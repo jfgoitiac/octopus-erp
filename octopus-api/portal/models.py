@@ -77,6 +77,16 @@ class ComprobantePago(models.Model):
         related_name='comprobantes',
         verbose_name='Mensualidad'
     )
+    mensualidades = models.ManyToManyField(
+        'cobranza.Mensualidad',
+        related_name='comprobantes_grupales',
+        blank=True,
+        verbose_name='Mensualidades incluidas',
+        help_text=(
+            'Cuotas vencidas respaldadas por el mismo archivo. El campo '
+            '`mensualidad` se conserva como ancla para comprobantes históricos.'
+        ),
+    )
     archivo = models.FileField(
         upload_to='comprobantes/',
         verbose_name='Archivo del comprobante'
@@ -167,12 +177,20 @@ class ComprobantePago(models.Model):
         ]
 
     def __str__(self):
+        cantidad = self.mensualidades.count() if self.pk else 0
+        if cantidad > 1:
+            return f"Comprobante #{self.id} — {cantidad} mensualidades [{self.estatus}]"
         return (
             f"Comprobante #{self.id} — "
             f"{self.mensualidad.alumno.nombre} "
             f"{self.mensualidad.get_mes_display()} {self.mensualidad.anio} "
             f"[{self.estatus}]"
         )
+
+    def mensualidades_incluidas(self):
+        """Lista efectiva, compatible con filas anteriores a la relación M2M."""
+        relacionadas = list(self.mensualidades.all())
+        return relacionadas or [self.mensualidad]
 
 
 class MotivoRechazo(models.Model):

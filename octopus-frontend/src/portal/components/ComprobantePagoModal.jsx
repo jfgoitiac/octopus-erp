@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import { subirComprobante, getMetodosPago } from '../api/portal.service';
 import { Modal } from '../../components/ui/Modal';
 import { fmtMonto, montoEnBs } from '../utils/montos';
-import { textoVencimiento } from '../utils/fechas';
+import GrupoMensualidadesVencidas from './GrupoMensualidadesVencidas';
 
 const TIPOS_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -24,23 +24,23 @@ const Paso = ({ numero, titulo, children }) => (
 
 /**
  * Reporte de un pago hecho por transferencia, pago móvil, Zelle o punto de
- * venta. El representante elige qué mensualidad paga (cualquiera pendiente,
- * vencida o próxima, de cualquiera de sus hijos) y adjunta el comprobante.
+ * venta. El representante elige una o varias mensualidades vencidas, incluso
+ * de distintos hijos, y adjunta un único comprobante.
  * Nada más: la referencia, el banco, el método, la fecha y el monto los llena
  * el colegio al revisarlo, para evitar errores de tipeo. Los datos bancarios
  * del colegio se muestran solo como guía de a dónde transferir. Las mensualidades con un comprobante aún en revisión no se
  * pueden elegir: el backend rechazaría un segundo envío (409).
  *
  * Props:
- *   opciones: mensualidades pendientes ({ id, mes_nombre, anio, alumno_nombre, ... })
- *   mensualidadInicialId: la que se preselecciona (la del botón "Pagar" pulsado)
+ *   opciones: mensualidades vencidas ({ id, mes_nombre, anio, alumno_nombre, ... })
+ *   mensualidadesInicialesIds: las que se preseleccionan desde el dashboard
  *   comprobantePorMensualidad: { [mensualidadId]: último comprobante }
  */
 const ComprobantePagoModal = ({
-  isOpen, onClose, opciones = [], mensualidadInicialId = null,
+  isOpen, onClose, opciones = [], mensualidadesInicialesIds = [],
   comprobantePorMensualidad = {}, onSuccess, tasaBcv = null, variosAlumnos = false,
 }) => {
-  const [seleccionadaId, setSeleccionadaId] = useState(null);
+  const [seleccionadasIds, setSeleccionadasIds] = useState(() => mensualidadesInicialesIds);
   const [archivo, setArchivo] = useState(null);
   const [preview, setPreview] = useState(null);
   const [estado, setEstado] = useState('idle');
@@ -52,13 +52,27 @@ const ComprobantePagoModal = ({
     (id) => comprobantePorMensualidad[id]?.estatus === 'pendiente',
     [comprobantePorMensualidad]
   );
-  const disponibles = useMemo(() => opciones.filter((m) => !enRevision(m.id)), [opciones, enRevision]);
-
-  // La elección del usuario manda; si no eligió (o eligió una que ya no está
-  // disponible) se usa la del botón pulsado y, en su defecto, la primera.
-  const seleccionId = (disponibles.some((m) => m.id === seleccionadaId) && seleccionadaId)
-    || (disponibles.find((m) => m.id === mensualidadInicialId) || disponibles[0])?.id
-    || null;
+  const disponibles = useMemo(() => opciones.filter(
+    (mensualidad) => !enRevision(mensualidad.id),
+  ), [opciones, enRevision]);
+  const disponiblesIds = useMemo(() => new Set(disponibles.map((m) => m.id)), [disponibles]);
+  const seleccionadasSet = useMemo(() => new Set(
+    seleccionadasIds.filter((id) => disponiblesIds.has(id)),
+  ), [seleccionadasIds, disponiblesIds]);
+  const seleccionadas = useMemo(() => disponibles.filter(
+    (mensualidad) => seleccionadasSet.has(mensualidad.id),
+  ), [disponibles, seleccionadasSet]);
+  const grupos = useMemo(() => {
+    const mapa = new Map();
+    disponibles.forEach((mensualidad) => {
+      const clave = `${mensualidad.anio}-${String(mensualidad.mes).padStart(2, '0')}`;
+      if (!mapa.has(clave)) {
+        mapa.set(clave, { titulo: `${mensualidad.mes_nombre} ${mensualidad.anio}`, mensualidades: [] });
+      }
+      mapa.get(clave).mensualidades.push(mensualidad);
+    });
+    return [...mapa.values()];
+  }, [disponibles]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -71,9 +85,30 @@ const ComprobantePagoModal = ({
   const quitarArchivo = () => { setArchivo(null); setPreview(null); setEstado('idle'); };
 
   const cerrar = useCallback(() => {
-    setArchivo(null); setPreview(null); setEstado('idle'); setMetodoVistoId(null); setSeleccionadaId(null);
+    setArchivo(null); setPreview(null); setEstado('idle'); setMetodoVistoId(null); setSeleccionadasIds([]);
     onClose();
   }, [onClose]);
+
+  const cambiarSeleccion = useCallback((mensualidadId) => {
+    setSeleccionadasIds((actuales) => (
+      actuales.includes(mensualidadId)
+        ? actuales.filter((id) => id !== mensualidadId)
+        : [...actuales, mensualidadId]
+    ));
+  }, []);
+
+  const cambiarGrupo = useCallback((mensualidades, seleccionar) => {
+    const idsGrupo = mensualidades.map((mensualidad) => mensualidad.id);
+    setSeleccionadasIds((actuales) => {
+      const siguiente = new Set(actuales);
+      idsGrupo.forEach((id) => seleccionar ? siguiente.add(id) : siguiente.delete(id));
+      if (siguiente.size > 24) {
+        toast.warning('Puedes incluir hasta 24 mensualidades por comprobante.');
+        return actuales;
+      }
+      return [...siguiente];
+    });
+  }, []);
 
   if (!isOpen) return null;
 
@@ -92,9 +127,9 @@ const ComprobantePagoModal = ({
     );
   }
 
-  const seleccionada = opciones.find((m) => m.id === seleccionId) || null;
   const metodoVisto = metodos.find((m) => m.id === metodoVistoId) || metodos[0] || null;
-  const listo = Boolean(seleccionada && archivo);
+  const montoTotal = seleccionadas.reduce((total, mensualidad) => total + Number(montoDe(mensualidad) || 0), 0);
+  const listo = Boolean(seleccionadas.length && archivo);
 
   const seleccionarArchivo = (event) => {
     const file = event.target.files[0];
@@ -110,8 +145,8 @@ const ComprobantePagoModal = ({
     if (!listo) return;
     setEstado('uploading');
     try {
-      await subirComprobante(seleccionada.id, archivo);
-      toast.success('Comprobante enviado. El colegio lo revisará y verás aquí su estado.');
+      await subirComprobante(seleccionadas.map((mensualidad) => mensualidad.id), archivo);
+      toast.success(`Comprobante enviado para ${seleccionadas.length} mensualidad${seleccionadas.length === 1 ? '' : 'es'}. El colegio lo revisará.`);
       onSuccess?.();
       cerrar();
     } catch (err) {
@@ -121,7 +156,9 @@ const ComprobantePagoModal = ({
   };
 
   // Indica qué falta para habilitar el envío, en vez de un botón gris mudo.
-  const faltante = !archivo ? 'Adjunta la foto o el PDF del comprobante.' : null;
+  const faltante = seleccionadas.length === 0
+    ? 'Selecciona al menos una mensualidad vencida.'
+    : !archivo ? 'Adjunta la foto o el PDF del comprobante.' : null;
 
   const footer = (
     <div className="space-y-2">
@@ -134,7 +171,7 @@ const ComprobantePagoModal = ({
       >
         {estado === 'uploading'
           ? <><span className="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full" aria-hidden="true" />Enviando…</>
-          : <><Upload size={16} aria-hidden="true" />Enviar comprobante</>}
+          : <><Upload size={16} aria-hidden="true" />Enviar comprobante{seleccionadas.length > 1 ? ` (${seleccionadas.length})` : ''}</>}
       </button>
     </div>
   );
@@ -143,45 +180,33 @@ const ComprobantePagoModal = ({
     <Modal open onClose={cerrar} size="sm" titulo="Reportar un pago" footer={footer}>
       <div className="space-y-5">
         <Paso numero={1} titulo="¿Qué estás pagando?">
-          <div className="space-y-2" role="radiogroup" aria-labelledby="paso-pago-1">
-            {opciones.map((m) => {
-              const bloqueada = enRevision(m.id);
-              const activa = m.id === seleccionId;
-              const ultimo = comprobantePorMensualidad[m.id];
-              const rechazo = ultimo?.estatus === 'rechazado' ? ultimo : null;
-              return (
-                <button
-                  key={m.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={activa}
-                  disabled={bloqueada}
-                  onClick={() => setSeleccionadaId(m.id)}
-                  className={`w-full rounded-xl border px-3 py-2.5 text-left min-h-[44px] transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${activa ? 'border-[var(--portal-primary)] bg-[var(--portal-primary)]/10' : 'border-[var(--border)] bg-[var(--surface)]'}`}
-                >
-                  <span className="flex items-start justify-between gap-3">
-                    <span className="min-w-0">
-                      <span className="block text-sm font-semibold text-[var(--jet)]">{m.mes_nombre} {m.anio}</span>
-                      {variosAlumnos && m.alumno_nombre && <span className="block truncate text-xs text-[var(--jet-mid)]">{m.alumno_nombre}</span>}
-                      <span className={`block text-xs ${!bloqueada && Number(m.dias_mora) > 0 ? 'text-[var(--red)]' : 'text-[var(--ash)]'}`}>
-                        {bloqueada ? 'Comprobante en revisión' : textoVencimiento(m)}
-                      </span>
-                    </span>
-                    <span className="shrink-0 text-right">
-                      <span className="block text-sm font-semibold text-[var(--jet)] whitespace-nowrap">REF. {fmtMonto(montoDe(m))}</span>
-                      {tasaBcv && <span className="block text-xs text-[var(--ash)] whitespace-nowrap">Bs. {fmtMonto(montoEnBs(montoDe(m), tasaBcv))}</span>}
-                    </span>
-                  </span>
-                  {rechazo && (
-                    <span className="mt-1.5 block whitespace-pre-line break-words rounded-lg bg-[var(--red-light)] px-2 py-1 text-xs text-[var(--red)]">
-                      Tu comprobante anterior fue rechazado{rechazo.observaciones ? `: ${rechazo.observaciones}` : '.'}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+          <div className="space-y-3" aria-labelledby="paso-pago-1">
+            {grupos.map((grupo) => (
+              <GrupoMensualidadesVencidas
+                key={grupo.titulo}
+                titulo={grupo.titulo}
+                mensualidades={grupo.mensualidades}
+                seleccionadas={seleccionadasSet}
+                onToggle={cambiarSeleccion}
+                onToggleGrupo={cambiarGrupo}
+                tasaBcv={tasaBcv}
+                variosAlumnos={variosAlumnos}
+                comprobantePorMensualidad={comprobantePorMensualidad}
+              />
+            ))}
           </div>
-          <p className="text-xs text-[var(--ash)]">Envía un comprobante por mensualidad. Si pagaste varias en una sola transferencia, avisa a administración.</p>
+          <div className="rounded-xl bg-[var(--portal-canvas)] px-3 py-3" aria-live="polite">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-medium text-[var(--portal-ink)]">
+                {seleccionadas.length} mensualidad{seleccionadas.length === 1 ? '' : 'es'}
+              </span>
+              <span className="text-right">
+                <span className="block whitespace-nowrap text-sm font-bold text-[var(--portal-ink)]">REF. {fmtMonto(montoTotal)}</span>
+                {tasaBcv && <span className="block whitespace-nowrap text-xs text-[var(--portal-muted)]">Bs. {fmtMonto(montoEnBs(montoTotal, tasaBcv))}</span>}
+              </span>
+            </div>
+          </div>
+          <p className="text-xs text-[var(--portal-muted)]">Esto no realiza el pago. Solo envía al colegio el comprobante de una transferencia que ya hiciste.</p>
         </Paso>
 
         <Paso numero={2} titulo="¿A dónde transferir?">

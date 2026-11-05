@@ -1,12 +1,10 @@
 import SkeletonCard from '../SkeletonCard';
 import MontoRef from '../MontoRef';
 import { fmtFecha } from '../../utils/fechas';
-import { ESTATUS_COMPROBANTE } from '../../utils/estados';
-import EstadoBadge from '../EstadoBadge';
 
-// Mensualidades que aún no vencen (hasta 2 por hijo). Se pueden pagar por
-// adelantado desde aquí mismo.
-const WidgetProximosVencimientos = ({ resumen, loading, variosAlumnos = false, alumnoId = null, comprobantePorMensualidad = {}, onPagar }) => {
+// Mensualidades que aún no vencen (hasta 2 por hijo). Son informativas: el
+// portal solo permite reportar pagos de cuotas ya vencidas.
+const WidgetProximosVencimientos = ({ resumen, loading, variosAlumnos = false, alumnoId = null }) => {
   if (loading) {
     return <SkeletonCard lines={2} />;
   }
@@ -20,9 +18,7 @@ const WidgetProximosVencimientos = ({ resumen, loading, variosAlumnos = false, a
     <section className="portal-card p-5 sm:p-6" aria-labelledby="proximos-vencimientos">
       <h3 id="proximos-vencimientos" className="portal-section-title text-lg sm:text-xl mb-3">Próximos vencimientos</h3>
       <ul className="divide-y divide-[var(--portal-line)]">
-        {vencimientos.map((m) => {
-          const enRevision = comprobantePorMensualidad[m.id]?.estatus === 'pendiente';
-          return (
+        {vencimientos.map((m) => (
             <li key={m.id} className="flex items-center gap-3 py-3.5 first:pt-0 last:pb-0 sm:gap-4">
               {m.fecha_vencimiento && (
                 <div className="portal-date" aria-hidden="true">
@@ -41,17 +37,9 @@ const WidgetProximosVencimientos = ({ resumen, loading, variosAlumnos = false, a
               </div>
               <div className="flex flex-col items-end gap-1 flex-shrink-0">
                 <MontoRef usd={m.monto_total ?? m.monto_usd} tasaBcv={resumen.tasa_bcv} />
-                {enRevision ? (
-                  <EstadoBadge estado={ESTATUS_COMPROBANTE.pendiente} />
-                ) : onPagar && (
-                  <button type="button" onClick={() => onPagar(m)} className="text-xs font-semibold text-[var(--portal-tint-ink)] hover:underline underline-offset-4 min-h-[44px] sm:min-h-[32px] px-1">
-                    Pagar por adelantado
-                  </button>
-                )}
               </div>
             </li>
-          );
-        })}
+        ))}
       </ul>
     </section>
   );

@@ -495,14 +495,16 @@ class PortalIDORTests(PortalTestBase):
 
 
 class PortalComprobanteTests(PortalTestBase):
-    def _subir(self, archivo, mensualidad_id=None):
+    def _subir(self, archivo, mensualidad_id=None, mensualidad_ids=None):
         # El representante solo envía archivo + mensualidad: la referencia la
         # llena el revisor al aprobar (ver tests_revision_comprobantes.py).
         with mock.patch('portal.tasks.notificar_comprobante_subido.delay'):
-            return self.client.post('/api/portal/comprobante/', {
-                'mensualidad_id': mensualidad_id or self.mensualidad.id,
-                'archivo': archivo,
-            }, format='multipart')
+            data = {'archivo': archivo}
+            if mensualidad_ids is not None:
+                data['mensualidad_ids'] = mensualidad_ids
+            else:
+                data['mensualidad_id'] = mensualidad_id or self.mensualidad.id
+            return self.client.post('/api/portal/comprobante/', data, format='multipart')
 
     def test_subida_png_valido(self):
         self.auth_portal()
@@ -512,6 +514,42 @@ class PortalComprobanteTests(PortalTestBase):
         comprobante = ComprobantePago.objects.get()
         self.assertEqual(comprobante.estatus, 'pendiente')
         self.assertEqual(comprobante.mensualidad_id, self.mensualidad.id)
+        self.assertEqual(list(comprobante.mensualidades.values_list('id', flat=True)), [self.mensualidad.id])
+
+    def test_un_comprobante_puede_incluir_varias_mensualidades_vencidas(self):
+        self.auth_portal()
+        alumno2 = crear_alumno(self.rep, 'E84000009', nombre='Ana')
+        mensualidad2 = crear_mensualidad(
+            alumno2, date.today().month, date.today().year,
+            monto='40.00', fecha_vencimiento=date.today(),
+        )
+        resp = self._subir(
+            SimpleUploadedFile('grupo.png', PNG_BYTES, content_type='image/png'),
+            mensualidad_ids=[self.mensualidad.id, mensualidad2.id],
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+        comprobante = ComprobantePago.objects.get()
+        self.assertCountEqual(
+            comprobante.mensualidades.values_list('id', flat=True),
+            [self.mensualidad.id, mensualidad2.id],
+        )
+        self.assertEqual(resp.data['cantidad_mensualidades'], 2)
+        self.assertCountEqual(resp.data['mensualidad_ids'], [self.mensualidad.id, mensualidad2.id])
+
+    def test_rechaza_mensualidades_que_aun_no_vencen(self):
+        self.auth_portal()
+        futura = crear_mensualidad(
+            self.alumno, (date.today().month % 12) + 1,
+            date.today().year + (1 if date.today().month == 12 else 0),
+            fecha_vencimiento=date.today() + timedelta(days=1),
+        )
+        resp = self._subir(
+            SimpleUploadedFile('futura.png', PNG_BYTES, content_type='image/png'),
+            mensualidad_ids=[futura.id],
+        )
+        self.assertEqual(resp.status_code, 400, resp.content)
+        self.assertIn('vencidas', resp.data['error'])
+        self.assertFalse(ComprobantePago.objects.exists())
 
     def test_subida_sin_banco_receptor_es_valida(self):
         """El banco receptor es opcional en el portal — nunca bloquea el
@@ -536,9 +574,9 @@ class PortalComprobanteTests(PortalTestBase):
             }, format='multipart')
         self.assertEqual(resp1.status_code, 201, resp1.content)
 
-        hoy = date.today()
+        otra_fecha = date.today() - timedelta(days=35)
         mes_siguiente = crear_mensualidad(
-            self.alumno, (hoy.month % 12) + 1, hoy.year + (1 if hoy.month == 12 else 0)
+            self.alumno, otra_fecha.month, otra_fecha.year, fecha_vencimiento=otra_fecha,
         )
         # Bytes distintos para no caer en el antifraude de hash duplicado.
         archivo2 = SimpleUploadedFile('pago2.png', PNG_BYTES + b'\x00', content_type='image/png')
@@ -555,9 +593,9 @@ class PortalComprobanteTests(PortalTestBase):
         self.auth_portal()
         self.assertEqual(
             self._subir(SimpleUploadedFile('a.png', PNG_BYTES, content_type='image/png')).status_code, 201)
-        hoy = date.today()
+        otra_fecha = date.today() - timedelta(days=35)
         mes_siguiente = crear_mensualidad(
-            self.alumno, (hoy.month % 12) + 1, hoy.year + (1 if hoy.month == 12 else 0)
+            self.alumno, otra_fecha.month, otra_fecha.year, fecha_vencimiento=otra_fecha,
         )
         resp = self._subir(SimpleUploadedFile('b.png', PNG_BYTES, content_type='image/png'),
                            mensualidad_id=mes_siguiente.id)
@@ -725,6 +763,26 @@ class AdminComprobantesTests(PortalTestBase):
         self.comprobante.refresh_from_db()
         self.assertEqual(self.comprobante.estatus, 'aprobado')
         self.assertIsNone(self.comprobante.banco_receptor_id)
+
+    def test_caja_exige_todas_las_mensualidades_del_comprobante(self):
+        otra_fecha = date.today() - timedelta(days=35)
+        mensualidad2 = crear_mensualidad(
+            self.alumno, otra_fecha.month, otra_fecha.year,
+            monto='40.00', fecha_vencimiento=otra_fecha,
+        )
+        self.comprobante.mensualidades.set([self.mensualidad, mensualidad2])
+        TasaCambio.objects.create(valor_bs=Decimal('40.0000'))
+        self._auth_admin()
+        resp = self.client.post('/api/cobranza/registrar-pago/', {
+            'alumnos': [{'alumno_id': self.alumno.id, 'mensualidad_ids': [self.mensualidad.id]}],
+            'concepto': 'mensualidad',
+            'pagos': [{'metodo_pago': 'efectivo', 'monto_usd': '35.00'}],
+            'comprobante_portal_id': self.comprobante.id,
+        }, format='json')
+        self.assertEqual(resp.status_code, 400, resp.content)
+        self.assertEqual(resp.data['mensualidad_ids_faltantes'], [mensualidad2.id])
+        self.comprobante.refresh_from_db()
+        self.assertEqual(self.comprobante.estatus, 'pendiente')
 
     def test_rechazar_no_marca_pagada(self):
         self._auth_admin()

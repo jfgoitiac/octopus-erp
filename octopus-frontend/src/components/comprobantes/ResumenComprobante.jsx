@@ -50,12 +50,19 @@ export default function ResumenComprobante({ comprobante }) {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Dato icono={GraduationCap} etiqueta="Alumno" valor={comprobante.alumno} detalle={comprobante.grado || 'Sin grado'} />
         <Dato icono={UserRound} etiqueta="Representante" valor={comprobante.representante} detalle={comprobante.representante_cedula ? `C.I. ${comprobante.representante_cedula}` : null} />
-        <Dato icono={CalendarDays} etiqueta="Mensualidad" valor={comprobante.mensualidad} />
+        <Dato
+          icono={CalendarDays}
+          etiqueta={comprobante.mensualidad_ids?.length > 1 ? 'Mensualidades' : 'Mensualidad'}
+          valor={comprobante.mensualidad}
+        />
         <Dato icono={CalendarDays} etiqueta="Enviado" valor={formatearFechaHora(comprobante.fecha_subida)} />
       </div>
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-        <Monto etiqueta="Monto de la mensualidad" valor={comprobante.monto_usd} />
+        <Monto
+          etiqueta={comprobante.mensualidad_ids?.length > 1 ? 'Monto total seleccionado' : 'Monto de la mensualidad'}
+          valor={comprobante.monto_usd}
+        />
         <Monto etiqueta="Ya pagado" valor={comprobante.monto_pagado_usd} />
         <Monto etiqueta="Saldo pendiente" valor={comprobante.saldo_pendiente_usd} destacado />
       </div>

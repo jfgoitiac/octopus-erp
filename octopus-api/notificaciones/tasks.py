@@ -206,7 +206,7 @@ def task_notificar_comprobante_resuelto(comprobante_id):
         from portal.models import ComprobantePago
         c = ComprobantePago.objects.select_related(
             'mensualidad__alumno__representante', 'pago',
-        ).get(id=comprobante_id)
+        ).prefetch_related('mensualidades__alumno__representante').get(id=comprobante_id)
         from notificaciones.services import enviar_avisos_comprobante
         enviar_avisos_comprobante(c)
     except Exception as e:

@@ -30,11 +30,19 @@ class ComprobanteDeOtroAlumno(Exception):
     """La mensualidad del comprobante no es de ninguno de los alumnos del pago."""
 
 
+class ComprobanteConMensualidadesFaltantes(Exception):
+    """Caja intentó aprobar sin incluir todas las mensualidades respaldadas."""
+
+    def __init__(self, mensualidad_ids):
+        super().__init__(mensualidad_ids)
+        self.mensualidad_ids = mensualidad_ids
+
+
 # Métodos sin banco ni referencia bancaria (el dinero se entrega en físico).
 _METODOS_EFECTIVO = {'efectivo', 'efectivo_ves'}
 
 
-def bloquear_comprobante_para_caja(comprobante_id, alumno_ids):
+def bloquear_comprobante_para_caja(comprobante_id, alumno_ids, mensualidad_ids=None):
     """
     Bloquea (``select_for_update``) el comprobante del portal que va a procesar
     un registro de pago en caja. Debe llamarse DENTRO del atomic de
@@ -46,13 +54,20 @@ def bloquear_comprobante_para_caja(comprobante_id, alumno_ids):
     try:
         comprobante = ComprobantePago.objects.select_for_update().select_related(
             'mensualidad__alumno',
-        ).get(pk=comprobante_id)
+        ).prefetch_related('mensualidades__alumno').get(pk=comprobante_id)
     except ComprobantePago.DoesNotExist:
         raise ComprobanteNoEncontrado()
     if comprobante.estatus != 'pendiente':
         raise ComprobanteYaProcesado(comprobante.estatus)
-    if comprobante.mensualidad.alumno_id not in set(alumno_ids):
+    mensualidades = comprobante.mensualidades_incluidas()
+    if not {m.alumno_id for m in mensualidades}.issubset(set(alumno_ids)):
         raise ComprobanteDeOtroAlumno()
+    if mensualidad_ids is not None:
+        faltantes = sorted(
+            {m.id for m in mensualidades} - {int(mid) for mid in mensualidad_ids}
+        )
+        if faltantes:
+            raise ComprobanteConMensualidadesFaltantes(faltantes)
     return comprobante
 
 
@@ -108,17 +123,23 @@ def advertencia_mensualidad_saldada(comprobante):
     archivo respalda ese pago o es un pago adicional; se avisa al revisor.
     """
     from cobranza.deudas import saldo_deuda
-    mensualidad = comprobante.mensualidad
-    if comprobante.estatus != 'pendiente' or saldo_deuda(mensualidad) > 0:
+    if comprobante.estatus != 'pendiente':
         return []
-    fecha = (
-        f' el {timezone.localtime(mensualidad.fecha_pago):%d/%m/%Y}' if mensualidad.fecha_pago else ''
-    )
-    return [
-        f'La mensualidad ya está saldada por un pago registrado{fecha} sin enlazar '
-        'este comprobante. Verifica si el archivo corresponde a ese pago: si es así, '
-        'recházalo para cerrarlo; si no, revisa el estado de cuenta antes de procesarlo.'
-    ]
+    advertencias = []
+    for mensualidad in comprobante.mensualidades_incluidas():
+        if saldo_deuda(mensualidad) > 0:
+            continue
+        fecha = (
+            f' el {timezone.localtime(mensualidad.fecha_pago):%d/%m/%Y}'
+            if mensualidad.fecha_pago else ''
+        )
+        advertencias.append(
+            f'{mensualidad.get_mes_display()} {mensualidad.anio} de '
+            f'{mensualidad.alumno.nombre} {mensualidad.alumno.apellido} ya está '
+            f'saldada por un pago registrado{fecha} sin enlazar este comprobante. '
+            'Verifica si el archivo corresponde a ese pago antes de procesarlo.'
+        )
+    return advertencias
 
 
 def resolver_comprobante(comprobante_id, usuario, observaciones='', motivo_rechazo=None):

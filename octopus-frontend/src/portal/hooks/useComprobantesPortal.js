@@ -38,7 +38,10 @@ export function useComprobantesPortal() {
     // El backend ordena por fecha de subida descendente: el primero que
     // aparece para cada mensualidad es el más reciente.
     comprobantes.forEach((c) => {
-      if (!(c.mensualidad in mapa)) mapa[c.mensualidad] = c;
+      const ids = c.mensualidad_ids?.length ? c.mensualidad_ids : [c.mensualidad];
+      ids.forEach((mensualidadId) => {
+        if (!(mensualidadId in mapa)) mapa[mensualidadId] = c;
+      });
     });
     return mapa;
   }, [comprobantes]);

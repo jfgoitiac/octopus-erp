@@ -24,15 +24,15 @@ export const getHistorial = (alumnoId, page = 1, signal) => {
 /**
  * Sube un comprobante de pago (multipart/form-data).
  *
- * El representante solo envía el archivo y la mensualidad que paga: la
+ * El representante solo envía el archivo y las mensualidades vencidas que paga: la
  * referencia, el banco, el método, la fecha y el monto los llena el colegio
  * al revisarlo (evita errores de tipeo del lado del representante).
- * @param {number|string} mensualidadId
+ * @param {Array<number|string>} mensualidadIds
  * @param {File} archivo  imagen (JPG, PNG, WEBP) o PDF
  */
-export const subirComprobante = (mensualidadId, archivo) => {
+export const subirComprobante = (mensualidadIds, archivo) => {
   const formData = new FormData();
-  formData.append('mensualidad_id', mensualidadId);
+  mensualidadIds.forEach((mensualidadId) => formData.append('mensualidad_ids', mensualidadId));
   formData.append('archivo', archivo);
 
   return portalClient.post('comprobante/', formData, {

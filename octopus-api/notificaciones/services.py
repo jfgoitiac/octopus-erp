@@ -843,7 +843,7 @@ def enviar_avisos_comprobante(comprobante):
     if comprobante.estatus not in ('aprobado', 'rechazado'):
         return
     clave = f'comprobante_{comprobante.estatus}'
-    mensualidad = comprobante.mensualidad
+    mensualidad = comprobante.mensualidades_incluidas()[0]
     alumno = mensualidad.alumno
     rep = alumno.representante
     valores = valores_comprobante(comprobante)

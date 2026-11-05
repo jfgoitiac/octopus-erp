@@ -415,19 +415,35 @@ const Cobranza = () => {
 
     useEffect(() => {
         if (!comprobantePortal || !alumnosRep.length) return;
-        const alu = alumnosRep.find(a => a.id === comprobantePortal.alumno_id);
-        if (!alu) return;
-        const mid = comprobantePortal.mensualidad_id;
-        const enPendientes = (alu.mensualidades_pendientes || []).some(m => m.id === mid);
-        const enFuturas = (alu.mensualidades_futuras || []).some(m => m.id === mid);
+        const detalles = comprobantePortal.mensualidades?.length
+            ? comprobantePortal.mensualidades
+            : [{ id: comprobantePortal.mensualidad_id, alumno_id: comprobantePortal.alumno_id }];
+        const idsPorAlumno = detalles.reduce((grupos, mensualidad) => {
+            if (!grupos[mensualidad.alumno_id]) grupos[mensualidad.alumno_id] = [];
+            grupos[mensualidad.alumno_id].push(mensualidad.id);
+            return grupos;
+        }, {});
+        const alumnosIncluidos = alumnosRep.filter(alu => idsPorAlumno[alu.id]?.length);
+        if (!alumnosIncluidos.length) return;
+        const nuevaSeleccion = {};
+        const nuevosDatos = {};
+        alumnosIncluidos.forEach((alu) => {
+            const ids = idsPorAlumno[alu.id];
+            nuevaSeleccion[alu.id] = {
+                ...crearSeleccionAlumno(),
+                selectedMens: ids.filter(mid => (
+                    alu.mensualidades_pendientes || []
+                ).some(m => m.id === mid)),
+                selectedFuturas: ids.filter(mid => (
+                    alu.mensualidades_futuras || []
+                ).some(m => m.id === mid)),
+            };
+            nuevosDatos[alu.id] = alu;
+        });
         // eslint-disable-next-line react-hooks/set-state-in-effect -- preselección tras respuesta HTTP
-        setAlumnosSeleccionados([alu.id]);
-        setDatosAlumnos({ [alu.id]: alu });
-        setSeleccion({ [alu.id]: {
-            ...crearSeleccionAlumno(),
-            selectedMens: enPendientes ? [mid] : [],
-            selectedFuturas: enFuturas ? [mid] : [],
-        } });
+        setAlumnosSeleccionados(alumnosIncluidos.map(alu => alu.id));
+        setDatosAlumnos(nuevosDatos);
+        setSeleccion(nuevaSeleccion);
     }, [comprobantePortal, alumnosRep]);
 
     // Fecha de la línea del banco distinta de hoy → modo retroactivo.

@@ -563,12 +563,22 @@ class RegistrarPagoView(APIView):
         comprobante_portal_id = data.get('comprobante_portal_id')
         if comprobante_portal_id:
             from portal.services import (
-                ComprobanteDeOtroAlumno, ComprobanteNoEncontrado, ComprobanteYaProcesado,
+                ComprobanteConMensualidadesFaltantes, ComprobanteDeOtroAlumno,
+                ComprobanteNoEncontrado, ComprobanteYaProcesado,
                 bloquear_comprobante_para_caja,
             )
             try:
+                mensualidad_ids_pago = [
+                    mensualidad_id
+                    for alumno_resuelto in alumnos_resueltos
+                    for mensualidad_id in (
+                        list(alumno_resuelto['mensualidad_ids'])
+                        + list(alumno_resuelto['mensualidad_adelanto_ids'])
+                    )
+                ]
                 comprobante_portal = bloquear_comprobante_para_caja(
                     comprobante_portal_id, [a['alumno'].id for a in alumnos_resueltos],
+                    mensualidad_ids_pago,
                 )
             except ComprobanteNoEncontrado:
                 return Response(
@@ -584,6 +594,17 @@ class RegistrarPagoView(APIView):
                 return Response(
                     {"error": "El comprobante es de una mensualidad de otro alumno; "
                               "no corresponde a los alumnos de este pago."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            except ComprobanteConMensualidadesFaltantes as exc:
+                return Response(
+                    {
+                        "error": (
+                            "Incluye todas las mensualidades respaldadas por el comprobante "
+                            "antes de registrar el pago."
+                        ),
+                        "mensualidad_ids_faltantes": exc.mensualidad_ids,
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 

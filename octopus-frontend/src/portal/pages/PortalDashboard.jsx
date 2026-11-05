@@ -25,7 +25,7 @@ const PortalDashboard = () => {
   } = useOutletContext() || {};
   const { alumnoActivo, sincronizarConLista } = useAlumnoActivo();
   const [modalOpen, setModalOpen] = useState(false);
-  const [mensualidadInicialId, setMensualidadInicialId] = useState(null);
+  const [mensualidadesInicialesIds, setMensualidadesInicialesIds] = useState([]);
   const [alumnoFinancieroId, setAlumnoFinancieroId] = useState(null);
   const { comprobantes, ultimoPorMensualidad, recargar: recargarComprobantes } = useComprobantesPortal();
 
@@ -53,22 +53,29 @@ const PortalDashboard = () => {
   // consultar el detalle de un hijo sin afectar comprobantes ni pagos.
   const ultimosPagos = dashboardData?.ultimos_pagos || [];
 
-  // Todo lo que se puede reportar desde el portal: las vencidas primero y
-  // luego las próximas (pagar por adelantado también se permite).
+  // El portal solo acepta mensualidades vencidas. Los próximos vencimientos
+  // se muestran como información, sin posibilidad de adelantar el pago.
   const pagables = useMemo(() => {
     const vistas = new Set();
-    return [...(resumen?.mensualidades_vencidas || []), ...(resumen?.proximos_vencimientos || [])]
+    return (resumen?.mensualidades_vencidas || [])
       .filter((m) => (vistas.has(m.id) ? false : vistas.add(m.id)));
   }, [resumen]);
+  const pagablesVisibles = useMemo(() => pagables.filter(
+    (mensualidad) => alumnoFiltroId === null || String(mensualidad.alumno_id) === String(alumnoFiltroId),
+  ), [pagables, alumnoFiltroId]);
   const idsPagables = useMemo(() => new Set(pagables.map((m) => m.id)), [pagables]);
   const hayPorReportar = pagables.some((m) => ultimoPorMensualidad[m.id]?.estatus !== 'pendiente');
   // Rechazos vigentes: el último comprobante de una mensualidad que sigue sin pagar.
-  const rechazados = pagables
-    .map((m) => ultimoPorMensualidad[m.id])
-    .filter((c) => c?.estatus === 'rechazado');
+  const rechazados = useMemo(() => {
+    const vistos = new Set();
+    return pagables
+      .map((m) => ultimoPorMensualidad[m.id])
+      .filter((c) => c?.estatus === 'rechazado' && !vistos.has(c.id) && vistos.add(c.id));
+  }, [pagables, ultimoPorMensualidad]);
 
   const abrirPago = (mensualidad = null) => {
-    setMensualidadInicialId(mensualidad?.id ?? null);
+    const valores = Array.isArray(mensualidad) ? mensualidad : mensualidad ? [mensualidad] : [];
+    setMensualidadesInicialesIds(valores.map((item) => item?.id ?? item).filter(Boolean));
     setModalOpen(true);
   };
 
@@ -134,16 +141,17 @@ const PortalDashboard = () => {
             <WidgetMisComprobantes
               comprobantes={comprobantes}
               variosAlumnos={variosAlumnos}
-              onSubirNuevo={(mensualidadId) => abrirPago({ id: mensualidadId })}
-              puedeResubir={(c) => idsPagables.has(c.mensualidad) && ultimoPorMensualidad[c.mensualidad]?.id === c.id}
+              onSubirNuevo={(mensualidadIds) => abrirPago(mensualidadIds)}
+              puedeResubir={(c) => {
+                const ids = c.mensualidad_ids?.length ? c.mensualidad_ids : [c.mensualidad];
+                return ids.every((id) => idsPagables.has(id) && ultimoPorMensualidad[id]?.id === c.id);
+              }}
             />
             <WidgetProximosVencimientos
               resumen={resumen}
               loading={loading}
               variosAlumnos={variosAlumnos}
               alumnoId={alumnoFiltroId}
-              comprobantePorMensualidad={ultimoPorMensualidad}
-              onPagar={abrirPago}
             />
             <WidgetUltimosPagos ultimosPagos={ultimosPagos} loading={loading} />
           </div>
@@ -165,19 +173,21 @@ const PortalDashboard = () => {
         </div>
       )}
 
-      <ComprobantePagoModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        opciones={pagables}
-        mensualidadInicialId={mensualidadInicialId}
-        comprobantePorMensualidad={ultimoPorMensualidad}
-        tasaBcv={resumen?.tasa_bcv}
-        variosAlumnos={variosAlumnos}
-        onSuccess={() => {
-          recargarComprobantes();
-          recargarResumen?.();
-        }}
-      />
+      {modalOpen && (
+        <ComprobantePagoModal
+          isOpen
+          onClose={() => setModalOpen(false)}
+          opciones={pagablesVisibles}
+          mensualidadesInicialesIds={mensualidadesInicialesIds}
+          comprobantePorMensualidad={ultimoPorMensualidad}
+          tasaBcv={resumen?.tasa_bcv}
+          variosAlumnos={variosAlumnos}
+          onSuccess={() => {
+            recargarComprobantes();
+            recargarResumen?.();
+          }}
+        />
+      )}
     </div>
   );
 };

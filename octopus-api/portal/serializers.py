@@ -435,6 +435,9 @@ class ComprobantePagoSerializer(serializers.ModelSerializer):
     anio = serializers.IntegerField(source='mensualidad.anio', read_only=True)
     alumno_id = serializers.IntegerField(source='mensualidad.alumno_id', read_only=True)
     alumno_nombre = serializers.SerializerMethodField()
+    mensualidad_ids = serializers.SerializerMethodField()
+    mensualidades_detalle = serializers.SerializerMethodField()
+    cantidad_mensualidades = serializers.SerializerMethodField()
 
     class Meta:
         model = ComprobantePago
@@ -442,6 +445,7 @@ class ComprobantePagoSerializer(serializers.ModelSerializer):
             'id', 'mensualidad', 'archivo', 'fecha_subida',
             'estatus', 'estatus_display', 'observaciones',
             'mes_nombre', 'anio', 'alumno_id', 'alumno_nombre',
+            'mensualidad_ids', 'mensualidades_detalle', 'cantidad_mensualidades',
         ]
         read_only_fields = ['fecha_subida', 'estatus', 'subido_por_ip']
 
@@ -451,3 +455,27 @@ class ComprobantePagoSerializer(serializers.ModelSerializer):
     def get_alumno_nombre(self, obj):
         alumno = obj.mensualidad.alumno
         return f'{alumno.nombre} {alumno.apellido}'
+
+    @staticmethod
+    def _mensualidades(obj):
+        return obj.mensualidades_incluidas()
+
+    def get_mensualidad_ids(self, obj):
+        return [mensualidad.id for mensualidad in self._mensualidades(obj)]
+
+    def get_cantidad_mensualidades(self, obj):
+        return len(self._mensualidades(obj))
+
+    def get_mensualidades_detalle(self, obj):
+        return [
+            {
+                'id': mensualidad.id,
+                'mes': mensualidad.mes,
+                'mes_nombre': mensualidad.get_mes_display(),
+                'anio': mensualidad.anio,
+                'alumno_id': mensualidad.alumno_id,
+                'alumno_nombre': f'{mensualidad.alumno.nombre} {mensualidad.alumno.apellido}',
+                'monto_usd': str(mensualidad.monto_usd),
+            }
+            for mensualidad in self._mensualidades(obj)
+        ]

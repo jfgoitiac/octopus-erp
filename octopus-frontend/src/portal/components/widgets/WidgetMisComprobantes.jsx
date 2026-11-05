@@ -8,7 +8,7 @@ import EstadoBadge from '../EstadoBadge';
 //
 // `puedeResubir(c)` decide si un rechazado admite un comprobante nuevo (la
 // mensualidad sigue pendiente y ese rechazo es su último envío); en ese caso
-// se ofrece "Subir nuevo comprobante", que llama `onSubirNuevo(c.mensualidad)`.
+// se ofrece "Subir nuevo comprobante" con todas las mensualidades del envío.
 const WidgetMisComprobantes = ({
   comprobantes = [], variosAlumnos = false, limite = 4, onSubirNuevo = null, puedeResubir = () => false,
 }) => {
@@ -21,12 +21,20 @@ const WidgetMisComprobantes = ({
         {comprobantes.slice(0, limite).map((c) => {
           const rechazado = c.estatus === 'rechazado';
           const resubible = rechazado && onSubirNuevo && puedeResubir(c);
+          const detalles = c.mensualidades_detalle || [];
+          const cantidad = c.cantidad_mensualidades || detalles.length || 1;
           return (
             <li key={c.id} className="py-3.5 first:pt-0 last:pb-0">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-[var(--portal-ink)] sm:text-base">{c.mes_nombre} {c.anio}</p>
-                  {variosAlumnos && c.alumno_nombre && <p className="text-xs text-[var(--portal-ink)] truncate">{c.alumno_nombre}</p>}
+                  <p className="text-sm font-semibold text-[var(--portal-ink)] sm:text-base">
+                    {cantidad > 1 ? `${cantidad} mensualidades` : `${c.mes_nombre} ${c.anio}`}
+                  </p>
+                  {cantidad > 1 ? (
+                    <p className="line-clamp-2 text-xs text-[var(--portal-ink)]">
+                      {detalles.map((detalle) => `${detalle.mes_nombre} · ${detalle.alumno_nombre}`).join(', ')}
+                    </p>
+                  ) : variosAlumnos && c.alumno_nombre && <p className="truncate text-xs text-[var(--portal-ink)]">{c.alumno_nombre}</p>}
                   <p className="text-xs text-[var(--portal-muted)]">Enviado el {fmtFecha(c.fecha_subida, "d 'de' MMM, h:mm a")}</p>
                 </div>
                 <EstadoBadge estado={ESTATUS_COMPROBANTE[c.estatus]} fallback={c.estatus_display} />
@@ -37,7 +45,7 @@ const WidgetMisComprobantes = ({
               {resubible && (
                 <button
                   type="button"
-                  onClick={() => onSubirNuevo(c.mensualidad)}
+                  onClick={() => onSubirNuevo(c.mensualidad_ids?.length ? c.mensualidad_ids : [c.mensualidad])}
                   className="mt-2 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-[var(--portal-primary)] px-4 text-sm font-semibold text-[var(--portal-primary)] transition-colors hover:bg-[var(--portal-primary)]/10 sm:w-auto"
                 >
                   <Upload size={16} aria-hidden="true" /> Subir nuevo comprobante

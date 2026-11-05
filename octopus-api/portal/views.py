@@ -8,6 +8,8 @@ from decimal import Decimal, InvalidOperation
 
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Q
+from django.utils import timezone
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -561,33 +563,58 @@ class PortalReciboPagoView(APIView):
 class PortalComprobantePagoView(APIView):
     """
     Permite al representante subir un comprobante de transferencia o depósito
-    para una mensualidad pendiente. El personal administrativo revisará
+    para una o varias mensualidades vencidas. El personal administrativo revisará
     y aprobará o rechazará el comprobante desde el panel interno.
     """
     authentication_classes = [PortalJWTAuthentication]
     permission_classes = [permissions.IsAuthenticated]
+    MAX_MENSUALIDADES = 24
 
     def post(self, request):
         representante = _get_representante(request)
 
-        # El representante SOLO envía el archivo y la mensualidad. Referencia,
+        # El representante SOLO envía el archivo y las mensualidades. Referencia,
         # método y banco los llena el revisor al aprobar; si un cliente viejo
         # los manda se ignoran (y el antifraude de referencia se hace allá).
-        mensualidad_id     = request.data.get('mensualidad_id')
-        archivo            = request.FILES.get('archivo')
+        valores_ids = (
+            request.data.getlist('mensualidad_ids')
+            if hasattr(request.data, 'getlist') else request.data.get('mensualidad_ids', [])
+        )
+        if not valores_ids:
+            # Compatibilidad con clientes anteriores que enviaban una sola.
+            mensualidad_id = request.data.get('mensualidad_id')
+            valores_ids = [mensualidad_id] if mensualidad_id else []
+        elif not isinstance(valores_ids, (list, tuple)):
+            valores_ids = [valores_ids]
 
-        if not mensualidad_id:
+        try:
+            mensualidad_ids = list(dict.fromkeys(int(valor) for valor in valores_ids))
+        except (TypeError, ValueError):
             return Response(
-                {'error': 'El campo mensualidad_id es requerido.'},
+                {'error': 'La selección de mensualidades no es válida.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        if not mensualidad_ids:
+            return Response(
+                {'error': 'Selecciona al menos una mensualidad vencida.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if len(mensualidad_ids) > self.MAX_MENSUALIDADES:
+            return Response(
+                {'error': f'Puedes incluir hasta {self.MAX_MENSUALIDADES} mensualidades por comprobante.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        archivo = request.FILES.get('archivo')
         if not archivo:
             return Response(
                 {'error': 'Debe adjuntar un archivo de comprobante.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Verificar que la mensualidad corresponde a un alumno del representante.
+        # Verificar que todas las mensualidades pertenecen al representante,
+        # siguen impagas y ya vencieron. La regla se aplica en servidor para
+        # que no pueda burlarse manipulando el frontend.
         # Se hace ANTES de cualquier validación de campos (ej. referencia
         # obligatoria) para que un intento sobre una mensualidad ajena
         # devuelva 404 (IDOR) sin importar qué otros campos falten en el
@@ -597,29 +624,49 @@ class PortalComprobantePagoView(APIView):
         # devolvía 400 en vez de 404, filtrando por accidente el requisito
         # de validación de un objeto al que el representante no debería ni
         # poder consultar.
-        try:
-            mensualidad = Mensualidad.objects.select_related('alumno__representante').get(
-                id=mensualidad_id,
+        mensualidades = list(
+            Mensualidad.objects.select_related('alumno__representante').filter(
+                id__in=mensualidad_ids,
                 alumno__representante=representante,
                 alumno__activo=True,
                 pagado=False,
             )
-        except Mensualidad.DoesNotExist:
+        )
+        if len(mensualidades) != len(mensualidad_ids):
             return Response(
-                {'error': 'Mensualidad no encontrada, ya pagada, o no pertenece a sus alumnos.'},
+                {'error': 'Una o más mensualidades no existen, ya fueron pagadas o no pertenecen a tus estudiantes.'},
                 status=status.HTTP_404_NOT_FOUND
             )
 
+        from cobranza.mora import fecha_vencimiento_mensualidad
+        hoy = timezone.localdate()
+        no_vencidas = [
+            mensualidad for mensualidad in mensualidades
+            if fecha_vencimiento_mensualidad(mensualidad) > hoy
+        ]
+        if no_vencidas:
+            return Response(
+                {'error': 'Solo puedes reportar pagos de mensualidades vencidas.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        mensualidades.sort(key=lambda mensualidad: (
+            fecha_vencimiento_mensualidad(mensualidad),
+            mensualidad.alumno_id,
+            mensualidad.id,
+        ))
+        mensualidad_ancla = mensualidades[0]
+
         # --- ANTIFRAUDE 2: bloquear múltiples comprobantes pendientes por mensualidad ---
         comprobante_pendiente = ComprobantePago.objects.filter(
-            mensualidad=mensualidad,
+            Q(mensualidad__in=mensualidades) | Q(mensualidades__in=mensualidades),
             estatus='pendiente',
-        ).first()
+        ).distinct().first()
         if comprobante_pendiente:
             return Response(
                 {
                     'error': (
-                        'Ya tiene un comprobante en revisión para esta mensualidad '
+                        'Una de las mensualidades seleccionadas ya tiene un comprobante en revisión '
                         f'(#{comprobante_pendiente.id}, enviado el '
                         f'{comprobante_pendiente.fecha_subida.strftime("%d/%m/%Y %H:%M")}). '
                         'Espere la respuesta del equipo de cobranza antes de enviar otro.'
@@ -662,12 +709,14 @@ class PortalComprobantePagoView(APIView):
             or request.META.get('REMOTE_ADDR', '')
         )
 
-        comprobante = ComprobantePago.objects.create(
-            mensualidad=mensualidad,
-            archivo=archivo,
-            hash_archivo=hash_sha256,
-            subido_por_ip=ip_cliente,
-        )
+        with transaction.atomic():
+            comprobante = ComprobantePago.objects.create(
+                mensualidad=mensualidad_ancla,
+                archivo=archivo,
+                hash_archivo=hash_sha256,
+                subido_por_ip=ip_cliente,
+            )
+            comprobante.mensualidades.set(mensualidades)
 
         # Notificar al equipo de cobranza de forma asíncrona
         try:
@@ -677,8 +726,8 @@ class PortalComprobantePagoView(APIView):
             logger.warning(f'No se pudo encolar notificación de comprobante: {e}')
 
         logger.info(
-            "Comprobante #%s subido por representante %s para mensualidad %s (hash=%s…)",
-            comprobante.id, representante.cedula, mensualidad_id, hash_sha256[:12],
+            "Comprobante #%s subido por representante %s para mensualidades %s (hash=%s…)",
+            comprobante.id, representante.cedula, mensualidad_ids, hash_sha256[:12],
         )
 
         return Response(
@@ -695,13 +744,13 @@ class PortalComprobantePagoView(APIView):
 
         comprobantes_qs = ComprobantePago.objects.filter(
             mensualidad__alumno__representante=representante
-        ).select_related('mensualidad__alumno')
+        ).select_related('mensualidad__alumno').prefetch_related('mensualidades__alumno')
 
         alumno_id = request.query_params.get('alumno_id')
         if alumno_id:
             comprobantes_qs = comprobantes_qs.filter(
-                mensualidad__alumno_id=alumno_id
-            )
+                Q(mensualidad__alumno_id=alumno_id) | Q(mensualidades__alumno_id=alumno_id)
+            ).distinct()
 
         return Response(
             ComprobantePagoSerializer(comprobantes_qs, many=True).data
@@ -1275,21 +1324,44 @@ def _dinero(valor):
 
 def _datos_basicos_comprobante(request, c):
     """Campos comunes de la lista y el detalle del panel de revisión."""
-    mensualidad = c.mensualidad
+    mensualidades = c.mensualidades_incluidas()
+    mensualidad = mensualidades[0]
+    alumnos = {m.alumno_id: m.alumno for m in mensualidades}
     alumno = mensualidad.alumno
     rep = alumno.representante
+    monto_total = sum((m.monto_usd for m in mensualidades), Decimal('0.00'))
     return {
         'id': c.id,
         'fecha_subida': c.fecha_subida,
         'estatus': c.estatus,
         'observaciones': c.observaciones,
         'archivo_url': url_archivo_comprobante(request, c),
-        'alumno': f'{alumno.nombre} {alumno.apellido}',
-        'grado': alumno.grado_seccion,
+        'alumno': (
+            f'{alumno.nombre} {alumno.apellido}'
+            if len(alumnos) == 1 else f'{len(alumnos)} estudiantes'
+        ),
+        'alumno_ids': sorted(alumnos),
+        'grado': alumno.grado_seccion if len(alumnos) == 1 else None,
         'representante': f'{rep.nombre} {rep.apellido}',
         'representante_cedula': rep.cedula,
-        'mensualidad': f'{mensualidad.get_mes_display()} {mensualidad.anio}',
-        'monto_usd': str(mensualidad.monto_usd),
+        'mensualidad': (
+            f'{mensualidad.get_mes_display()} {mensualidad.anio}'
+            if len(mensualidades) == 1 else f'{len(mensualidades)} mensualidades'
+        ),
+        'mensualidad_ids': [m.id for m in mensualidades],
+        'mensualidades': [
+            {
+                'id': m.id,
+                'mes': m.mes,
+                'mes_nombre': m.get_mes_display(),
+                'anio': m.anio,
+                'alumno_id': m.alumno_id,
+                'alumno': f'{m.alumno.nombre} {m.alumno.apellido}',
+                'monto_usd': str(m.monto_usd),
+            }
+            for m in mensualidades
+        ],
+        'monto_usd': str(monto_total),
         # Pueden venir null: el representante ya no los escribe; solo los
         # traen los comprobantes viejos o los ya aprobados.
         'referencia_bancaria': c.referencia_bancaria,
@@ -1318,7 +1390,7 @@ class AdminComprobantesView(APIView):
             estatus=estatus
         ).select_related(
             'mensualidad__alumno__representante', 'banco_receptor',
-        ).order_by('-fecha_subida')
+        ).prefetch_related('mensualidades__alumno__representante').order_by('-fecha_subida')
 
         return Response([_datos_basicos_comprobante(request, c) for c in comprobantes])
 
@@ -1328,17 +1400,22 @@ class AdminComprobantesView(APIView):
 
         c = ComprobantePago.objects.select_related(
             'mensualidad__alumno__representante', 'banco_receptor', 'revisado_por', 'pago',
-        ).filter(id=comprobante_id).first()
+        ).prefetch_related('mensualidades__alumno__representante').filter(id=comprobante_id).first()
         if not c:
             return Response({'error': 'Comprobante no encontrado.'}, status=404)
 
-        mensualidad = c.mensualidad
+        mensualidades = c.mensualidades_incluidas()
+        mensualidad = mensualidades[0]
         data = _datos_basicos_comprobante(request, c)
         data.update({
             'archivo_tipo': _tipo_archivo_comprobante(c.archivo),
             'mensualidad_id': mensualidad.id,
-            'monto_pagado_usd': _dinero(mensualidad.monto_pagado),
-            'saldo_pendiente_usd': _dinero(saldo_deuda(mensualidad)),
+            'monto_pagado_usd': _dinero(sum(
+                (m.monto_pagado for m in mensualidades), Decimal('0.00')
+            )),
+            'saldo_pendiente_usd': _dinero(sum(
+                (saldo_deuda(m) for m in mensualidades), Decimal('0.00')
+            )),
             # Chequeo previo de solo lectura (mismo que se recalcula al aprobar).
             'advertencias': (
                 advertencias_hash(c) + advertencia_mensualidad_saldada(c)

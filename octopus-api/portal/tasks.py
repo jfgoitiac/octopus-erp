@@ -29,11 +29,17 @@ def notificar_comprobante_subido(comprobante_id):
 
         comprobante = ComprobantePago.objects.select_related(
             'mensualidad__alumno__representante'
-        ).get(id=comprobante_id)
+        ).prefetch_related('mensualidades__alumno__representante').get(id=comprobante_id)
 
-        alumno = comprobante.mensualidad.alumno
+        mensualidades = comprobante.mensualidades_incluidas()
+        alumno = mensualidades[0].alumno
         representante = alumno.representante
-        mensualidad = comprobante.mensualidad
+        monto_total = sum(mensualidad.monto_usd for mensualidad in mensualidades)
+        detalle_mensualidades = ', '.join(
+            f'{mensualidad.get_mes_display()} {mensualidad.anio} — '
+            f'{mensualidad.alumno.nombre} {mensualidad.alumno.apellido}'
+            for mensualidad in mensualidades
+        )
 
         # Push a cobranza/administración (no depende de que haya emails destino).
         try:
@@ -45,7 +51,7 @@ def notificar_comprobante_subido(comprobante_id):
                     perfil__esta_activo=True, is_active=True),
                 'comprobante', 'Comprobante de pago pendiente',
                 f'{representante.nombre} {representante.apellido} · '
-                f'{alumno.nombre} {alumno.apellido} · ${mensualidad.monto_usd}',
+                f'{len(mensualidades)} mensualidad(es) · ${monto_total}',
                 url='/comprobantes/revision', tipo_log='comprobante',
             )
         except Exception as e:
@@ -75,14 +81,12 @@ def notificar_comprobante_subido(comprobante_id):
             logger.warning(f'No hay destinatarios para notificación de comprobante {comprobante_id}')
             return
 
-        asunto = f'[Octopus] Comprobante de pago pendiente — {alumno.nombre} {alumno.apellido}'
+        asunto = f'[Octopus] Comprobante de pago pendiente — {len(mensualidades)} mensualidad(es)'
         mensaje = (
             f'El representante {representante.nombre} {representante.apellido} '
             f'(Cédula: {representante.cedula}) ha subido un comprobante de pago.\n\n'
-            f'Alumno: {alumno.nombre} {alumno.apellido}\n'
-            f'Grado: {alumno.grado_seccion or "Sin grado"}\n'
-            f'Mensualidad: {mensualidad.get_mes_display()} {mensualidad.anio}\n'
-            f'Monto: ${mensualidad.monto_usd} USD\n\n'
+            f'Mensualidades: {detalle_mensualidades}\n'
+            f'Monto total: ${monto_total} USD\n\n'
             f'Ingrese al panel administrativo para revisar y aprobar o rechazar el comprobante.'
         )
 
