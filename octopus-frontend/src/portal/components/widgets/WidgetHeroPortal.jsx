@@ -30,7 +30,7 @@ const WidgetHeroPortal = ({ nombre, resumen, logoColegio, variosAlumnos = false,
       <div className="relative flex flex-col gap-6 p-6 sm:p-8 lg:flex-row lg:items-center lg:justify-between lg:p-10">
         <div>
           <p className="text-sm text-white/80 lg:hidden">{hoy}</p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl lg:mt-0 lg:text-4xl">Hola, {nombre || 'familia'}</h1>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-white sm:text-3xl lg:mt-0 lg:text-4xl">Hola, {nombre || 'familia'}</h1>
           <p className="mt-2 max-w-md text-sm text-white/85 sm:text-base">Aquí tienes lo importante de tu familia en el colegio.</p>
         </div>
         {loadingResumen ? (

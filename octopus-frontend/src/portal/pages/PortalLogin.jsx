@@ -1,5 +1,5 @@
 import { useState, useContext } from 'react';
-import { useNavigate, Navigate, Link } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { User, Lock, Eye, EyeOff } from 'lucide-react';
 import logoColegioFallback from '../../assets/logo-colegio.png';
 import { toast } from 'react-toastify';
@@ -50,7 +50,7 @@ const PortalLogin = () => {
       <div className="w-full max-w-[440px] lg:max-w-5xl lg:grid lg:grid-cols-2 lg:gap-6 lg:items-stretch">
         {/* Bloque de marca del colegio */}
         <section className="portal-hero p-6 sm:p-8 lg:p-10 flex flex-col gap-5 lg:justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center">
             <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white p-2 shadow-sm">
               <img
                 src={logoUrl || logoColegioFallback}
@@ -59,10 +59,9 @@ const PortalLogin = () => {
                 onError={e => { e.target.src = logoColegioFallback; }}
               />
             </span>
-            <p className="text-base font-semibold leading-tight text-white/90 line-clamp-2">{nombreColegio || 'Portal escolar'}</p>
           </div>
           <div>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight leading-tight">Portal de Representantes</h1>
+            <h1 className="text-2xl font-bold leading-tight tracking-tight text-white sm:text-3xl lg:text-4xl">Portal de Representantes</h1>
             <p className="mt-2 text-sm sm:text-base text-white/80 max-w-sm">Accede a la información de tu representado</p>
           </div>
         </section>
@@ -136,12 +135,6 @@ const PortalLogin = () => {
               )}
             </button>
 
-            <Link
-              to="/portal/olvide-contrasena"
-              className="block text-center text-sm text-[var(--portal-tint-ink)] font-medium hover:underline underline-offset-4 py-2"
-            >
-              ¿Olvidaste tu contraseña?
-            </Link>
           </form>
         </div>
 
