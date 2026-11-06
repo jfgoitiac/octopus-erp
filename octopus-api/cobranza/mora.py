@@ -38,12 +38,13 @@ from django.db.models import (
     DateField, DecimalField, IntegerField, BooleanField, Case, When, Value,
 )
 from django.db.models.functions import Coalesce
+from django.utils import timezone
 
 from .models import CuotaInscripcion, CuotaProyectoInversion, CuotaSolvencia, Mensualidad
 
 
 def _hoy(hoy=None):
-    return hoy or date.today()
+    return hoy or timezone.localdate()
 
 
 # Mismo valor por defecto que Alumno.dia_limite_pago y generar_mensualidades.

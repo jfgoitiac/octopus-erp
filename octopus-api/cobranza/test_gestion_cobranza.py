@@ -6,6 +6,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from rest_framework.test import APIClient
+from portal.models import ComprobantePago
 
 from . import gestion
 from .dashboard import calcular_dashboard
@@ -123,6 +124,60 @@ class BandejaTest(GestionBase):
         c = self.ciclo(dia_limite=1)
         gestion.pausar_ciclo(c, 'reclamo', self.admin)
         self.assertEqual(gestion.calcular_bandeja(CicloCobranza.objects.all(), HOY, AHORA), [])
+
+    def test_pago_en_revision_no_convierte_cuotas_futuras_en_deuda(self):
+        alumno = self.alumno('E1', 17)
+        mensualidades = [self.mens(alumno, mes=mes) for mes in (8, 9)]
+        self.config()
+        evaluar_ciclos_sede(self.sede.id, HOY)
+        comprobante = ComprobantePago.objects.create(
+            mensualidad=mensualidades[0], archivo='comprobantes/futuro.png')
+        comprobante.mensualidades.set(mensualidades)
+        ComprobantePago.objects.filter(pk=comprobante.pk).update(
+            fecha_subida=AHORA - timedelta(days=4))
+
+        fila = gestion.calcular_bandeja(CicloCobranza.objects.all(), HOY, AHORA)[0]
+
+        self.assertEqual(fila['puntaje'], 10)
+        self.assertEqual(fila['saldo_total_usd'], '0.00')
+        self.assertEqual(fila['ciclos'], [])
+        self.assertEqual(fila['accion_sugerida']['codigo'], 'revisar_pago')
+        self.assertEqual([r['texto'] for r in fila['razones']],
+                         ['Pago en revisión hace más de 3 días'])
+
+    def test_pausa_por_reclamo_no_infla_otro_caso_activo(self):
+        primero = self.ciclo('E1', dia_limite=1, monto=50)
+        segundo = self.ciclo('E2', dia_limite=1, monto=50, rep=None)
+        gestion.pausar_ciclo(primero, 'reclamo', self.admin)
+
+        fila = gestion.calcular_bandeja(CicloCobranza.objects.all(), HOY, AHORA)[0]
+
+        self.assertEqual(fila['ciclos'], [segundo.id])
+        self.assertEqual(fila['saldo_total_usd'], '50.00')
+
+    def test_becado_no_aparece_aunque_su_ciclo_aun_este_abierto(self):
+        ciclo = self.ciclo(dia_limite=1)
+        type(ciclo.mensualidad.alumno).todos.filter(
+            pk=ciclo.mensualidad.alumno_id).update(estatus_financiero='becado')
+        self.assertEqual(gestion.calcular_bandeja(
+            CicloCobranza.objects.all(), HOY, AHORA), [])
+
+
+class PagosRevisionTest(GestionBase):
+    def test_comprobante_grupal_suma_todas_las_mensualidades(self):
+        mensualidades = [
+            self.mens(self.alumno('E1', 1), monto=40),
+            self.mens(self.alumno('E2', 1), monto=60),
+        ]
+        comprobante = ComprobantePago.objects.create(
+            mensualidad=mensualidades[0], archivo='comprobantes/grupal.png')
+        comprobante.mensualidades.set(mensualidades)
+
+        fila = gestion.pagos_en_revision({self.sede.id}, AHORA)[0]
+
+        self.assertEqual(fila['monto_usd'], '100.00')
+        self.assertIn('Ana E1', fila['alumno'])
+        self.assertIn('Ana E2', fila['alumno'])
 
 
 class ApiTest(GestionBase):

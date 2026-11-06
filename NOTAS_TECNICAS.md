@@ -2,6 +2,29 @@
 
 Deuda técnica detectada durante auditorías y refactorings.
 
+## Auditoría de Cobranza Inteligente (06/11/2026)
+
+Corregido durante esta auditoría: cuotas futuras que inflaban la prioridad,
+pausas/becas que contaminaban la cartera activa, comprobantes grupales
+subestimados o ignorados por el motor, fecha del servidor en lugar de la fecha
+local y endpoints financieros accesibles a cualquier usuario autenticado.
+
+Pendiente, sin implementar:
+
+1. **Convenios sin conciliación contable automática**: las cuotas se marcan
+   pagadas manualmente y no crean ni enlazan un `Pago`; ya estaba declarado en
+   el alcance de “convenio mínimo”. Integrarlo exige definir método, banco,
+   tasa, caja y distribución del abono, por lo que no debe resolverse con un
+   simple booleano.
+2. **Antigüedad de `Pago.estatus='en_revision'`**: se calcula desde
+   `fecha_pago`, que puede ser retroactiva, porque `Pago` no guarda una fecha de
+   creación separada. Hoy ningún flujo normal genera ese estatus; si se activa,
+   conviene agregar `creado_en` y medir desde allí.
+3. **Configuración operativa del aviso al director**:
+   `PORTAL_EMAIL_DIRECTOR` debe existir en producción (o configurarse en
+   `ConfiguracionNotificaciones`). La suite advierte cuando falta; sin ese dato
+   no se enviará la alerta de mora del día 15.
+
 ## Notificaciones del portal y visor de comprobantes (02/11/2026)
 
 Detectado en la auditoría de notificaciones; solo se anota, no se implementa.

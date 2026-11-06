@@ -14,7 +14,7 @@ Aproximaciones declaradas (ver NOTAS_TECNICAS.md):
     Inteligente si llega dentro de los 7 días siguientes a un mensaje o una
     gestión registrada sobre esa deuda.
 """
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 from django.db.models import Count, Q, Sum
@@ -204,7 +204,7 @@ def estado_motor(ahora=None):
 
 
 def calcular_dashboard(sedes, hoy=None, ahora=None):
-    hoy = hoy or date.today()
+    hoy = hoy or timezone.localdate()
     ahora = ahora or timezone.now()
     ciclos = CicloCobranza.objects.filter(q_sedes(sedes, 'mensualidad__alumno__'))
     # Mismo universo que Morosos y la bandeja: deuda viva de alumnos activos no

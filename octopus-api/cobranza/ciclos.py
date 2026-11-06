@@ -13,8 +13,6 @@ Todo opera solo sobre sedes con Cobranza Inteligente efectivamente encendida
 (cobranza/inteligente.py). Nada aquí envía mensajes.
 """
 import logging
-from datetime import date
-
 from django.db import transaction
 from django.utils import timezone
 
@@ -42,7 +40,7 @@ def calcular_fecha_vencimiento(mensualidad):
 
 def dias_de_mora(fecha_vencimiento, hoy=None):
     """Días desde el vencimiento; negativo si todavía no vence."""
-    return ((hoy or date.today()) - fecha_vencimiento).days
+    return ((hoy or timezone.localdate()) - fecha_vencimiento).days
 
 
 def etapa_por_dias(dias):
@@ -82,9 +80,9 @@ CAMPOS_CIERRE = ['estado', 'motivo_cierre', 'cerrado_en', 'proxima_accion', 'pro
 
 
 def _reabrir(ciclo, hoy=None):
-    """Reabre un ciclo cerrado por pago, en la etapa que le toca hoy. Deja evento."""
+    """Reabre un ciclo cerrado que volvió a ser cobrable. Deja evento."""
     m = ciclo.mensualidad
-    if (ciclo.estado != CicloCobranza.CERRADA or ciclo.motivo_cierre != 'pagada'
+    if (ciclo.estado != CicloCobranza.CERRADA or ciclo.motivo_cierre not in ('pagada', 'becado')
             or m.pagado or not m.alumno.activo or m.alumno.estatus_financiero == 'becado'):
         return False
     ciclo.estado = etapa_por_dias(dias_de_mora(ciclo.fecha_vencimiento, hoy))
@@ -119,7 +117,7 @@ def evaluar_ciclos_sede(sede_id, hoy=None):
 
     Devuelve un dict con los contadores de lo que cambió.
     """
-    hoy = hoy or date.today()
+    hoy = hoy or timezone.localdate()
     ahora = timezone.now()
     resumen = {'creados': 0, 'cerrados': 0, 'cambios_etapa': 0, 'reabiertos': 0}
     eventos = []
@@ -145,11 +143,11 @@ def evaluar_ciclos_sede(sede_id, hoy=None):
             for c in nuevos
         )
 
-    # 1b. Ciclos cerrados por pago cuya mensualidad volvió a quedar impaga
-    # (pago anulado por un update masivo que no dispara la señal).
+    # 1b. Ciclos cerrados por pago/beca cuya mensualidad volvió a ser cobrable
+    # (pago anulado o beca retirada, incluso mediante update masivo).
     for ciclo in CicloCobranza.objects.filter(
             mensualidad__alumno__sede_id=sede_id, estado=CicloCobranza.CERRADA,
-            motivo_cierre='pagada', mensualidad__pagado=False,
+            motivo_cierre__in=('pagada', 'becado'), mensualidad__pagado=False,
             mensualidad__alumno__activo=True).select_related('mensualidad__alumno'):
         if _reabrir(ciclo, hoy):
             resumen['reabiertos'] += 1
@@ -162,7 +160,12 @@ def evaluar_ciclos_sede(sede_id, hoy=None):
     )
     for ciclo in abiertos:
         m = ciclo.mensualidad
-        motivo = 'pagada' if m.pagado else ('retirado' if not m.alumno.activo else None)
+        motivo = (
+            'pagada' if m.pagado
+            else 'retirado' if not m.alumno.activo
+            else 'becado' if m.alumno.estatus_financiero == 'becado'
+            else None
+        )
         if motivo:
             _cerrar(ciclo, motivo, ahora)
             ciclo.save(update_fields=CAMPOS_CIERRE)
@@ -203,7 +206,7 @@ def poner_al_dia_si_hace_falta(sedes, hoy=None):
     """
     from django.core.cache import cache
     from .gestion import actualizar_proximas_acciones
-    hoy = hoy or date.today()
+    hoy = hoy or timezone.localdate()
     for sede_id in sedes:
         clave = f'cobranza_inteligente:ciclos_evaluados:{sede_id}:{hoy.isoformat()}'
         if not cache.add(clave, True, timeout=26 * 3600):

@@ -187,6 +187,23 @@ class EnvioTest(MotorBase):
         e = EnvioCobranza.objects.get()
         self.assertEqual((e.estado, e.motivo_omision), ('omitido', 'pago_en_revision'))
 
+    def test_comprobante_grupal_pausa_avisos_de_todas_sus_mensualidades(self):
+        from portal.models import ComprobantePago
+        m1 = self.mens(self.alumno('E1'))
+        m2 = self.mens(self.alumno('E2'))
+        self.preparar()
+        comprobante = ComprobantePago.objects.create(
+            mensualidad=m1, archivo='comprobantes/grupal.png')
+        comprobante.mensualidades.set([m1, m2])
+
+        with patch(WA) as wa:
+            procesar_envios(AHORA)
+
+        wa.assert_not_called()
+        envio = EnvioCobranza.objects.get()
+        self.assertEqual((envio.estado, envio.motivo_omision),
+                         ('omitido', 'pago_en_revision'))
+
     def test_fuera_de_horario_no_envia_y_queda_para_la_ventana(self):
         self.mens(self.alumno())
         self.preparar()

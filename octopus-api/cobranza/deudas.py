@@ -170,8 +170,8 @@ def revertir_aplicaciones_pago(pago, cuando):
 
 def deudas_pendientes_alumno(alumno, hoy=None):
     """Items pendientes, con nominal, abonos acumulados y saldo real."""
-    from datetime import date
-    hoy = hoy or date.today()
+    from django.utils import timezone
+    hoy = hoy or timezone.localdate()
     mensualidades = Mensualidad.objects.filter(alumno=alumno, pagado=False).filter(
         Q(anio__lt=hoy.year) | Q(anio=hoy.year, mes__lte=hoy.month)
     ).select_related('alumno').order_by('anio', 'mes')

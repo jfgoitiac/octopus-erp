@@ -189,6 +189,26 @@ class EvaluarCiclosTest(CicloBase):
         evaluar_ciclos_sede(self.sede.id, HOY)
         self.assertEqual(CicloCobranza.objects.count(), 0)
 
+    def test_beca_nueva_cierra_ciclo_y_al_retirarla_lo_reabre(self):
+        alumno = self.alumno()
+        mensualidad = self.mens(alumno, 7)
+        self.encender()
+        evaluar_ciclos_sede(self.sede.id, HOY)
+
+        Alumno.todos.filter(pk=alumno.pk).update(estatus_financiero='becado')
+        evaluar_ciclos_sede(self.sede.id, HOY)
+        mensualidad.ciclo.refresh_from_db()
+        self.assertEqual(
+            (mensualidad.ciclo.estado, mensualidad.ciclo.motivo_cierre),
+            (CicloCobranza.CERRADA, 'becado'),
+        )
+
+        Alumno.todos.filter(pk=alumno.pk).update(estatus_financiero='regular')
+        resumen = evaluar_ciclos_sede(self.sede.id, HOY)
+        mensualidad.ciclo.refresh_from_db()
+        self.assertEqual(resumen['reabiertos'], 1)
+        self.assertEqual(mensualidad.ciclo.estado, CicloCobranza.PRIORITARIA)
+
     def test_mensualidad_nueva_con_modulo_encendido_crea_su_ciclo(self):
         a = self.alumno()
         self.encender()
@@ -263,6 +283,22 @@ class PuestaAlDiaYApiTest(CicloBase):
         self.assertEqual(r.status_code, 409)
         self.assertTrue(r.data['apagada'])
 
+    def test_docente_no_puede_ver_datos_financieros_inteligentes(self):
+        from authentication.models import PerfilUsuario
+        docente = User.objects.create_user('docente', password='x')
+        PerfilUsuario.objects.update_or_create(
+            user=docente, defaults={'rol': 'docente', 'esta_activo': True})
+        docente = User.objects.get(pk=docente.pk)  # evita el perfil creado por signal en caché
+        self.client.force_authenticate(docente)
+        urls = (
+            '/api/cobranza/inteligente/cartera/',
+            f'/api/cobranza/inteligente/representantes/{self.rep.id}/expediente/',
+            '/api/cobranza/inteligente/envios/',
+            '/api/cobranza/inteligente/sombra/resumen/',
+        )
+        for url in urls:
+            self.assertEqual(self.client.get(url).status_code, 403, url)
+
     def test_cartera_filtra_por_estado_y_muestra_dias_de_mora(self):
         self.mens(self.alumno('E1'), 7)
         self.mens(self.alumno('E2'), 12)   # diciembre: aún no vence
@@ -289,6 +325,21 @@ class PuestaAlDiaYApiTest(CicloBase):
         evaluar_ciclos_sede(self.sede.id, HOY)
         r = self.client.get('/api/cobranza/inteligente/cartera/')
         self.assertEqual(r.data['count'], 1)
+
+    def test_cartera_no_expone_ciclos_obsoletos_pagados_retirados_o_becados(self):
+        alumnos = [self.alumno(f'E{i}') for i in range(1, 4)]
+        mensualidades = [self.mens(alumno, 7) for alumno in alumnos]
+        self.encender()
+        evaluar_ciclos_sede(self.sede.id, HOY)
+        Mensualidad.objects.filter(pk=mensualidades[0].pk).update(
+            pagado=True, monto_pagado=mensualidades[0].monto_usd)
+        Alumno.todos.filter(pk=alumnos[1].pk).update(activo=False)
+        Alumno.todos.filter(pk=alumnos[2].pk).update(estatus_financiero='becado')
+
+        respuesta = self.client.get('/api/cobranza/inteligente/cartera/')
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.data['count'], 0)
 
     def test_expediente_del_representante(self):
         a = self.alumno()

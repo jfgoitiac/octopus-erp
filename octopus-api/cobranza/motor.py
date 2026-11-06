@@ -19,7 +19,7 @@ ventana de 24 h): `notificaciones.services.enviar_whatsapp` ya acepta
 `template_data`; ver TODO_META_TEMPLATES en `_enviar_whatsapp`.
 """
 import logging
-from datetime import date, timedelta
+from datetime import timedelta
 from decimal import Decimal
 from html import escape
 
@@ -101,7 +101,7 @@ def evaluar_reglas_sede(sede_id, hoy=None):
     Crea los EnvioCobranza que corresponden HOY (coincidencia exacta del día
     relativo: nunca avisos atrasados). Idempotente. Devuelve contadores.
     """
-    hoy = hoy or date.today()
+    hoy = hoy or timezone.localdate()
     cfg = obtener_configuracion(sede_id)
     resumen = {'creados': 0, 'simulados': 0, 'repetidos': 0}
     if not _modulo_efectivo(cfg):
@@ -184,11 +184,14 @@ def proxima_ventana(ahora):
 
 
 def _tiene_pago_en_revision(ciclo):
+    from django.db.models import Q
     from portal.models import ComprobantePago
     m = ciclo.mensualidad
     return (
         Pago.objects.filter(alumno_id=m.alumno_id, estatus='en_revision').exists()
-        or ComprobantePago.objects.filter(mensualidad=m, estatus='pendiente').exists()
+        or ComprobantePago.objects.filter(
+            Q(mensualidad=m) | Q(mensualidades=m), estatus='pendiente'
+        ).exists()
     )
 
 

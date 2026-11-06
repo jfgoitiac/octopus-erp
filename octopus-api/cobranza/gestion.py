@@ -5,7 +5,7 @@ hoy" con puntuación explicable y cola de pagos en revisión.
 
 Toda acción deja un EventoCiclo (historial de solo inserción).
 """
-from datetime import date, timedelta
+from datetime import timedelta
 from decimal import Decimal
 
 from django.db import transaction
@@ -173,7 +173,7 @@ def crear_convenio(representante, ciclos, cuotas, usuario, notas='', hoy=None):
     deudas incluidas (±0.01) y las fechas no pueden ser pasadas ni desordenadas.
     Pausa el ciclo de cada deuda con motivo 'convenio'.
     """
-    hoy = hoy or date.today()
+    hoy = hoy or timezone.localdate()
     ciclos = list(ciclos)
     if not ciclos:
         raise AccionInvalida('Seleccione al menos una deuda.')
@@ -246,7 +246,7 @@ def revisar_convenios(hoy=None):
     Tarea diaria: un convenio vigente con una cuota vencida sin pagar pasa a
     'incumplido' y sus deudas vuelven al ciclo en su etapa. Devuelve cuántos.
     """
-    hoy = hoy or date.today()
+    hoy = hoy or timezone.localdate()
     incumplidos = 0
     for convenio in ConvenioPago.objects.filter(
             estado=ConvenioPago.VIGENTE, cuotas__pagada=False, cuotas__fecha__lt=hoy).distinct():
@@ -315,12 +315,17 @@ def calcular_bandeja(ciclos_qs, hoy=None, ahora=None):
     (todas visibles en la UI). `ciclos_qs` ya viene filtrado por sedes/permisos.
     """
     from portal.models import ComprobantePago
-    hoy = hoy or date.today()
+    hoy = hoy or timezone.localdate()
     ahora = ahora or timezone.now()
     abiertos = list(
         # `mensualidad__pagado=False`: defensa en la lectura. Un pago que no pasó
         # por save() (update masivo) no dispara el cierre del ciclo.
-        ciclos_qs.filter(estado__in=CicloCobranza.ESTADOS_ABIERTOS, mensualidad__pagado=False)
+        ciclos_qs.filter(
+            estado__in=CicloCobranza.ESTADOS_ABIERTOS,
+            mensualidad__pagado=False,
+            mensualidad__alumno__activo=True,
+        )
+        .exclude(mensualidad__alumno__estatus_financiero='becado')
         .select_related('mensualidad__alumno__representante', 'responsable'))
     por_rep = {}
     for c in abiertos:
@@ -365,8 +370,12 @@ def calcular_bandeja(ciclos_qs, hoy=None, ahora=None):
         morosos = [c for c in activos if dias_de_mora(c.fecha_vencimiento, hoy) >= 0]
         # Saldo y número de deudas: solo lo ya vencido. Los ciclos de cuotas de
         # meses futuros inflaban el saldo del caso con deuda que aún no existe.
-        vencidos = [c for c in ciclos if dias_de_mora(c.fecha_vencimiento, hoy) >= 0]
-        cartera = vencidos or ciclos
+        # Solo las deudas vencidas y activas forman la cartera. Si el caso entró
+        # por otra señal (p. ej. un comprobante viejo), no se sustituyen por
+        # cuotas futuras: eso inflaba artificialmente saldo, cantidad y puntaje.
+        # Las pausas por reclamo/convenio tampoco deben contaminar otra deuda
+        # activa del mismo representante; el takeover humano sí sigue visible.
+        cartera = [c for c in activos if dias_de_mora(c.fecha_vencimiento, hoy) >= 0]
         razones = []
         dias_max = max((dias_de_mora(c.fecha_vencimiento, hoy) for c in morosos), default=0)
         _razon(razones, f'Mora de {dias_max} días', min(dias_max, 30))
@@ -423,7 +432,7 @@ def actualizar_proximas_acciones(ciclos_qs, hoy=None):
     Tarea diaria: guarda en cada ciclo abierto la acción sugerida de su
     representante (o la limpia si ya no requiere atención). Devuelve cuántos quedaron con acción.
     """
-    hoy = hoy or date.today()
+    hoy = hoy or timezone.localdate()
     por_texto = {}
     for fila in calcular_bandeja(ciclos_qs, hoy):
         por_texto.setdefault(fila['accion_sugerida']['texto'], []).extend(fila['ciclos'])
@@ -447,7 +456,8 @@ def pagos_en_revision(sede_ids=None, ahora=None):
     filas = []
     pagos = Pago.objects.filter(estatus='en_revision').select_related('alumno__representante')
     comprobantes = ComprobantePago.objects.filter(estatus='pendiente').select_related(
-        'mensualidad__alumno__representante')
+        'mensualidad__alumno__representante').prefetch_related(
+        'mensualidades__alumno__representante')
     for p in pagos:
         if sede_ids is not None and p.alumno.sede_id not in sede_ids:
             continue
@@ -460,15 +470,18 @@ def pagos_en_revision(sede_ids=None, ahora=None):
             'representante': {'id': rep.id, 'nombre': f'{rep.nombre} {rep.apellido}', 'cedula': rep.cedula},
         })
     for c in comprobantes:
-        a = c.mensualidad.alumno
+        mensualidades = c.mensualidades_incluidas()
+        alumnos = list({m.alumno_id: m.alumno for m in mensualidades}.values())
+        a = alumnos[0]
         if sede_ids is not None and a.sede_id not in sede_ids:
             continue
         rep = a.representante
         filas.append({
             'tipo': 'comprobante', 'id': c.id, 'desde': c.fecha_subida,
             'dias_espera': max((ahora - c.fecha_subida).days, 0),
-            'monto_usd': str(c.mensualidad.monto_usd - c.mensualidad.monto_pagado),
-            'alumno': f'{a.nombre} {a.apellido}',
+            'monto_usd': str(sum(
+                (m.monto_usd - m.monto_pagado for m in mensualidades), Decimal('0.00'))),
+            'alumno': ', '.join(f'{alumno.nombre} {alumno.apellido}' for alumno in alumnos),
             'representante': {'id': rep.id, 'nombre': f'{rep.nombre} {rep.apellido}', 'cedula': rep.cedula},
         })
     return sorted(filas, key=lambda f: -f['dias_espera'])

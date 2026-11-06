@@ -6,6 +6,7 @@ accesible tiene el módulo encendido (PLAN_COBRANZA_INTELIGENTE.md §3).
 from datetime import date
 
 from django.db.models import Q
+from django.utils import timezone
 from common.busqueda import filtrar_busqueda
 from rest_framework import permissions, status
 from rest_framework.generics import ListAPIView
@@ -13,6 +14,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from config.pagination import StandardResultsPagination
+from authentication.views import EsPersonalCobranza
 from secretaria.models import Representante
 
 from .ciclos import dias_de_mora
@@ -80,7 +82,7 @@ class CarteraCiclosView(ListAPIView):
     Filtros: estado, sede, grado, responsable, buscar (alumno/representante/cédula).
     Solo ciclos abiertos de sedes con el módulo encendido. Paginada.
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
     pagination_class = StandardResultsPagination
 
     def list(self, request, *args, **kwargs):
@@ -89,7 +91,13 @@ class CarteraCiclosView(ListAPIView):
             return _respuesta_apagada()
 
         qs = (
-            CicloCobranza.objects.filter(filtro, estado__in=CicloCobranza.ESTADOS_ABIERTOS)
+            CicloCobranza.objects.filter(
+                filtro,
+                estado__in=CicloCobranza.ESTADOS_ABIERTOS,
+                mensualidad__pagado=False,
+                mensualidad__alumno__activo=True,
+            )
+            .exclude(mensualidad__alumno__estatus_financiero='becado')
             .select_related('mensualidad__alumno__representante', 'responsable')
         )
         p = request.query_params
@@ -109,7 +117,7 @@ class CarteraCiclosView(ListAPIView):
             ])
 
         page = self.paginate_queryset(qs.order_by('fecha_vencimiento', 'id'))
-        hoy = date.today()
+        hoy = timezone.localdate()
         return self.get_paginated_response([serializar_ciclo(c, hoy) for c in page])
 
 
@@ -119,7 +127,7 @@ class ExpedienteRepresentanteView(APIView):
     Ciclos del representante (abiertos y cerrados) e historial de eventos.
     Solo lectura. 404 si el representante no tiene ciclos en sedes accesibles.
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
 
     def get(self, request, representante_id):
         filtro = _filtro_sedes_activas(request.user)
@@ -135,8 +143,12 @@ class ExpedienteRepresentanteView(APIView):
             return Response({'detail': 'No encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
         rep = Representante.objects.get(pk=representante_id)
-        hoy = date.today()
-        abiertos = [c for c in ciclos if c.abierto]
+        hoy = timezone.localdate()
+        abiertos = [
+            c for c in ciclos
+            if c.abierto and not c.mensualidad.pagado and c.mensualidad.alumno.activo
+            and c.mensualidad.alumno.estatus_financiero != 'becado'
+        ]
         eventos = (
             EventoCiclo.objects.filter(ciclo__in=ciclos)
             .select_related('usuario').order_by('-creado_en', '-id')[:50]
@@ -178,7 +190,7 @@ class EnviosCobranzaView(ListAPIView):
     GET /api/cobranza/inteligente/envios/
     Filtros: estado, fecha (YYYY-MM-DD), sede. Incluye los simulados del modo sombra.
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
     pagination_class = StandardResultsPagination
 
     def list(self, request, *args, **kwargs):
@@ -221,7 +233,7 @@ class ResumenSombraView(APIView):
     a deudas que ya estaban pagadas cuando se generó el aviso. Criterio de
     salida de la Fase 2: cero falsos positivos en dos semanas de sombra.
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
 
     def get(self, request):
         from collections import Counter

@@ -65,4 +65,23 @@ describe('CobranzaInteligenteGestion', () => {
             representante_id: 7, ciclo_ids: [3, 4],
         })));
     });
+
+    it('un pago en revisión sin deuda vencida no ofrece acciones sobre ciclos inexistentes', async () => {
+        m.bandeja.mockResolvedValue({ data: { count: 1, results: [{
+            ...fila,
+            puntaje: 10,
+            razones: [{ texto: 'Pago en revisión hace más de 3 días', puntos: 10 }],
+            saldo_total_usd: '0.00',
+            dias_mora_max: 0,
+            ciclos: [],
+            estados: [],
+            accion_sugerida: { codigo: 'revisar_pago', texto: 'Revisar el pago en revisión' },
+        }] } });
+
+        render(<CobranzaInteligenteGestion />, { wrapper: MemoryRouter });
+
+        expect(await screen.findByText('Revisar el pago en revisión')).toBeInTheDocument();
+        expect(screen.queryByText('Registrar acción')).not.toBeInTheDocument();
+        expect(screen.queryByText('Crear convenio')).not.toBeInTheDocument();
+    });
 });

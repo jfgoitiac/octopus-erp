@@ -184,12 +184,16 @@ function TarjetaCaso({ f, ejecutar }) {
                         onClick={() => ejecutar(f, 'whatsapp')}>
                         <WhatsAppIcon size={15} />WhatsApp
                     </button>
-                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => ejecutar(f, 'llamada')}>
-                        <ClipboardPen size={15} />Registrar acción
-                    </button>
-                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => ejecutar(f, 'convenio')}>
-                        <Handshake size={15} />Crear convenio
-                    </button>
+                    {f.ciclos.length > 0 && (
+                        <>
+                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => ejecutar(f, 'llamada')}>
+                                <ClipboardPen size={15} />Registrar acción
+                            </button>
+                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => ejecutar(f, 'convenio')}>
+                                <Handshake size={15} />Crear convenio
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
         </article>
