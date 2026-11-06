@@ -2461,8 +2461,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/mora.py": {
-    "mtime": 1793192144.888554,
-    "ast_hash": "df69a9ced93d71a45ddd73d350116f5b",
+    "mtime": 1793992452.3457303,
+    "ast_hash": "4e96b4acca33ccff209b3e606228b356",
     "semantic_hash": ""
   },
   "octopus-frontend/src/utils/apiError.js": {
@@ -2546,8 +2546,8 @@
     "semantic_hash": ""
   },
   "NOTAS_TECNICAS.md": {
-    "mtime": 1793678213.9349906,
-    "ast_hash": "9f0de3731aaead3d44ceee1f274b67b4",
+    "mtime": 1793992462.042408,
+    "ast_hash": "5fa69577a744867f13564c3e20069021",
     "semantic_hash": ""
   },
   "PRD_EXPANSION.md": {
@@ -6380,8 +6380,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/ciclos.py": {
-    "mtime": 1793274545.9727576,
-    "ast_hash": "327925684e5ea1c1efd53df335fbeca7",
+    "mtime": 1793993217.6627069,
+    "ast_hash": "a00930937c1f38998fa9980cce6dd144",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/conciliacion_semiauto.py": {
@@ -6395,13 +6395,13 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/dashboard.py": {
-    "mtime": 1793274582.272945,
-    "ast_hash": "1d58f8e699741f8c6d91e0f38db11a31",
+    "mtime": 1793993217.6703453,
+    "ast_hash": "c0edfb6e441a064d76aed92bd035ac29",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/gestion.py": {
-    "mtime": 1793192517.007257,
-    "ast_hash": "f210ebf6e347e5f39a1ec64025691f8b",
+    "mtime": 1793993217.6703453,
+    "ast_hash": "26e0cdcc503059cd9b9f7a500ea153b1",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/inteligente.py": {
@@ -6470,13 +6470,13 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/motor.py": {
-    "mtime": 1793192381.7538917,
-    "ast_hash": "e76d45a709e432e280ce4298eeb3fd1a",
+    "mtime": 1793993217.6727884,
+    "ast_hash": "f563ecd286086677cd74a6034836921b",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/test_ciclos_cobranza.py": {
-    "mtime": 1792499025.859217,
-    "ast_hash": "dde82309151c1ace94cce5548219613a",
+    "mtime": 1793992600.6777382,
+    "ast_hash": "67e5811e06d498bad0d618453b429a42",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/test_cobranza_inteligente_toggle.py": {
@@ -6485,13 +6485,13 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/test_gestion_cobranza.py": {
-    "mtime": 1792499025.859217,
-    "ast_hash": "389972c11520cc8170461a6a96fb0f33",
+    "mtime": 1793992065.472909,
+    "ast_hash": "9032a403b9c3a9bedc14587f08fd8f42",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/test_motor_cobranza.py": {
-    "mtime": 1793304414.5578973,
-    "ast_hash": "06f9690bc40647c157b122e3111ef2e0",
+    "mtime": 1793992065.4761944,
+    "ast_hash": "58c7dffc13237b469da7a81d58a690ea",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/tests_conciliacion_masiva.py": {
@@ -6515,8 +6515,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/views_ciclos.py": {
-    "mtime": 1791549409.0945444,
-    "ast_hash": "6ee5f76746f7a0a79becb9f5712ce564",
+    "mtime": 1793992284.7908385,
+    "ast_hash": "f1946103eb270cd2edabd1086dd4ce83",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/views_gestion.py": {
@@ -6910,13 +6910,13 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/CobranzaInteligenteGestion.jsx": {
-    "mtime": 1792257342.85242,
-    "ast_hash": "e0146f44d8ff4bfaf6a1061da22dfa7b",
+    "mtime": 1793992284.7986825,
+    "ast_hash": "9fa77807ef72ff997ceed84c9b659e2b",
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/CobranzaInteligenteGestion.test.jsx": {
-    "mtime": 1791913917.9441347,
-    "ast_hash": "940500fa3bc7b73a1c7463928a867ec4",
+    "mtime": 1793992284.7997167,
+    "ast_hash": "c535fa1121cb46f827558b330e3e6024",
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/ConfiguracionCobranzaInteligente.jsx": {
@@ -7495,8 +7495,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/deudas.py": {
-    "mtime": 1793677952.3627143,
-    "ast_hash": "15b2f9a5456b556f78255b749680f598",
+    "mtime": 1793992452.3506384,
+    "ast_hash": "0c0f118024b8a946d3414b496e6c6749",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/migrations/0054_meta_banco.py": {
@@ -8176,13 +8176,13 @@
     "semantic_hash": ""
   },
   "octopus-frontend/test-results/.last-run.json": {
-    "mtime": 1793678613.3799832,
+    "mtime": 1793992943.0919182,
     "ast_hash": "f196824657d8858bc7fa44eecbba38b1",
     "semantic_hash": ""
   },
   "octopus-frontend/playwright-report/index.html": {
-    "mtime": 1793677529.7354496,
-    "ast_hash": "c3ed648ec03a59da2447a8fcc113cccb",
+    "mtime": 1793992943.0919182,
+    "ast_hash": "4e8c723fdb2850699f76c4210f493d93",
     "semantic_hash": ""
   },
   "octopus-api/cantina/migrations/0013_cierrecajacantina_desglose.py": {
@@ -9083,6 +9083,31 @@
   "octopus-frontend/src/portal/components/GrupoMensualidadesVencidas.test.jsx": {
     "mtime": 1793845497.8975058,
     "ast_hash": "0bfb6072ab965d4e168a3637990ddde9",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/e2e/cobranza-inteligente-gestion.spec.js": {
+    "mtime": 1793992930.1027105,
+    "ast_hash": "756fd9a420072ce8037f0198a3cc98cb",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/playwright-report/data/8fbda1f3c7011078536374c6bfdcc89e3114ab2f.png": {
+    "mtime": 1793992943.0723329,
+    "ast_hash": "eef1ac1ae0467f557dfbe98e3c4b2f23",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/playwright-report/data/9c6c042d7766b1e7be2c928ed180f3b2f8bb08b5.png": {
+    "mtime": 1793992943.070326,
+    "ast_hash": "0be0b3d313a234ff7dc38ec5b12f3f42",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/playwright-report/data/d24756b6dd8c87582d3093858efdc18cb9ceef44.png": {
+    "mtime": 1793992943.068318,
+    "ast_hash": "e8608c403d442d0cdc3886ca3a47491f",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/playwright-report/data/f9fc338da056310c5deedf8085b79c539fea1bb9.png": {
+    "mtime": 1793992943.0723329,
+    "ast_hash": "a5809f291908f7b570138e1d9da995e1",
     "semantic_hash": ""
   }
 }
