@@ -3575,8 +3575,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cantina/models.py": {
-    "mtime": 1793815639.6473398,
-    "ast_hash": "d1d0deaf9ef9de094ebab93fdc125121",
+    "mtime": 1794326972.7471604,
+    "ast_hash": "6055a6b5fa73b1008393a6c18b6618dd",
     "semantic_hash": ""
   },
   "octopus-api/cantina/mora_cantina.py": {
@@ -3595,8 +3595,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cantina/serializers.py": {
-    "mtime": 1793814462.782465,
-    "ast_hash": "55bcd53eef4df0511a0f26dbe481472f",
+    "mtime": 1794326910.383998,
+    "ast_hash": "a36cbd3db7989d4c6fcad0fb7abb3c88",
     "semantic_hash": ""
   },
   "octopus-api/cantina/services_inventario.py": {
@@ -3605,8 +3605,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cantina/services_tarjeta.py": {
-    "mtime": 1793814462.7780778,
-    "ast_hash": "6e8e7ac5b7ec26bc6f9c2255d7a0d62c",
+    "mtime": 1794326972.7471604,
+    "ast_hash": "038b5c93964f6f4a9ee9dd2bd99f4232",
     "semantic_hash": ""
   },
   "octopus-api/cantina/tasks.py": {
@@ -3640,8 +3640,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cantina/tests_recargas.py": {
-    "mtime": 1793618898.301772,
-    "ast_hash": "f88565fc98449c8e67bc8e6697b766ca",
+    "mtime": 1794328060.5678084,
+    "ast_hash": "71113332b4492d91efb26922de5f5f25",
     "semantic_hash": ""
   },
   "octopus-api/cantina/tests_reportes.py": {
@@ -3660,8 +3660,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cantina/tests_tarjetas.py": {
-    "mtime": 1793792995.3802452,
-    "ast_hash": "f766a365848ff8ea76e4f3480d311a89",
+    "mtime": 1794328060.5678084,
+    "ast_hash": "44a2433d66ad494b2fd15c4961ddf86a",
     "semantic_hash": ""
   },
   "octopus-api/cantina/tests_ventas.py": {
@@ -3680,8 +3680,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cantina/views.py": {
-    "mtime": 1793829345.5008125,
-    "ast_hash": "dd8f36de6802cb6264556b95ea46adbd",
+    "mtime": 1794328131.4461048,
+    "ast_hash": "bd8d34612b653fb40f01b05ab33754c4",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/correcciones.py": {
@@ -3820,8 +3820,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/api/cantina.service.js": {
-    "mtime": 1793814892.1994157,
-    "ast_hash": "efbb5bb2bca1f6c918ac7d3058ef7fb6",
+    "mtime": 1794326870.5769963,
+    "ast_hash": "5847cfa6f16ba02f0d067f6284d0a282",
     "semantic_hash": ""
   },
   "octopus-frontend/src/cantina/api/cantinaApiClient.js": {
@@ -3850,8 +3850,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/cantina/pages/CantinaPOS.jsx": {
-    "mtime": 1793641164.5043242,
-    "ast_hash": "1da089496cc097f2c363aa3a3c0096d7",
+    "mtime": 1794327541.7322247,
+    "ast_hash": "eacd95a85f4a205522c2de9bf5d38df8",
     "semantic_hash": ""
   },
   "octopus-frontend/src/cantina/pages/CantinaReportes.jsx": {
@@ -3860,8 +3860,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/cantina/pages/CantinaTarjetas.jsx": {
-    "mtime": 1793815580.5990615,
-    "ast_hash": "472531c0ed8bd07b8655f9905a9a68c9",
+    "mtime": 1794327013.0577776,
+    "ast_hash": "47aacaa7582fe4c1518f700e58dac97f",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/inventario/AlertaStockBajo.jsx": {
@@ -3900,8 +3900,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/pos/CarritoVenta.jsx": {
-    "mtime": 1793108284.2417512,
-    "ast_hash": "17cdf51f117e353c259aef298e1c3b84",
+    "mtime": 1794327537.033027,
+    "ast_hash": "0b26258bdf4af9f8d572b8030fe984a7",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/pos/ResumenCobro.jsx": {
@@ -3965,8 +3965,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/tarjetas/RecargaCajeroModal.jsx": {
-    "mtime": 1793793861.364914,
-    "ast_hash": "0d9d489b7dd9ec841f6526f6a2adacae",
+    "mtime": 1794326910.3923492,
+    "ast_hash": "b83afa600d0e2e23de1d38bb29cfbe8a",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/tarjetas/RecargasPendientesList.jsx": {
@@ -3975,8 +3975,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/tarjetas/ReponerTarjetaModal.jsx": {
-    "mtime": 1793618898.359351,
-    "ast_hash": "b2bbbcd301d4be553adf2c9b332b0697",
+    "mtime": 1794327006.7683344,
+    "ast_hash": "20f151b807f4de4357fbd4c345d42244",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/tarjetas/TarjetasTable.jsx": {
@@ -5725,13 +5725,13 @@
     "semantic_hash": ""
   },
   "octopus-api/cantina/serializers_cxc.py": {
-    "mtime": 1792257342.6006386,
-    "ast_hash": "a827e8cfb6ce7b0fa57e0912d6422309",
+    "mtime": 1794326710.0884566,
+    "ast_hash": "629c914f9c498bdd6d130bc3339b6aa6",
     "semantic_hash": ""
   },
   "octopus-api/cantina/services_cxc.py": {
-    "mtime": 1792257342.6012957,
-    "ast_hash": "d76298f90510b57a12dd305070f2f140",
+    "mtime": 1794326741.101739,
+    "ast_hash": "dee10b9825ad61059e7310819ac3ad9e",
     "semantic_hash": ""
   },
   "octopus-api/cantina/tests_areas.py": {
@@ -5740,8 +5740,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cantina/tests_cxc.py": {
-    "mtime": 1793648002.3988404,
-    "ast_hash": "a4ab823c9c34fc2aebef4a580fe37536",
+    "mtime": 1794328060.5805886,
+    "ast_hash": "c4bc8bac194fa331ea7430decd8ffb55",
     "semantic_hash": ""
   },
   "octopus-api/cantina/tests_cxc_revision.py": {
@@ -5750,13 +5750,13 @@
     "semantic_hash": ""
   },
   "octopus-api/cantina/urls_cxc.py": {
-    "mtime": 1792257342.6234694,
-    "ast_hash": "8cf966d86c689ab5dc1d7996350cb32c",
+    "mtime": 1794326758.3575895,
+    "ast_hash": "3107cb2d41efbde557cef5deea6d4a83",
     "semantic_hash": ""
   },
   "octopus-api/cantina/views_cxc.py": {
-    "mtime": 1792257342.6289575,
-    "ast_hash": "9eb5f5dfec9a35cbe8215f0c42fa297b",
+    "mtime": 1794326758.3575895,
+    "ast_hash": "5dded3c714d05e3f62a2887c7dde100e",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/recibo_cobranza.py": {
@@ -6105,8 +6105,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/cxc/EstadoCuentaCxc.jsx": {
-    "mtime": 1792257342.7776425,
-    "ast_hash": "96688f4f2189e8cc5e0f28261ca3b871",
+    "mtime": 1794328214.4405997,
+    "ast_hash": "e58530bfd6a6ec981b47b78d5f125381",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/cxc/ListaCuentasCxc.jsx": {
@@ -6130,8 +6130,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/pos/CargoCuentaPanel.jsx": {
-    "mtime": 1792257342.7902727,
-    "ast_hash": "0b625684f4e014c818dd048a016d639a",
+    "mtime": 1794327537.045583,
+    "ast_hash": "aa464cb0c539a6fc72facbc128d65012",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/pos/evaluarCredito.js": {
@@ -7630,8 +7630,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/pos/GrillaProductos.jsx": {
-    "mtime": 1793108299.6587405,
-    "ast_hash": "1649efca89371948d31a39a27508a425",
+    "mtime": 1794327537.033027,
+    "ast_hash": "98bae07211d826ec932a71aeb679f30e",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/pos/PlantillasVentaBar.jsx": {
@@ -8141,8 +8141,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/pos/AlumnoVentaPanel.jsx": {
-    "mtime": 1793641164.5083408,
-    "ast_hash": "1155968d6ca02b5f190c506cfe18bdfe",
+    "mtime": 1794327537.033027,
+    "ast_hash": "ddb3ce67ab654e2349d9f63d1de31a10",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/comprobantes/VisorComprobante.test.jsx": {
@@ -8821,8 +8821,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/tarjetas/GestionQrPanel.jsx": {
-    "mtime": 1793793610.9624157,
-    "ast_hash": "7e9f6d7267e2dc279d1965e6255694fe",
+    "mtime": 1794326910.3903399,
+    "ast_hash": "5ab65453f2a331ffd918c19fff87c674",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/tarjetas/GestionQrPanel.test.jsx": {
@@ -9108,6 +9108,26 @@
   "octopus-frontend/playwright-report/data/f9fc338da056310c5deedf8085b79c539fea1bb9.png": {
     "mtime": 1793992943.0723329,
     "ast_hash": "a5809f291908f7b570138e1d9da995e1",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/migrations/0015_abonocantina_tarjeta_origen_and_more.py": {
+    "mtime": 1794326832.4046724,
+    "ast_hash": "b9c30289b6cfc80f4727adb817ef99cc",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/migrations/0016_recargatarjeta_client_request_id.py": {
+    "mtime": 1794326917.8374684,
+    "ast_hash": "b668e2fd7b9b94015007f96ab22a4103",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/migrations/0017_historialcodigotarjeta_serial_anterior.py": {
+    "mtime": 1794327021.735354,
+    "ast_hash": "78c543a1cb48f299687bc469e21fe1c8",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/cantina/cxc/PagarConTarjetaModal.jsx": {
+    "mtime": 1794328260.6838737,
+    "ast_hash": "47181576a80e083a3aa325b277474a16",
     "semantic_hash": ""
   }
 }
