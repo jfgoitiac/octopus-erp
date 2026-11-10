@@ -166,6 +166,7 @@ class HistorialCodigoTarjeta(models.Model):
     """
     tarjeta = models.ForeignKey(TarjetaPrepago, on_delete=models.CASCADE, related_name='historial_codigos')
     codigo_anterior = models.CharField(max_length=50)
+    serial_anterior = models.CharField(max_length=20, blank=True, default='')
     motivo = models.CharField(max_length=30, choices=(('extravio', 'Extravío'), ('dano', 'Tarjeta dañada')))
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL)
     creado_en = models.DateTimeField(auto_now_add=True)
@@ -181,6 +182,8 @@ class MovimientoTarjeta(models.Model):
         ('ajuste', 'Ajuste manual'),
         ('reverso', 'Reverso'),
         ('anulacion_recarga', 'Anulación de recarga'),
+        ('pago_deuda', 'Pago de deuda de cantina'),
+        ('reverso_pago_deuda', 'Reverso de pago de deuda'),
     )
     tarjeta = models.ForeignKey(TarjetaPrepago, on_delete=models.CASCADE, related_name='movimientos')
     tipo = models.CharField(max_length=20, choices=TIPOS)
@@ -211,6 +214,7 @@ class RecargaTarjeta(models.Model):
         ('anulado', 'Anulado'),
     )
     tarjeta = models.ForeignKey(TarjetaPrepago, on_delete=models.CASCADE, related_name='recargas')
+    client_request_id = models.UUIDField(null=True, blank=True, unique=True, db_index=True)
     metodo_pago = models.CharField(max_length=20)  # choices = METODOS (importado de cobranza, ver arriba)
     # --- Moneda dual, mismo criterio que cobranza.Pago ---
     monto_usd = models.DecimalField(max_digits=10, decimal_places=2, help_text='Monto captado en divisas (canónico)')
@@ -620,7 +624,10 @@ class AbonoCantina(models.Model):
     cliente = models.ForeignKey(ClienteCantina, null=True, blank=True, on_delete=models.PROTECT, related_name='abonos')
     area = models.CharField(max_length=10, choices=AREAS)
     apertura = models.ForeignKey(AperturaCajaCantina, null=True, blank=True, on_delete=models.PROTECT, related_name='abonos')  # None = retroactivo
-    metodo_pago = models.CharField(max_length=20, choices=Pago.METODOS)
+    metodo_pago = models.CharField(
+        max_length=20,
+        choices=tuple(Pago.METODOS) + (('tarjeta_prepago', 'Tarjeta prepagada'),),
+    )
     monto_usd = models.DecimalField(max_digits=10, decimal_places=2)
     tasa_aplicada = models.DecimalField(max_digits=12, decimal_places=4)
     monto_ves = models.DecimalField(max_digits=20, decimal_places=2)
@@ -633,6 +640,10 @@ class AbonoCantina(models.Model):
     motivo = models.TextField(blank=True)
     estatus = models.CharField(max_length=12, choices=ESTATUS, default='completado')
     cajero = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='abonos_cantina')
+    tarjeta_origen = models.ForeignKey(
+        TarjetaPrepago, null=True, blank=True, on_delete=models.PROTECT,
+        related_name='pagos_deuda',
+    )
     anulado_por = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='abonos_cantina_anulados')
     anulado_en = models.DateTimeField(null=True, blank=True)
     creado_en = models.DateTimeField(auto_now_add=True)

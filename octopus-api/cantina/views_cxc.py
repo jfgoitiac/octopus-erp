@@ -34,12 +34,14 @@ from .models import (
     CargoCantina,
     ClienteCantina,
     CreditoRepresentanteCantina,
+    TarjetaPrepago,
 )
 from .permissions import EsAdminCantina, EsCajeroOAdmin
 from .serializers_cxc import (
     AREAS_VALIDAS,
     AbonoInputSerializer,
     AnularAbonoInputSerializer,
+    PagoDeudaTarjetaInputSerializer,
     ClienteInputSerializer,
     CreditoInputSerializer,
     a_ves,
@@ -520,6 +522,32 @@ class RegistrarAbonoView(APIView):
             area=datos.get('area'),
         )
         return Response(_respuesta_operacion(abonos, titular), status=status.HTTP_201_CREATED)
+
+
+class PagoDeudaTarjetaView(APIView):
+    """Lista tarjetas del representante y permite usar su saldo para pagar CxC."""
+    permission_classes = [permissions.IsAuthenticated, EsCajeroOAdmin]
+
+    def get(self, request, representante_id):
+        representante = get_object_or_404(Representante, pk=representante_id)
+        tarjetas = TarjetaPrepago.objects.filter(
+            alumno__representante=representante, estado='activa'
+        ).select_related('alumno').order_by('alumno__apellido', 'alumno__nombre')
+        return Response([{
+            'id': t.id,
+            'serial': t.serial,
+            'saldo': str(t.saldo),
+            'alumno_nombre': f'{t.alumno.nombre} {t.alumno.apellido}',
+        } for t in tarjetas])
+
+    def post(self, request, representante_id):
+        representante = get_object_or_404(Representante, pk=representante_id)
+        ser = PagoDeudaTarjetaInputSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        abono = services_cxc.registrar_abono_desde_tarjeta(
+            representante=representante, cajero=request.user, **ser.validated_data,
+        )
+        return Response(_respuesta_operacion([abono], representante), status=status.HTTP_201_CREATED)
 
 
 class AnularAbonoView(APIView):

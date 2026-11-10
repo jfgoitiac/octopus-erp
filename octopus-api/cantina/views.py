@@ -57,7 +57,7 @@ from .serializers import (
     VentaCantinaSerializer,
 )
 from .services_inventario import aplicar_movimiento_inventario
-from .services_tarjeta import aplicar_movimiento_tarjeta, generar_codigo_tarjeta
+from .services_tarjeta import aplicar_movimiento_tarjeta, generar_codigo_tarjeta, generar_serial_reposicion
 from .services_recargas import (
     ReversoRequiereAutorizacion,
     anular_recarga,
@@ -755,18 +755,28 @@ class ReponerTarjetaView(APIView):
 
         with transaction.atomic():
             tarjeta = TarjetaPrepago.objects.select_for_update().get(pk=tarjeta.pk)
+            if tarjeta.estado == 'sin_asignar' or not tarjeta.titular:
+                return Response(
+                    {'detail': 'La tarjeta no está asignada; use la opción Asignar tarjeta.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             codigo_anterior = tarjeta.codigo
+            serial_anterior = tarjeta.serial
             nuevo_codigo = generar_codigo_tarjeta()
+            nuevo_serial = generar_serial_reposicion(tarjeta.id)
 
             HistorialCodigoTarjeta.objects.create(
                 tarjeta=tarjeta,
                 codigo_anterior=codigo_anterior,
+                serial_anterior=serial_anterior,
                 motivo=motivo,
                 usuario=request.user,
             )
 
             tarjeta.codigo = nuevo_codigo
-            tarjeta.save(update_fields=['codigo', 'actualizado_en'])
+            tarjeta.serial = nuevo_serial
+            tarjeta.estado = 'activa'
+            tarjeta.save(update_fields=['codigo', 'serial', 'estado', 'actualizado_en'])
 
         return Response(TarjetaPrepagoSerializer(tarjeta).data, status=status.HTTP_200_OK)
 
@@ -944,6 +954,13 @@ class RecargarTarjetaCajeroView(APIView):
     permission_classes = [permissions.IsAuthenticated, EsCajeroOAdmin]
 
     def post(self, request):
+        request_id = request.data.get('client_request_id')
+        if request_id:
+            existente = RecargaTarjeta.objects.filter(
+                client_request_id=request_id, cajero=request.user, estatus='aprobado',
+            ).first()
+            if existente:
+                return Response(RecargaTarjetaSerializer(existente).data, status=status.HTTP_200_OK)
         serializer = RecargaTarjetaSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -960,20 +977,31 @@ class RecargarTarjetaCajeroView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        with transaction.atomic():
-            recarga = serializer.save(
-                tasa_aplicada=tasa.valor_bs,
-                estatus='aprobado',
-                registrado_por_portal=False,
-                cajero=request.user,
-                revisado_por=request.user,
-                revisado_en=timezone.now(),
-                apertura=apertura_abierta_usuario(request.user),
-            )
-            aplicar_movimiento_tarjeta(
-                recarga.tarjeta, 'recarga', recarga.monto_usd,
-                recarga=recarga, usuario=request.user,
-            )
+        try:
+            with transaction.atomic():
+                recarga = serializer.save(
+                    tasa_aplicada=tasa.valor_bs,
+                    estatus='aprobado',
+                    registrado_por_portal=False,
+                    cajero=request.user,
+                    revisado_por=request.user,
+                    revisado_en=timezone.now(),
+                    apertura=apertura_abierta_usuario(request.user),
+                )
+                aplicar_movimiento_tarjeta(
+                    recarga.tarjeta, 'recarga', recarga.monto_usd,
+                    recarga=recarga, usuario=request.user,
+                )
+        except IntegrityError:
+            # Dos reintentos simultáneos con la misma clave: el ganador ya
+            # aplicó el saldo; el segundo devuelve esa misma operación.
+            if request_id:
+                existente = RecargaTarjeta.objects.filter(
+                    client_request_id=request_id, cajero=request.user, estatus='aprobado',
+                ).first()
+                if existente:
+                    return Response(RecargaTarjetaSerializer(existente).data, status=status.HTTP_200_OK)
+            raise
 
         return Response(RecargaTarjetaSerializer(recarga).data, status=status.HTTP_201_CREATED)
 

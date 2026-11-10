@@ -183,7 +183,7 @@ class RecargaTarjetaSerializer(serializers.ModelSerializer):
     class Meta:
         model = RecargaTarjeta
         fields = (
-            'id', 'tarjeta', 'tarjeta_serial', 'alumno_nombre', 'titular_nombre', 'metodo_pago',
+            'id', 'client_request_id', 'tarjeta', 'tarjeta_serial', 'alumno_nombre', 'titular_nombre', 'metodo_pago',
             'monto_usd', 'tasa_aplicada', 'monto_ves', 'banco_receptor',
             'banco_procedencia', 'referencia', 'numero_lote', 'estatus',
             'comprobante', 'registrado_por_portal', 'cajero', 'cajero_username', 'cajero_nombre',

@@ -18,8 +18,8 @@ from django.db import transaction
 
 from .models import MovimientoTarjeta, TarjetaPrepago
 
-TIPOS_QUE_SUMAN = ('recarga', 'reverso')
-TIPOS_QUE_RESTAN = ('consumo', 'anulacion_recarga')
+TIPOS_QUE_SUMAN = ('recarga', 'reverso', 'reverso_pago_deuda')
+TIPOS_QUE_RESTAN = ('consumo', 'anulacion_recarga', 'pago_deuda')
 
 # Base32 sin ambigüedad: sin 0/O, 1/I/L (§5.1 de cantina.md) — evita que un
 # cajero que tenga que teclear el código a mano (QR dañado) confunda
@@ -53,6 +53,16 @@ def generar_codigo_tarjeta():
     raise GeneracionCodigoError(
         f'No se pudo generar un código único de tarjeta tras {MAX_INTENTOS_GENERACION} intentos.'
     )
+
+
+def generar_serial_reposicion(tarjeta_id):
+    """Genera otro serial para invalidar también el identificador impreso viejo."""
+    for _ in range(MAX_INTENTOS_GENERACION):
+        sufijo = ''.join(secrets.choice(ALFABETO_CODIGO) for _ in range(6))
+        candidato = f'R{tarjeta_id:04d}-{sufijo}'
+        if not TarjetaPrepago.objects.filter(serial=candidato).exists():
+            return candidato
+    raise GeneracionCodigoError('No se pudo generar un serial único para la reposición.')
 
 
 class SaldoInsuficienteError(ValidationError):

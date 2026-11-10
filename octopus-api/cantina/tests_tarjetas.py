@@ -313,6 +313,7 @@ class CantinaFase2ViewsTests(TestCase):
             alumno=self.alumno, estado='activa', saldo=Decimal('12.50'),
         )
         codigo_viejo = tarjeta.codigo
+        serial_viejo = tarjeta.serial
 
         self.client.force_authenticate(user=self.admin_user)
         resp = self.client.post(
@@ -322,17 +323,30 @@ class CantinaFase2ViewsTests(TestCase):
 
         tarjeta.refresh_from_db()
         self.assertNotEqual(tarjeta.codigo, codigo_viejo)
+        self.assertNotEqual(tarjeta.serial, serial_viejo)
         self.assertEqual(tarjeta.alumno_id, self.alumno.id)
         self.assertEqual(tarjeta.saldo, Decimal('12.50'))
 
         historial = HistorialCodigoTarjeta.objects.filter(tarjeta=tarjeta).first()
         self.assertIsNotNone(historial)
         self.assertEqual(historial.codigo_anterior, codigo_viejo)
+        self.assertEqual(historial.serial_anterior, serial_viejo)
         self.assertEqual(historial.motivo, 'extravio')
         self.assertEqual(historial.usuario, self.admin_user)
 
         # El código viejo ya no resuelve a ninguna tarjeta.
         self.assertFalse(TarjetaPrepago.objects.filter(codigo=codigo_viejo).exists())
+        self.assertFalse(TarjetaPrepago.objects.filter(serial=serial_viejo).exists())
+
+    def test_reponer_tarjeta_sin_asignar_rechazado(self):
+        tarjeta = TarjetaPrepago.objects.create(serial='L001-0010', codigo='CANT-NNNNNNNNNN')
+        self.client.force_authenticate(user=self.admin_user)
+        resp = self.client.post(
+            f'/api/cantina/tarjetas/{tarjeta.id}/reponer/', {'motivo': 'dano'}, format='json',
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        tarjeta.refresh_from_db()
+        self.assertEqual(tarjeta.serial, 'L001-0010')
 
     def test_reponer_tarjeta_motivo_invalido_rechazado(self):
         tarjeta = TarjetaPrepago.objects.create(serial='L001-0008', codigo='CANT-KKKKKKKKKK')

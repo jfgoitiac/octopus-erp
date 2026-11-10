@@ -20,6 +20,8 @@ from .models import (
     CreditoRepresentanteCantina,
     ParametroCantina,
     VentaCantina,
+    MovimientoTarjeta,
+    TarjetaPrepago,
 )
 
 User = get_user_model()
@@ -110,6 +112,58 @@ class AbonoEnBolivaresTasaBcvTests(CxcBase):
         self.assertEqual(abono.tasa_aplicada, Decimal('40.0000'))
         self.assertEqual(abono.monto_usd, Decimal('10.00'))
         self.assertEqual(abono.monto_ves, Decimal('400.00'))
+
+
+class PagoDeudaConTarjetaTests(CxcBase):
+    def setUp(self):
+        super().setUp()
+        self.tarjeta = TarjetaPrepago.objects.create(
+            alumno=self.alumno, serial='L099-0001', codigo='CANT-PAGODEUDA1',
+            estado='activa', saldo=Decimal('10.00'), limite_credito=Decimal('5.00'),
+        )
+        self.cargo = self.crear_cargo('7.00')
+
+    def test_pago_descuenta_tarjeta_y_deuda_atomicamente(self):
+        resp = self.client_cajero.post(
+            f'{BASE}representantes/{self.rep.id}/pago-tarjeta/',
+            {'tarjeta_id': self.tarjeta.id, 'monto_usd': '5.00'}, format='json',
+        )
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.tarjeta.refresh_from_db()
+        self.cargo.refresh_from_db()
+        self.assertEqual(self.tarjeta.saldo, Decimal('5.00'))
+        self.assertEqual(self.cargo.saldo_usd, Decimal('2.00'))
+        abono = AbonoCantina.objects.get()
+        self.assertEqual(abono.metodo_pago, 'tarjeta_prepago')
+        self.assertEqual(abono.tarjeta_origen, self.tarjeta)
+        self.assertTrue(MovimientoTarjeta.objects.filter(tarjeta=self.tarjeta, tipo='pago_deuda').exists())
+
+    def test_anular_pago_devuelve_saldo_y_reabre_deuda(self):
+        pago = self.client_cajero.post(
+            f'{BASE}representantes/{self.rep.id}/pago-tarjeta/',
+            {'tarjeta_id': self.tarjeta.id, 'monto_usd': '5.00'}, format='json',
+        ).json()
+        resp = self.client_admin.post(
+            f"{BASE}abonos/{pago['operacion_uuid']}/anular/", {'motivo': 'Corrección operativa'}, format='json',
+        )
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.tarjeta.refresh_from_db()
+        self.cargo.refresh_from_db()
+        self.assertEqual(self.tarjeta.saldo, Decimal('10.00'))
+        self.assertEqual(self.cargo.saldo_usd, Decimal('7.00'))
+        self.assertTrue(MovimientoTarjeta.objects.filter(tarjeta=self.tarjeta, tipo='reverso_pago_deuda').exists())
+
+    def test_rechaza_tarjeta_de_otro_representante(self):
+        otro = Representante.objects.create(cedula='V-555', nombre='Otro', apellido='Titular')
+        alumno = Alumno.objects.create(nombre='Otro', apellido='Alumno', representante=otro)
+        ajena = TarjetaPrepago.objects.create(
+            alumno=alumno, serial='L099-0002', codigo='CANT-PAGODEUDA2', estado='activa', saldo=Decimal('10.00'),
+        )
+        resp = self.client_cajero.post(
+            f'{BASE}representantes/{self.rep.id}/pago-tarjeta/',
+            {'tarjeta_id': ajena.id, 'monto_usd': '1.00'}, format='json',
+        )
+        self.assertEqual(resp.status_code, 400)
 
 
 # ─────────────────────────────────────────────

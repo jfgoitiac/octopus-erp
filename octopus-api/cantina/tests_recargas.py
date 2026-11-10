@@ -59,6 +59,23 @@ class RecargaTarjetaTestsBase(TestCase):
 
 
 class RecargarTarjetaCajeroViewTests(RecargaTarjetaTestsBase):
+    def test_reintento_misma_operacion_es_idempotente(self):
+        self.client.force_authenticate(user=self.cajero_user)
+        payload = {
+            'client_request_id': 'b7b64bc4-f70b-45f7-86fd-d62e349ac230',
+            'tarjeta': self.tarjeta.id,
+            'metodo_pago': 'efectivo',
+            'monto_usd': '10.00',
+        }
+        primera = self.client.post('/api/cantina/tarjetas/recargar/', payload, format='json')
+        segunda = self.client.post('/api/cantina/tarjetas/recargar/', payload, format='json')
+        self.assertEqual(primera.status_code, status.HTTP_201_CREATED, primera.data)
+        self.assertEqual(segunda.status_code, status.HTTP_200_OK, segunda.data)
+        self.assertEqual(primera.data['id'], segunda.data['id'])
+        self.tarjeta.refresh_from_db()
+        self.assertEqual(self.tarjeta.saldo, Decimal('10.00'))
+        self.assertEqual(RecargaTarjeta.objects.filter(tarjeta=self.tarjeta).count(), 1)
+
     def test_recarga_efectivo_incrementa_saldo_y_crea_movimiento(self):
         self.client.force_authenticate(user=self.cajero_user)
         resp = self.client.post('/api/cantina/tarjetas/recargar/', {

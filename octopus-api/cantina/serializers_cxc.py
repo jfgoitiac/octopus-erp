@@ -40,6 +40,11 @@ class AbonoInputSerializer(serializers.Serializer):
         return attrs
 
 
+class PagoDeudaTarjetaInputSerializer(serializers.Serializer):
+    tarjeta_id = serializers.IntegerField(min_value=1)
+    monto_usd = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal('0.01'))
+
+
 class ClienteInputSerializer(serializers.ModelSerializer):
     """Alta/edición de un cliente general (el límite y el bloqueo van por otro endpoint)."""
     apellido = serializers.CharField(max_length=100, required=False, allow_blank=True)
@@ -261,6 +266,7 @@ def serializar_linea_abono(abono):
         'banco_procedencia': abono.banco_procedencia,
         'referencia': abono.referencia,
         'numero_lote': abono.numero_lote,
+        'tarjeta_origen': abono.tarjeta_origen.serial if abono.tarjeta_origen_id else None,
     }
 
 

@@ -32,7 +32,9 @@ from .models import (
     ClienteCantina,
     CreditoRepresentanteCantina,
     ParametroCantina,
+    TarjetaPrepago,
 )
+from .services_tarjeta import aplicar_movimiento_tarjeta
 from .utils import tasa_cantina_activa, validar_datos_bancarios
 
 CERO = Decimal('0.00')
@@ -473,6 +475,57 @@ def registrar_abono(*, representante=None, cliente=None, lineas, cajero, apertur
         return creados
 
 
+def registrar_abono_desde_tarjeta(*, representante, tarjeta_id, monto_usd, cajero):
+    """Saldar deuda FIFO usando saldo positivo de una tarjeta del representante."""
+    monto = _dec(monto_usd, 'monto_usd', MAX_MONTO_USD).quantize(CENTAVO)
+    if monto <= 0:
+        raise ValidationError({'monto_usd': 'El monto debe ser mayor a cero.'})
+    with transaction.atomic():
+        titular = lock_titular(representante)
+        try:
+            tarjeta = TarjetaPrepago.objects.select_for_update().select_related(
+                'alumno__representante'
+            ).get(pk=tarjeta_id)
+        except TarjetaPrepago.DoesNotExist:
+            raise ValidationError({'tarjeta_id': 'No se encontró la tarjeta.'})
+        if tarjeta.estado != 'activa' or not tarjeta.alumno_id:
+            raise ValidationError({'tarjeta_id': 'La tarjeta no está activa o no pertenece a un alumno.'})
+        if tarjeta.alumno.representante_id != titular.id:
+            raise ValidationError({'tarjeta_id': 'La tarjeta no pertenece a este representante.'})
+        if tarjeta.saldo <= 0:
+            raise ValidationError({'tarjeta_id': 'La tarjeta no tiene saldo positivo disponible.'})
+
+        cargos = list(CargoCantina.objects.select_for_update().filter(
+            representante=titular, estado='pendiente'
+        ).order_by('creado_en', 'id'))
+        deuda = sum((c.saldo_usd for c in cargos), CERO)
+        if deuda <= 0:
+            raise ValidationError({'detail': 'El representante no tiene deuda pendiente.'})
+        if monto > tarjeta.saldo:
+            raise ValidationError({'monto_usd': f'El monto excede el saldo de la tarjeta (${tarjeta.saldo:.2f}).'})
+        if monto > deuda:
+            raise ValidationError({'monto_usd': f'El monto excede la deuda pendiente (${deuda:.2f}).'})
+
+        abono = AbonoCantina.objects.create(
+            operacion_uuid=uuid.uuid4(), representante=titular, area=cargos[0].area,
+            apertura=None, metodo_pago='tarjeta_prepago', monto_usd=monto,
+            tasa_aplicada=Decimal('1.0000'), monto_ves=monto, fecha_pago=timezone.now(),
+            motivo='Pago con saldo de tarjeta prepagada', cajero=cajero,
+            tarjeta_origen=tarjeta,
+        )
+        restante = monto
+        for cargo in cargos:
+            if restante <= 0:
+                break
+            aplicar = min(restante, cargo.saldo_usd)
+            AplicacionAbonoCantina.objects.create(abono=abono, cargo=cargo, monto_usd=aplicar)
+            cargo.monto_pagado += aplicar
+            cargo.save(update_fields=['monto_pagado'])
+            restante -= aplicar
+        aplicar_movimiento_tarjeta(tarjeta, 'pago_deuda', monto, usuario=cajero)
+        return abono
+
+
 def anular_abono(operacion_uuid, usuario, motivo=''):
     """Anula todas las líneas de la operación y revierte sus aplicaciones.
 
@@ -499,6 +552,13 @@ def anular_abono(operacion_uuid, usuario, motivo=''):
         activos = [a for a in abonos if a.estatus == 'completado']
         if not activos:
             raise ValidationError({'detail': 'El abono ya está anulado.'})
+
+        for abono in activos:
+            if abono.tarjeta_origen_id:
+                aplicar_movimiento_tarjeta(
+                    abono.tarjeta_origen, 'reverso_pago_deuda', abono.monto_usd,
+                    usuario=usuario,
+                )
 
         aplicaciones = list(AplicacionAbonoCantina.objects.filter(abono__in=activos))
         cargos = {
