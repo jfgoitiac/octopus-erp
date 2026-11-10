@@ -88,7 +88,7 @@ export default function CarritoVenta({
                 <button
                   type="button"
                   onClick={() => onCambiarCantidad(producto.id, cantidad - 1)}
-                  className="w-10 h-10 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center"
+                  className="w-11 h-11 rounded-lg flex items-center justify-center"
                   style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
                   aria-label={`Quitar una unidad de ${producto.nombre}`}
                 >
@@ -98,7 +98,7 @@ export default function CarritoVenta({
                 <button
                   type="button"
                   onClick={() => onCambiarCantidad(producto.id, cantidad + 1)}
-                  className="w-10 h-10 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center"
+                  className="w-11 h-11 rounded-lg flex items-center justify-center"
                   style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)' }}
                   aria-label={`Agregar una unidad de ${producto.nombre}`}
                 >
@@ -111,7 +111,7 @@ export default function CarritoVenta({
               <button
                 type="button"
                 onClick={() => onQuitar(producto.id)}
-                className="shrink-0 w-10 h-10 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg"
+                className="shrink-0 w-11 h-11 flex items-center justify-center rounded-lg"
                 style={{ color: 'var(--red)' }}
                 aria-label={`Quitar ${producto.nombre} del carrito`}
               >
@@ -182,7 +182,7 @@ export default function CarritoVenta({
             <button
               type="button"
               onClick={() => setVerTodosMetodos(v => !v)}
-              className="mt-1.5 w-full flex items-center justify-center gap-1 text-xs font-medium min-h-[36px]"
+              className="mt-1.5 w-full flex items-center justify-center gap-1 text-xs font-medium min-h-[44px]"
               style={{ color: 'var(--pb-mid)' }}
               aria-expanded={verTodosMetodos}
             >

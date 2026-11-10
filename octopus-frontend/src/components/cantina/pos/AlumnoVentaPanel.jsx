@@ -39,7 +39,7 @@ export default function AlumnoVentaPanel({
           type="button"
           onClick={onQuitar}
           disabled={disabled}
-          className="shrink-0 flex items-center gap-1 text-xs px-2 py-1 rounded-lg min-h-[32px]"
+          className="shrink-0 flex items-center gap-1 text-xs px-3 py-2 rounded-lg min-h-[44px]"
           style={{ color: 'var(--pb-mid)' }}
         >
           <RotateCcw size={12} /> Cambiar

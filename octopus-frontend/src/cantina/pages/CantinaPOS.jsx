@@ -84,7 +84,7 @@ function limpiarOperacionPendiente() {
 
 function SkeletonGrid() {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3" aria-busy="true" aria-label="Cargando productos">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3" aria-busy="true" aria-label="Cargando productos">
       {Array.from({ length: 9 }).map((_, i) => (
         <div key={i} className="h-20 rounded-xl animate-pulse" style={{ background: 'var(--border-md)' }} />
       ))}
@@ -704,7 +704,7 @@ export default function CantinaPOS() {
     // COBRAR queda fijo al pie del carrito (ver CarritoVenta).
     <div className="flex flex-col gap-4 lg:h-[calc(100dvh-4rem)]">
       {!enLinea && (
-        <div className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900" role="status">
+        <div className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium" style={{ border: '1px solid var(--yellow)', background: 'var(--yellow-light)', color: 'var(--amber-ink)' }} role="status">
           <WifiOff size={17} className="shrink-0" />
           Sin conexión. Puedes preparar el carrito; el cobro se verificará al reconectar.
         </div>
@@ -814,8 +814,8 @@ export default function CantinaPOS() {
       {!esLg && (
         <>
           <div
-            className="sticky bottom-0 z-20 -mx-3 sm:-mx-8 px-3 sm:px-8 py-3 flex items-center gap-3"
-            style={{ background: 'var(--surface)', borderTop: '0.5px solid var(--border-md)' }}
+            className="sticky bottom-0 z-20 -mx-3 sm:-mx-8 px-3 sm:px-8 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] grid grid-cols-[minmax(0,1fr)_auto] sm:flex sm:items-center gap-2 sm:gap-3"
+            style={{ background: 'var(--surface)', borderTop: '0.5px solid var(--border-md)', boxShadow: '0 -8px 24px color-mix(in srgb, var(--jet) 8%, transparent)' }}
           >
             <div className="min-w-0 flex-1">
               <p className="text-lg font-bold leading-tight" style={{ color: 'var(--pb)' }}>${totalUsd.toFixed(2)}</p>
@@ -826,20 +826,20 @@ export default function CantinaPOS() {
             <button
               type="button"
               onClick={() => setCarritoAbierto(true)}
-              className="shrink-0 flex items-center justify-center gap-2 px-4 rounded-xl text-sm font-semibold min-h-[48px]"
+              className="shrink-0 flex items-center justify-center gap-2 px-3 sm:px-4 rounded-xl text-sm font-semibold min-h-[48px]"
               style={cobroDirecto
                 ? { border: '1.5px solid var(--pb)', color: 'var(--pb)', background: '#fff' }
                 : { background: 'var(--pb)', color: '#fff' }}
             >
               <ShoppingCart size={16} />
-              {cobroDirecto ? `Carrito (${carrito.length})` : `Ver carrito (${carrito.length})`}
+              Carrito ({carrito.length})
             </button>
             {cobroDirecto && (
               <button
                 type="button"
                 onClick={handleCobrar}
                 disabled={cobrarDisabled || cobrando}
-                className="shrink-0 flex items-center justify-center gap-2 px-4 rounded-xl text-sm font-semibold text-white min-h-[48px] disabled:opacity-40"
+                className="col-span-2 sm:col-span-1 shrink-0 flex items-center justify-center gap-2 px-4 rounded-xl text-sm font-semibold text-white min-h-[48px] disabled:opacity-40"
                 style={{ background: 'var(--pb)' }}
               >
                 {cobrando ? <Loader2 size={16} className="animate-spin" /> : 'COBRAR'}
