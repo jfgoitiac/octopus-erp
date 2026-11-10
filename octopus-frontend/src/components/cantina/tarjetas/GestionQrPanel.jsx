@@ -78,6 +78,7 @@ function TarjetaResumen({ tarjeta }) {
 }
 
 function RecargaFormulario({ onSubmit, enviando, textoBoton }) {
+  const [requestId] = useState(() => crypto.randomUUID());
   const [metodo, setMetodo] = useState('efectivo');
   const [moneda, setMoneda] = useState('USD');
   const [monto, setMonto] = useState('');
@@ -122,6 +123,7 @@ function RecargaFormulario({ onSubmit, enviando, textoBoton }) {
 
     const montoUsd = moneda === 'USD' ? valor : valor / tasa;
     return onSubmit({
+      client_request_id: requestId,
       metodo_pago: metodo,
       monto_usd: montoUsd.toFixed(2),
       banco_receptor: requiereBanco(metodo) ? bancoReceptor : null,

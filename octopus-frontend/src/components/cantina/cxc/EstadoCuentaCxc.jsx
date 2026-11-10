@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, HandCoins, Settings2, Ban, Printer, Lock, RefreshCw, Pencil } from 'lucide-react';
+import { ArrowLeft, HandCoins, Settings2, Ban, Printer, Lock, RefreshCw, Pencil, CreditCard } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { estadoCuentaCxc, estadoCuentaClienteCxc } from '../../../api/cantina.service';
 import { TablaScroll } from '../../ui/TablaScroll';
@@ -8,6 +8,7 @@ import RegistrarAbonoModal from './RegistrarAbonoModal';
 import CreditoRepresentanteModal from './CreditoRepresentanteModal';
 import AnularAbonoModal from './AnularAbonoModal';
 import ClienteFormModal from './ClienteFormModal';
+import PagarConTarjetaModal from './PagarConTarjetaModal';
 import {
   AREA_LABELS, detalleCargoTexto, fmtUsd, fmtVes, fmtFecha, nombreCompleto, num,
   esCancelacion, mensajeError, abrirReciboAbono, abrirReciboVenta, TIPO_LABELS, esCliente,
@@ -47,7 +48,7 @@ const alumnoDe = (c) => {
 };
 
 const metodosDe = (abono) =>
-  (abono.lineas || []).map(l => METODO_LABELS[l.metodo_pago] || l.metodo_pago).join(' + ') || '—';
+  (abono.lineas || []).map(l => l.metodo_pago === 'tarjeta_prepago' ? 'Tarjeta prepagada' : (METODO_LABELS[l.metodo_pago] || l.metodo_pago)).join(' + ') || '—';
 
 // `titular` = { tipo, id }: 'representante' o cliente general ('personal' | 'otro').
 const EstadoCuentaCxc = ({ titular, area, tasa, esAdmin, onVolver, onCambio }) => {
@@ -60,6 +61,7 @@ const EstadoCuentaCxc = ({ titular, area, tasa, esAdmin, onVolver, onCambio }) =
   const [cargadoPara, setCargadoPara] = useState(null);
   const [pestana, setPestana] = useState('cargos');
   const [abonoAbierto, setAbonoAbierto] = useState(false);
+  const [pagoTarjetaAbierto, setPagoTarjetaAbierto] = useState(false);
   const [creditoAbierto, setCreditoAbierto] = useState(false);
   const [abonoAAnular, setAbonoAAnular] = useState(null);
   const [editandoCliente, setEditandoCliente] = useState(false);
@@ -86,7 +88,7 @@ const EstadoCuentaCxc = ({ titular, area, tasa, esAdmin, onVolver, onCambio }) =
 
   useEffect(() => {
     const controller = new AbortController();
-    cargar(controller.signal);
+    Promise.resolve().then(() => cargar(controller.signal));
     return () => controller.abort();
   }, [cargar]);
 
@@ -191,6 +193,11 @@ const EstadoCuentaCxc = ({ titular, area, tasa, esAdmin, onVolver, onCambio }) =
                 <button type="button" onClick={() => setAbonoAbierto(true)} disabled={(saldoTotal ?? saldo) <= 0} className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium text-white min-h-[40px] w-full sm:w-auto disabled:opacity-60" style={{ background: 'var(--pb)' }}>
                   <HandCoins size={16} /> Registrar abono
                 </button>
+                {!cliente && (
+                  <button type="button" onClick={() => setPagoTarjetaAbierto(true)} disabled={(saldoTotal ?? saldo) <= 0} className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium min-h-[40px] w-full sm:w-auto disabled:opacity-60" style={{ border: '1px solid var(--teal)', color: 'var(--teal)', background: 'var(--teal-light)' }}>
+                    <CreditCard size={16} /> Pagar con tarjeta
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -327,6 +334,14 @@ const EstadoCuentaCxc = ({ titular, area, tasa, esAdmin, onVolver, onCambio }) =
               tasaVigente={tasa}
               esAdmin={esAdmin}
               onGuardado={refrescar}
+            />
+          )}
+          {pagoTarjetaAbierto && (
+            <PagarConTarjetaModal
+              representanteId={representanteId}
+              deuda={saldoTotal ?? saldo}
+              onClose={() => setPagoTarjetaAbierto(false)}
+              onPagado={refrescar}
             />
           )}
           {creditoAbierto && (

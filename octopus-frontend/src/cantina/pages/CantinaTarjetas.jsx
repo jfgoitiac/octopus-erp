@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { toast } from 'react-toastify';
-import { CreditCard, AlertTriangle, Layers, Percent, Search } from 'lucide-react';
+import { CreditCard, AlertTriangle, Layers, Percent, Search, UserPlus } from 'lucide-react';
 import ConsultarSaldoModal from '../../components/cantina/tarjetas/ConsultarSaldoModal';
 import GenerarLoteModal from '../../components/cantina/tarjetas/GenerarLoteModal';
 import ReponerTarjetaModal from '../../components/cantina/tarjetas/ReponerTarjetaModal';
@@ -14,6 +14,14 @@ import { getTarjetas } from '../../api/cantina.service';
 // La operación diaria de asignación/recarga vive en GestionQrPanel. Estas
 // acciones quedan como herramientas administrativas complementarias.
 const ACCIONES = [
+  {
+    key: 'asignar',
+    icon: UserPlus,
+    titulo: 'Asignar tarjeta',
+    descripcion: 'Escanea una tarjeta sin asignar y vincúlala visiblemente a un alumno o cliente.',
+    color: 'var(--teal)',
+    bg: 'var(--teal-light)',
+  },
   {
     key: 'generar',
     icon: Layers,
@@ -120,18 +128,22 @@ export default function CantinaTarjetas() {
         </p>
       </div>
 
-      <GestionQrPanel
-        onOperacionCompletada={() => { cargarTarjetas(); setRefreshRecargas(v => v + 1); }}
-        onReponer={abrirReponer}
-      />
+      <div id="gestion-qr-cantina">
+        <GestionQrPanel
+          onOperacionCompletada={() => { cargarTarjetas(); setRefreshRecargas(v => v + 1); }}
+          onReponer={abrirReponer}
+        />
+      </div>
 
       <div>
         <h2 className="text-sm font-semibold mb-2" style={{ color: 'var(--jet)' }}>Otras acciones</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {ACCIONES.map(({ key, icon: Icon, titulo, descripcion, color, bg }) => (
           <button
             key={key}
-            onClick={() => (key === 'reponer' ? abrirReponer(null) : setModalActivo(key))}
+            onClick={() => key === 'asignar'
+              ? document.getElementById('gestion-qr-cantina')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              : (key === 'reponer' ? abrirReponer(null) : setModalActivo(key))}
             className="text-left rounded-2xl p-5 flex flex-col gap-3 transition-transform hover:-translate-y-0.5"
             style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}
           >
@@ -234,7 +246,7 @@ export default function CantinaTarjetas() {
         <ReponerTarjetaModal
           tarjetaInicial={tarjetaAReponer}
           onClose={cerrarModal}
-          onRepuesta={() => { cerrarModal(); cargarTarjetas(); }}
+          onRepuesta={() => { cargarTarjetas(); }}
         />
       )}
 

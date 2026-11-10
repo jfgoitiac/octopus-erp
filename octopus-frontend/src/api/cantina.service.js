@@ -359,6 +359,12 @@ export const actualizarCreditoCxc = (representanteId, payload, signal) =>
 export const registrarAbonoCxc = (payload, signal) =>
   cantinaApiClient.post('cxc/abonos/', payload, { signal });
 
+export const listarTarjetasPagoDeuda = (representanteId, signal) =>
+  cantinaApiClient.get(`cxc/representantes/${representanteId}/pago-tarjeta/`, { signal });
+
+export const pagarDeudaConTarjeta = (representanteId, payload, signal) =>
+  cantinaApiClient.post(`cxc/representantes/${representanteId}/pago-tarjeta/`, payload, { signal });
+
 export const anularAbonoCxc = (operacionUuid, motivo, signal) =>
   cantinaApiClient.post(`cxc/abonos/${operacionUuid}/anular/`, { motivo }, { signal });
 

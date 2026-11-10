@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import {
   Loader2, Wallet, CheckCircle2, UserRound,
@@ -45,6 +45,7 @@ const referenciaInvalida = (m, ref) => {
 const monedaDefault = (m) => (['efectivo_ves', 'transferencia', 'pago_movil', 'punto_de_venta'].includes(m) ? 'VES' : 'USD');
 
 export default function RecargaCajeroModal({ onClose, onRecargada }) {
+  const requestId = useRef(crypto.randomUUID());
   // Tarjeta a recargar (resuelta por código QR, serial o nombre del alumno/representante)
   const [tarjeta, setTarjeta] = useState(null);
 
@@ -147,6 +148,7 @@ export default function RecargaCajeroModal({ onClose, onRecargada }) {
     // que TarjetaPrepagoSerializer/ProductoCantinaSerializer).
     const montoUsd = moneda === 'USD' ? n : n / tasaVigente;
     const payload = {
+      client_request_id: requestId.current,
       tarjeta: tarjeta.id,
       metodo_pago: metodoPago,
       monto_usd: montoUsd.toFixed(2),

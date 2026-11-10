@@ -26,6 +26,7 @@ export default function ReponerTarjetaModal({ tarjetaInicial, onClose, onRepuest
   const [motivo, setMotivo] = useState('extravio');
   const [confirmado, setConfirmado] = useState(false);
   const [reponiendo, setReponiendo] = useState(false);
+  const [resultado, setResultado] = useState(null);
 
   const handleBuscar = async () => {
     const valor = entradaTarjeta.trim();
@@ -55,10 +56,10 @@ export default function ReponerTarjetaModal({ tarjetaInicial, onClose, onRepuest
     }
     setReponiendo(true);
     try {
-      await reponerTarjeta(tarjeta.id, motivo);
-      toast.success('Tarjeta repuesta. El código anterior ya no es válido.');
-      onRepuesta?.();
-      onClose();
+      const { data } = await reponerTarjeta(tarjeta.id, motivo);
+      setResultado(data);
+      toast.success('Tarjeta repuesta. El QR y el serial anteriores quedaron invalidados.');
+      onRepuesta?.(data);
     } catch (err) {
       if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
       toast.error(err.response?.data?.detail || 'No se pudo reponer la tarjeta.');
@@ -79,7 +80,7 @@ export default function ReponerTarjetaModal({ tarjetaInicial, onClose, onRepuest
       >
         Cancelar
       </button>
-      {tarjeta && (
+      {tarjeta && !resultado && (
         <button
           onClick={handleConfirmar}
           disabled={reponiendo || !confirmado}
@@ -105,7 +106,21 @@ export default function ReponerTarjetaModal({ tarjetaInicial, onClose, onRepuest
       footer={footer}
       size="sm"
     >
-      {!tarjeta ? (
+      {resultado ? (
+        <div className="space-y-4 text-center">
+          <div className="rounded-xl p-4" style={{ background: 'var(--teal-light)', color: 'var(--teal)' }}>
+            <p className="font-semibold">Reposición completada</p>
+            <p className="text-sm mt-1">El QR y el serial de la tarjeta anterior ya no pueden usarse.</p>
+          </div>
+          <div className="rounded-xl p-4 text-left" style={{ border: '0.5px solid var(--border-md)' }}>
+            <p className="text-xs uppercase tracking-widest" style={LABEL_STYLE}>Nuevo serial</p>
+            <p className="font-mono font-semibold mt-1 break-all" style={{ color: 'var(--jet)' }}>{resultado.serial}</p>
+            <p className="text-xs uppercase tracking-widest mt-3" style={LABEL_STYLE}>Nuevo código QR</p>
+            <p className="font-mono font-semibold mt-1 break-all" style={{ color: 'var(--jet)' }}>{resultado.codigo}</p>
+          </div>
+          <button type="button" onClick={onClose} className="w-full px-4 py-2.5 rounded-xl text-sm font-medium text-white min-h-[44px]" style={{ background: 'var(--pb)' }}>Finalizar</button>
+        </div>
+      ) : !tarjeta ? (
         <div className="space-y-3">
           <label htmlFor="reponertarjetamodal-codigo-qr-o-serial-de-la-tar" className="block text-xs uppercase tracking-widest" style={LABEL_STYLE}>
             Código QR o serial de la tarjeta a reponer
