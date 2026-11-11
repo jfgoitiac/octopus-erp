@@ -213,6 +213,25 @@ class ApiTest(GestionBase):
         r2 = self.api.post(f"/api/cobranza/inteligente/convenios/cuotas/{r.data['cuotas'][0]['id']}/pagar/")
         self.assertEqual(r2.data['estado'], 'cumplido')
 
+    def test_api_congela_condiciones_economicas_del_convenio(self):
+        c = self.ciclo(monto=50)
+        fecha = str(date.today() + timedelta(days=10))
+        r = self.api.post('/api/cobranza/inteligente/convenios/', {
+            'representante_id': self.rep.id, 'ciclo_ids': [c.id],
+            'cuotas': [{'fecha': fecha, 'monto': '50.00'}],
+            'exonera_recargos_durante_vigencia': True,
+            'aplicar_recargo_incumplimiento': True,
+            'modo_recargo': 'porcentaje', 'valor_recargo': '10.00',
+            'frecuencia_recargo': 'recurrente',
+            'intervalo_cantidad': 2, 'intervalo_unidad': 'semana',
+            'maximo_aplicaciones': 3, 'tope_recargo_usd': '20.00',
+        }, format='json')
+        self.assertEqual(r.status_code, 201, r.data)
+        self.assertTrue(r.data['exonera_recargos_durante_vigencia'])
+        self.assertEqual(r.data['modo_recargo'], 'porcentaje')
+        self.assertEqual(r.data['intervalo_unidad'], 'semana')
+        self.assertEqual(r.data['maximo_aplicaciones'], 3)
+
     def test_linea_base_y_dashboard(self):
         self.ciclo(dia_limite=1)
         r = self.api.put('/api/cobranza/inteligente/linea-base/', {'cobrado_al_vencimiento_pct': '120'}, format='json')

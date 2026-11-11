@@ -731,3 +731,20 @@ en un solo flag.
 ## Módulo sitio institucional eliminado (2026-10-17)
 
 Módulo sitio institucional eliminado, incluidas sus tablas `sitio_*` (migración de limpieza en secretaria).
+
+## Convenios: marcar una cuota pagada no amortiza las mensualidades vinculadas (2026-11-11)
+
+`cobranza.gestion.marcar_cuota_pagada()` registra `CuotaConvenio.pagada/pagada_en` y cambia el estado del
+convenio, pero no crea un `Pago`, una `AplicacionPago` ni incrementa `Mensualidad.monto_pagado` en los ciclos
+incluidos. Corregirlo exige definir cómo se distribuye cada cuota entre varias mensualidades, métodos de pago,
+tasas y recibos; ese rediseño queda fuera del alcance de la vigencia y los recargos de convenios.
+
+Para el recargo por incumplimiento, el saldo principal auditable se calcula por tanto desde las cuotas del
+convenio que seguían impagas en cada `fecha_programada`, usando `pagada_en`; los `RecargoConvenio` anteriores
+nunca entran en la base. Consecuencia pendiente: al cumplir o cancelar el convenio, las mensualidades originales
+pueden seguir mostrando saldo en portal/caja aunque las cuotas del convenio figuren pagadas. No se intentó
+ocultar ni ajustar ese saldo automáticamente para evitar una doble imputación sin respaldo contable.
+
+La migración de esta funcionalidad tampoco inventa `finalizado_en` para convenios históricos cancelados: antes
+no existía evento de cancelación ni `updated_at`. Los cumplidos se reconstruyen desde la última `pagada_en` y los
+incumplidos desde `EventoCiclo(convenio_incumplido)`; los cancelados sin evidencia conservan `NULL`.

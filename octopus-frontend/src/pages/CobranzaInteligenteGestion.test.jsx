@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import CobranzaInteligenteGestion from './CobranzaInteligenteGestion';
 
 const m = vi.hoisted(() => ({
-    bandeja: vi.fn(), accion: vi.fn(), pagos: vi.fn(), convenios: vi.fn(), crear: vi.fn(),
+    bandeja: vi.fn(), accion: vi.fn(), pagos: vi.fn(), convenios: vi.fn(), crear: vi.fn(), detener: vi.fn(),
 }));
 
 vi.mock('../api/cobranza.service', () => ({
@@ -16,6 +16,7 @@ vi.mock('../api/cobranza.service', () => ({
     crearConvenioInteligente: (...a) => m.crear(...a),
     pagarCuotaConvenio: vi.fn(),
     cancelarConvenioInteligente: vi.fn(),
+    detenerRecargosConvenioInteligente: (...a) => m.detener(...a),
 }));
 vi.mock('../context/SedeContext', () => ({ useSede: () => ({ sedeActiva: { id: 1 }, sedes: [{ id: 1 }] }) }));
 vi.mock('react-toastify', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
@@ -64,6 +65,18 @@ describe('CobranzaInteligenteGestion', () => {
         await waitFor(() => expect(m.crear).toHaveBeenCalledWith(expect.objectContaining({
             representante_id: 7, ciclo_ids: [3, 4],
         })));
+    });
+
+    it('permite configurar exoneración y recargo porcentual sin interés compuesto', async () => {
+        m.bandeja.mockResolvedValue({ data: { count: 1, results: [fila] } });
+        render(<CobranzaInteligenteGestion />, { wrapper: MemoryRouter });
+        await userEvent.click(await screen.findByText('Crear convenio'));
+        await userEvent.click(screen.getByText('Exonerar recargos normales mientras esté vigente'));
+        await userEvent.click(screen.getByText('Aplicar recargo si se incumple'));
+        await userEvent.selectOptions(screen.getByLabelText('Modo'), 'porcentaje');
+        await userEvent.type(screen.getByLabelText('Valor (%)'), '10');
+        expect(screen.getByText(/no hay interés compuesto/i)).toBeInTheDocument();
+        expect(screen.getByText(/primer cargo al incumplir: \$5.00/i)).toBeInTheDocument();
     });
 
     it('un pago en revisión sin deuda vencida no ofrece acciones sobre ciclos inexistentes', async () => {

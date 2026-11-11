@@ -58,7 +58,7 @@ class RecargoPagoTardioBase(TestCase):
         defaults = dict(
             nombre='Recargo por pago tardío', tipo='recargo',
             modo_calculo='monto_fijo_usd', valor=Decimal('2.00'),
-            dia_aplicacion=15, activa=True,
+            dia_aplicacion=15, vigente_desde=date(2026, 1, 1), activa=True,
         )
         defaults.update(kwargs)
         return ReglaRecargoPago.objects.create(**defaults)
@@ -103,6 +103,40 @@ class ResolverRecargoFronteraTest(RecargoPagoTardioBase):
         self.assertIsNotNone(resultado)
         self.assertEqual(resultado['monto_usd'], Decimal('2.00'))
 
+
+class VigenciaRecargoTest(RecargoPagoTardioBase):
+    def test_regla_con_vigencia_futura_no_aplica(self):
+        self._regla(vigente_desde=date(2026, 12, 1))
+        mensualidad = self._mensualidad(12, 2026)
+        self.assertIsNone(resolver_recargo(mensualidad, date(2026, 11, 30)))
+
+    def test_mensualidad_anterior_al_mes_de_vigencia_queda_excluida(self):
+        self._regla(vigente_desde=date(2026, 11, 15))
+        octubre = self._mensualidad(10, 2026)
+        self.assertIsNone(resolver_recargo(octubre, date(2026, 12, 20)))
+
+    def test_mismo_mes_nunca_aplica_antes_de_la_vigencia(self):
+        self._regla(dia_aplicacion=1, vigente_desde=date(2026, 11, 15))
+        noviembre = self._mensualidad(11, 2026)
+        self.assertIsNone(resolver_recargo(noviembre, date(2026, 11, 14)))
+        resultado = resolver_recargo(noviembre, date(2026, 11, 15))
+        self.assertEqual(resultado['fecha_primera_aplicacion'], date(2026, 11, 15))
+
+    def test_recurrente_reancla_y_no_acumula_antes_de_vigencia(self):
+        ReglaRecargoPago.objects.create(
+            nombre='Semanal', tipo='recargo', modo_calculo='monto_fijo_usd',
+            valor='5.00', ancla_recargo='vencimiento', dias_desde_vencimiento=0,
+            frecuencia_recargo='recurrente', cada_dias=7,
+            vigente_desde=date(2026, 11, 15), activa=True,
+        )
+        mensualidad = self._mensualidad(11, 2026)
+        mensualidad.fecha_vencimiento = date(2026, 11, 1)
+        mensualidad.save(update_fields=['fecha_vencimiento'])
+        resultado = resolver_recargo(mensualidad, date(2026, 11, 22))
+        self.assertEqual(resultado['fecha_primera_aplicacion'], date(2026, 11, 15))
+        self.assertEqual(resultado['periodos_devengados'], 2)
+        self.assertEqual(resultado['monto_usd'], Decimal('10.00'))
+
     def test_acepta_datetime_como_fecha_referencia(self):
         self._regla(dia_aplicacion=15, valor=Decimal('2.00'))
         m = self._mensualidad(7, 2026)
@@ -144,7 +178,7 @@ class RecargoRecurrentePorVencimientoTest(RecargoPagoTardioBase):
             nombre='Recargo semanal', tipo='recargo', modo_calculo='monto_fijo_usd',
             valor=Decimal('5.00'), ancla_recargo='vencimiento',
             dias_desde_vencimiento=0, frecuencia_recargo='recurrente', cada_dias=7,
-            activa=True,
+            vigente_desde=date(2026, 1, 1), activa=True,
         )
         defaults.update(kwargs)
         return ReglaRecargoPago.objects.create(**defaults)
