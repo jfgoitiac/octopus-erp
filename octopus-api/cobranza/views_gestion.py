@@ -20,7 +20,7 @@ from .ciclos import poner_al_dia_si_hace_falta
 from .conversacion import construir_conversacion, responder
 from .dashboard import calcular_dashboard, q_sedes
 from .inteligente import sedes_con_inteligente_activa
-from .models import CicloCobranza, ConvenioPago, CuotaConvenio, LineaBaseCobranza
+from .models import CicloCobranza, ConvenioPago, CuotaConvenio, LineaBaseCobranza, RecargoConvenio, Pago
 from .permissions import sedes_permitidas_ids
 
 User = get_user_model()
@@ -172,6 +172,7 @@ class PagosRevisionView(APIView):
 
 
 def _serializar_convenio(c):
+    from .saldos_recargos_convenio import recargo_pendiente
     recargos = list(c.recargos_incumplimiento.all())
     return {
         'id': c.id, 'estado': c.estado, 'notas': c.notas, 'creado_en': c.creado_en,
@@ -197,10 +198,12 @@ def _serializar_convenio(c):
             'fecha_programada': r.fecha_programada, 'fecha_generada': r.fecha_generada,
             'modo_calculo': r.modo_calculo, 'valor_configurado': str(r.valor_configurado),
             'saldo_base_usd': str(r.saldo_base_usd),
-            'monto_recargo_usd': str(r.monto_recargo_usd), 'estado': r.estado,
+            'monto_recargo_usd': str(r.monto_recargo_usd),
+            'estado': 'pendiente' if recargo_pendiente(r) else r.estado,
+            'pago_id': r.pago_id, 'pagado_en': r.pagado_en, 'pagado_por': r.pagado_por_id,
         } for r in recargos],
         'total_recargos_pendientes_usd': str(sum(
-            (r.monto_recargo_usd for r in recargos if r.estado == 'pendiente'), Decimal('0.00'))),
+            (r.monto_recargo_usd for r in recargos if recargo_pendiente(r)), Decimal('0.00'))),
     }
 
 
@@ -216,7 +219,7 @@ class ConveniosView(APIView):
         if not sedes:
             return _apagada()
         qs = (ConvenioPago.objects.filter(ciclos__in=_ciclos(sedes)).distinct()
-              .prefetch_related('cuotas', 'ciclos', 'recargos_incumplimiento'))
+              .prefetch_related('cuotas', 'ciclos', 'recargos_incumplimiento__pago'))
         if request.query_params.get('representante'):
             qs = qs.filter(representante_id=request.query_params['representante'])
         return Response({'results': [_serializar_convenio(c) for c in qs]})
@@ -318,6 +321,35 @@ class DetenerRecargosConvenioView(APIView):
         )
         convenio = (ConvenioPago.objects.prefetch_related(
             'cuotas', 'ciclos', 'recargos_incumplimiento').get(pk=convenio.pk))
+        return Response(_serializar_convenio(convenio))
+
+
+class PagarRecargoConvenioView(APIView):
+    """Imputa un ingreso real de caja; no crea ni duplica ingresos."""
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
+
+    def post(self, request, recargo_id):
+        sedes = sedes_activas_accesibles(request.user)
+        if not sedes:
+            return _apagada()
+        recargo = RecargoConvenio.objects.filter(
+            pk=recargo_id, convenio__ciclos__in=_ciclos(sedes),
+        ).first()
+        if recargo is None:
+            return _error('No encontrado.', status.HTTP_404_NOT_FOUND)
+        pago_id = request.data.get('pago_id')
+        if isinstance(pago_id, bool) or not str(pago_id).isascii() or not str(pago_id).isdigit() or len(str(pago_id)) > 18:
+            return _error('Indique el ID del pago registrado en caja.')
+        if not Pago.objects.filter(pk=pago_id, sede_id__in=sedes).exists():
+            return _error('Pago no encontrado.', status.HTTP_404_NOT_FOUND)
+        from .pagos_recargos_convenio import aplicar_pago_recargo
+        try:
+            aplicar_pago_recargo(recargo.id, int(pago_id), request.user)
+        except gestion.AccionInvalida as exc:
+            return _error(str(exc))
+        convenio = ConvenioPago.objects.prefetch_related(
+            'cuotas', 'ciclos', 'recargos_incumplimiento__pago',
+        ).get(pk=recargo.convenio_id)
         return Response(_serializar_convenio(convenio))
 
 

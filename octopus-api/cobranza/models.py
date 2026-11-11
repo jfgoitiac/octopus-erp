@@ -1758,12 +1758,22 @@ class RecargoConvenio(models.Model):
         ConvenioPago, on_delete=models.CASCADE, related_name='recargos_incumplimiento')
     numero_periodo = models.PositiveIntegerField()
     fecha_programada = models.DateField()
+    episodio_iniciado_en = models.DateTimeField(null=True, blank=True)
     fecha_generada = models.DateTimeField(default=timezone.now)
     modo_calculo = models.CharField(max_length=20, choices=ConvenioPago.MODOS_RECARGO)
     valor_configurado = models.DecimalField(max_digits=10, decimal_places=2)
     saldo_base_usd = models.DecimalField(max_digits=10, decimal_places=2)
     monto_recargo_usd = models.DecimalField(max_digits=10, decimal_places=2)
     estado = models.CharField(max_length=12, choices=ESTADOS, default=PENDIENTE, db_index=True)
+    pago = models.OneToOneField(
+        Pago, on_delete=models.PROTECT, null=True, blank=True,
+        related_name='recargo_convenio_liquidado',
+    )
+    pagado_en = models.DateTimeField(null=True, blank=True)
+    pagado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='+',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

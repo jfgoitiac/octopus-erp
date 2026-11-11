@@ -294,15 +294,28 @@ class BuscarAlumnoCobranzaView(APIView):
     MES_NOMBRES = MES_NOMBRES
 
     def _alumno_data(self, alumno):
-        from datetime import date as _date
-        hoy = _date.today()
+        hoy = timezone.localdate()
+        if not alumno.activo:
+            from .saldos_recargos_convenio import items_penalidades_convenio
+            penalidades = items_penalidades_convenio(alumno_ids=[alumno.id], hoy=hoy)
+            return {
+                'id': alumno.id, 'nombre': alumno.nombre,
+                'nombre_completo': f'{alumno.nombre} {alumno.apellido}',
+                'cedula_escolar': alumno.cedula_escolar, 'grado': alumno.grado_seccion or 'Sin grado',
+                'estatus': 'mora' if penalidades else alumno.estatus_financiero,
+                'penalidades_convenio': penalidades,
+                'total_penalidades_convenio_usd': str(sum((p['monto_usd'] for p in penalidades), Decimal('0.00'))),
+                'mensualidades_pendientes': [], 'mensualidades_futuras': [],
+                'cuotas_inscripcion_pendientes': [], 'cuotas_solvencia_pendientes': [],
+                'cuotas_proyecto_inversion_pendientes': [], 'detalle_deuda': [],
+            }
 
         # Auto-crear los meses del año escolar activo que falten, mes actual
         # incluido (antes solo se creaban futuros y el mes en curso nunca
         # generaba deuda). Los becados totales no cargan mensualidades. El
         # rango de meses sale siempre de ConfiguracionSistema (fecha de inicio
         # y fin de clases), nunca de un rango fijo.
-        if alumno.estatus_financiero != 'becado':
+        if alumno.activo and alumno.estatus_financiero != 'becado':
             from .services import generar_mensualidades, meses_ano_escolar, rango_ano_escolar
             rango = rango_ano_escolar()
             if rango:
@@ -434,7 +447,12 @@ class BuscarAlumnoCobranzaView(APIView):
             for item in deudas_pendientes_alumno(alumno, hoy)
         ]
 
+        from .saldos_recargos_convenio import items_penalidades_convenio
+        penalidades = items_penalidades_convenio(alumno_ids=[alumno.id], hoy=hoy)
+        total_penalidades = sum((p['monto_usd'] for p in penalidades), Decimal('0.00'))
         return {
+            'penalidades_convenio': penalidades,
+            'total_penalidades_convenio_usd': str(total_penalidades),
             'id':                            alumno.id,
             'nombre':                        alumno.nombre,
             'nombre_completo':               f"{alumno.nombre} {alumno.apellido}",
@@ -466,11 +484,13 @@ class BuscarAlumnoCobranzaView(APIView):
         from secretaria.models import Representante, Alumno
 
         # Intento 1: buscar como cédula de representante
+        from .saldos_recargos_convenio import penalidades_pendientes
+        anclas_penalidades = penalidades_pendientes().values_list('alumno_imputado_id', flat=True)
         rep = Representante.objects.filter(cedula=cedula).first()
         if rep:
             alumnos = filtrar_por_sede(
                 request.user,
-                Alumno.objects.filter(representante=rep, activo=True),
+                Alumno.todos.filter(Q(activo=True) | Q(id__in=anclas_penalidades), representante=rep),
                 campo='sede',
             ).select_related('representante')
             return Response({
@@ -480,7 +500,7 @@ class BuscarAlumnoCobranzaView(APIView):
 
         # Intento 2: buscar como cédula escolar de alumno
         alumno = filtrar_por_sede(
-            request.user, Alumno.objects.filter(cedula_escolar=cedula, activo=True), campo='sede'
+            request.user, Alumno.todos.filter(Q(activo=True) | Q(id__in=anclas_penalidades), cedula_escolar=cedula), campo='sede'
         ).select_related('representante').first()
         if alumno:
             return Response({
@@ -3777,8 +3797,10 @@ class ListaMorososView(APIView):
 
         # Criterio de mora centralizado en cobranza/mora.py (fuente de verdad única
         # compartida con la tarea Celery y el módulo de alumnos).
+        from .saldos_recargos_convenio import penalidades_pendientes
+        anclas = penalidades_pendientes(hoy).values_list('alumno_imputado_id', flat=True)
         alumnos_base = filtrar_por_sede(
-            user, Alumno.objects.filter(activo=True).exclude(estatus_financiero='becado'), campo='sede'
+            user, Alumno.todos.filter((Q(activo=True) & ~Q(estatus_financiero='becado')) | Q(id__in=anclas)), campo='sede'
         )
         qs = (
             annotate_mora_detalle(alumnos_base, hoy)
@@ -3787,6 +3809,12 @@ class ListaMorososView(APIView):
             .order_by('-monto_adeudado', 'apellido', 'nombre')
         )
 
+        from django.db.models import BooleanField, Case, F, Value, When
+        qs = qs.annotate(
+            _solo_penalidades_convenio=Case(When(activo=False, then=Value(True)), default=Value(False), output_field=BooleanField()),
+            **{campo: Case(When(activo=False, then=Value(Decimal('0.00'))), default=F(campo))
+               for campo in ('monto_adeudado', 'monto_solvencia_adeudado', 'monto_proyecto_inversion_adeudado')},
+        )
         if buscar:
             qs = filtrar_busqueda(qs, buscar, [
                 'nombre', 'apellido', 'cedula_escolar',
@@ -3814,8 +3842,10 @@ class ListaMorososView(APIView):
         # recargo (calculado en Python) se suma aparte sobre TODOS los
         # alumno_id filtrados, no solo los de la página actual.
         todos_los_ids = list(qs.values_list('id', flat=True))
-        recargos_totales = calcular_recargos_para_alumnos(todos_los_ids, hoy)
+        recargos_totales = calcular_recargos_para_alumnos(list(qs.filter(activo=True).values_list('id', flat=True)), hoy)
         total_recargo_usd = sum(recargos_totales.values(), Decimal('0.00'))
+        from .saldos_recargos_convenio import saldos_penalidades_por_alumno
+        total_penalidades = sum(saldos_penalidades_por_alumno(todos_los_ids, hoy).values(), Decimal('0.00'))
 
         paginator = StandardResultsPagination()
         pagina = paginator.paginate_queryset(qs, request, view=self)
@@ -3843,6 +3873,7 @@ class ListaMorososView(APIView):
                 } if a.representante else None,
                 'monto_adeudado':            str(a.monto_adeudado),
                 'monto_adeudado_capital':    str(a.monto_adeudado_capital),
+                'monto_penalidades_convenio': str(a.monto_penalidades_convenio),
                 'meses_adeudados':            a.meses_adeudados,
                 'monto_solvencia_adeudado':   str(a.monto_solvencia_adeudado),
                 'monto_proyecto_inversion_adeudado': str(a.monto_proyecto_inversion_adeudado),
@@ -3853,7 +3884,8 @@ class ListaMorososView(APIView):
         ]
         response = paginator.get_paginated_response(results)
         response.data['cobranza_inteligente'] = bool(sedes_con_inteligente_activa())
-        response.data['total_deuda_usd'] = str((agregados['total_deuda_usd'] or Decimal('0.00')) + total_recargo_usd)
+        response.data['total_deuda_usd'] = str((agregados['total_deuda_usd'] or Decimal('0.00')) + total_recargo_usd + total_penalidades)
+        response.data['total_penalidades_convenio_usd'] = str(total_penalidades)
         response.data['total_solvencia_usd'] = str(agregados['total_solvencia_usd'] or 0)
         response.data['total_proyecto_inversion_usd'] = str(agregados['total_proyecto_inversion_usd'] or 0)
         return response

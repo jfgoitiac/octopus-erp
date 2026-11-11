@@ -408,6 +408,27 @@ class PortalDashboardView(APIView):
                 'alumno_id': None,
             })
 
+        from cobranza.saldos_recargos_convenio import items_penalidades_convenio
+        penalidades = items_penalidades_convenio(
+            representante_ids=[representante.id], hoy=hoy,
+        )
+        total_penalidades = sum((p['monto_usd'] for p in penalidades), Decimal('0.00'))
+        total_deuda_usd += float(total_penalidades)
+        for detalle in deuda_por_alumno:
+            importe = sum((p['monto_usd'] for p in penalidades
+                           if p['alumno_id'] == detalle['alumno_id']), Decimal('0.00'))
+            detalle['penalidades_convenio_usd'] = str(importe)
+            detalle['deuda_usd'] = round(detalle['deuda_usd'] + float(importe), 2)
+
+        ids_detallados = {d['alumno_id'] for d in deuda_por_alumno}
+        for alumno_id in {p['alumno_id'] for p in penalidades} - ids_detallados:
+            cargos = [p for p in penalidades if p['alumno_id'] == alumno_id]
+            importe = sum((p['monto_usd'] for p in cargos), Decimal('0.00'))
+            deuda_por_alumno.append({
+                'alumno_id': alumno_id, 'alumno_nombre': cargos[0]['alumno_nombre'],
+                'deuda_usd': float(importe), 'penalidades_convenio_usd': str(importe),
+            })
+
         # Tasa BCV vigente (la misma que usa caja al cobrar): el portal muestra
         # los montos como REF. en dólares y su equivalente en bolívares.
         from cobranza.models import TasaCambio
@@ -434,6 +455,8 @@ class PortalDashboardView(APIView):
             'alumnos': AlumnoDashboardSerializer(alumnos, many=True).data,
             'resumen_financiero': {
                 'total_deuda_usd': round(total_deuda_usd, 2),
+                'total_penalidades_convenio_usd': str(total_penalidades),
+                'penalidades_convenio': penalidades,
                 'deuda_por_alumno': deuda_por_alumno,
                 'tasa_bcv': tasa_bcv,
                 'mensualidades_vencidas': mensualidades_vencidas,

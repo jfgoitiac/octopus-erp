@@ -69,8 +69,9 @@ def agrupar_morosos_por_representante(alumnos_anotados, hoy=None):
     from django.db.models import F
     hoy = hoy or timezone.localdate()
     alumnos = list(alumnos_anotados)
+    alumnos_para_deudas = [a for a in alumnos if a.activo]
     pendientes = list(
-        Mensualidad.objects.filter(alumno__in=alumnos).filter(q_mensualidad_vencida(hoy))
+        Mensualidad.objects.filter(alumno__in=alumnos_para_deudas).filter(q_mensualidad_vencida(hoy))
         .filter(monto_usd__gt=F('monto_pagado'))
         .select_related('alumno').prefetch_related('lineas_recargo').order_by('anio', 'mes')
     )
@@ -85,14 +86,14 @@ def agrupar_morosos_por_representante(alumnos_anotados, hoy=None):
         })
     otros_por_alumno = {}
     inscripciones = CuotaInscripcion.objects.filter(
-        alumno__in=alumnos, pagado=False, monto_usd__gt=F('monto_pagado'))
+        alumno__in=alumnos_para_deudas, pagado=False, monto_usd__gt=F('monto_pagado'))
     for cuota in inscripciones:
         otros_por_alumno.setdefault(cuota.alumno_id, []).append({
             'concepto': f'Inscripción {cuota.periodo_escolar}'.strip(),
             'saldo_usd': cuota.monto_usd - cuota.monto_pagado,
         })
     solvencias = CuotaSolvencia.objects.filter(
-        alumno__in=alumnos, pagado=False, monto_usd__gt=F('monto_pagado'))
+        alumno__in=alumnos_para_deudas, pagado=False, monto_usd__gt=F('monto_pagado'))
     for cuota in solvencias:
         otros_por_alumno.setdefault(cuota.alumno_id, []).append({
             'concepto': cuota.concepto or f'Solvencia {cuota.periodo_escolar}'.strip(),
@@ -102,7 +103,7 @@ def agrupar_morosos_por_representante(alumnos_anotados, hoy=None):
     # Los cargos especiales que bloquean inscripción forman parte del criterio
     # canónico de mora, pero pertenecen al representante. Se agregan una sola
     # vez por familia aunque el representante tenga varios hijos.
-    representante_ids = {a.representante_id for a in alumnos if a.representante_id}
+    representante_ids = {a.representante_id for a in alumnos_para_deudas if a.representante_id}
     otros_por_representante = {}
     cargos_especiales = CuotaProyectoInversion.objects.filter(
         representante_id__in=representante_ids,
@@ -114,6 +115,14 @@ def agrupar_morosos_por_representante(alumnos_anotados, hoy=None):
         otros_por_representante.setdefault(cuota.representante_id, []).append({
             'concepto': f'{cuota.tipo_concepto.nombre} {cuota.periodo_escolar}'.strip(),
             'saldo_usd': cuota.monto_usd - cuota.monto_pagado,
+        })
+
+    from cobranza.saldos_recargos_convenio import items_penalidades_convenio
+    penalidades_por_alumno = {}
+    for penalidad in items_penalidades_convenio(alumno_ids=[a.id for a in alumnos], hoy=hoy):
+        penalidades_por_alumno.setdefault(penalidad['alumno_id'], []).append({
+            'concepto': penalidad['descripcion'], 'saldo_usd': penalidad['monto_usd'],
+            'recargo_convenio_id': penalidad['id'],
         })
 
     grupos = {}
@@ -135,6 +144,7 @@ def agrupar_morosos_por_representante(alumnos_anotados, hoy=None):
                 'subtotal_principal': Decimal('0.00'),
                 'subtotal_recargos': Decimal('0.00'),
                 'subtotal_otros': Decimal('0.00'),
+                'total_penalidades_convenio_usd': Decimal('0.00'),
                 'mensualidades': [],
                 'otros': [],
             }
@@ -148,7 +158,9 @@ def agrupar_morosos_por_representante(alumnos_anotados, hoy=None):
         dias_atraso = calcular_dias_atraso(a, hoy)
         grupo = grupos[cedula]
         mensualidades = mensualidades_por_alumno.get(a.id, [])
-        otros = otros_por_alumno.get(a.id, [])
+        penalidades_alumno = penalidades_por_alumno.get(a.id, [])
+        otros = otros_por_alumno.get(a.id, []) + penalidades_alumno
+        grupo['total_penalidades_convenio_usd'] += sum((p['saldo_usd'] for p in penalidades_alumno), Decimal('0.00'))
         monto_alumno = (
             sum((m['principal_usd'] + m['recargo_usd'] for m in mensualidades), Decimal('0.00'))
             + sum((o['saldo_usd'] for o in otros), Decimal('0.00'))

@@ -30,12 +30,16 @@ def fecha_programada(convenio, numero_periodo):
 
 
 def saldo_principal_en(convenio, fecha):
-    """Saldo de cuotas que seguían pendientes en la fecha programada."""
+    """Saldo al inicio del día programado, antes de sus pagos.
+
+    Esta precedencia hace que un job atrasado reconstruya exactamente la
+    misma base que uno ejecutado antes del pago durante el día programado.
+    """
     saldo = Decimal('0.00')
     for cuota in convenio.cuotas.all():
         pagada_en_fecha = (
             cuota.pagada and cuota.pagada_en is not None
-            and _fecha_local(cuota.pagada_en) <= fecha
+            and _fecha_local(cuota.pagada_en) < fecha
         )
         if not pagada_en_fecha:
             saldo += cuota.monto_usd
@@ -76,15 +80,15 @@ def generar_recargos_convenio(convenio_id, fecha_referencia=None, momento=None):
     ):
         return []
 
-    existentes = list(
-        convenio.recargos_incumplimiento.exclude(estado=RecargoConvenio.ANULADO)
-        .order_by('numero_periodo')
-    )
-    cantidad_total = len(existentes)
-    ancla_actual = _fecha_local(convenio.incumplido_en)
-    cantidad_episodio = sum(1 for recargo in existentes if recargo.fecha_programada >= ancla_actual)
+    existentes = list(convenio.recargos_incumplimiento.all())
+    cobrables = [r for r in existentes if r.estado != RecargoConvenio.ANULADO]
+    # Una anulación libera importe y aplicaciones del límite, pero no borra
+    # el lugar ocupado en el calendario ni permite volver a cobrarlo.
+    cantidad_total = len(cobrables)
+    episodio = [r for r in existentes if r.episodio_iniciado_en == convenio.incumplido_en]
+    cantidad_episodio = len(episodio)
     ultimo_numero = max((recargo.numero_periodo for recargo in existentes), default=0)
-    total = sum((recargo.monto_recargo_usd for recargo in existentes), Decimal('0.00'))
+    total = sum((recargo.monto_recargo_usd for recargo in cobrables), Decimal('0.00'))
     creados = []
 
     while True:
@@ -119,6 +123,7 @@ def generar_recargos_convenio(convenio_id, fecha_referencia=None, momento=None):
             numero_periodo=numero,
             defaults={
                 'fecha_programada': programada,
+                'episodio_iniciado_en': convenio.incumplido_en,
                 'fecha_generada': momento,
                 'modo_calculo': convenio.modo_recargo,
                 'valor_configurado': convenio.valor_recargo,
@@ -137,6 +142,20 @@ def generar_recargos_convenio(convenio_id, fecha_referencia=None, momento=None):
             break
 
     return creados
+
+
+@transaction.atomic
+def liquidar_recargos_antes_de_cierre(convenio, momento=None, *, pago_en_fecha=False):
+    """Materializa pendientes antes de mutar el saldo, estado o detención.
+
+    Los cargos se devengan al comienzo del día, antes de sus pagos. Tanto un
+    pago como un cierre administrativo o renegociación incluyen el día de
+    ejecución. ``pago_en_fecha`` identifica al llamador y conserva un contrato
+    explícito; no cambia esa precedencia. No reactiva detenciones existentes.
+    """
+    momento = momento or timezone.now()
+    fecha = timezone.localdate(momento)
+    return generar_recargos_convenio(convenio.pk, fecha_referencia=fecha, momento=momento)
 
 
 def generar_recargos_convenios_incumplidos(fecha_referencia=None, momento=None):
@@ -158,7 +177,11 @@ def detener_recargos_convenio(convenio, usuario, motivo='Detenido por un adminis
     convenio = ConvenioPago.objects.select_for_update().get(pk=convenio.pk)
     if convenio.recargos_detenidos_en:
         return convenio
-    convenio.recargos_detenidos_en = timezone.now()
+    ahora = timezone.now()
+    liquidar_recargos_antes_de_cierre(convenio, momento=ahora)
+    convenio.refresh_from_db()
+    # Si el devengo alcanzó un tope, registrar igualmente la decisión humana.
+    convenio.recargos_detenidos_en = ahora
     convenio.recargos_detenidos_por = usuario
     convenio.motivo_detencion_recargos = (motivo or '').strip()[:200]
     convenio.save(update_fields=[

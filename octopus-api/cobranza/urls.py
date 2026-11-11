@@ -1,7 +1,7 @@
 from django.urls import path
 from .views_gestion import (
     AccionCicloView, BandejaView, CancelarConvenioView, ConveniosView, ConversacionView,
-    CuotaConvenioPagadaView,
+    CuotaConvenioPagadaView, PagarRecargoConvenioView,
     DashboardInteligenteView, DetenerRecargosConvenioView, LineaBaseView, PagosRevisionView,
 )
 from .views_ciclos import CarteraCiclosView, EnviosCobranzaView, ExpedienteRepresentanteView, ResumenSombraView
@@ -86,6 +86,7 @@ _reglas_recargo_detail = ReglaRecargoPagoViewSet.as_view({
 })
 
 urlpatterns = [
+    path('inteligente/convenios/recargos/<int:recargo_id>/pagar/', PagarRecargoConvenioView.as_view(), name='cobranza-inteligente-pagar-recargo'),
     path('sincronizar-tasa/',              SincronizarTasaView.as_view(),          name='sincronizar-tasa'),
     path('stats/',                         DashboardStatsView.as_view(),           name='cobranza-stats'),
     path('bancos/',                        BancosListView.as_view(),               name='bancos-list'),

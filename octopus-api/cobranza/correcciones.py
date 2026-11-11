@@ -139,6 +139,12 @@ def elegibilidad_monto(pago: Pago) -> dict:
     'cuota' es {'tipo': 'solvencia'|'mensualidad'|'proyecto_inversion'|'inscripcion',
     'obj': <instancia>} o None si el pago no está ligado a ninguna.
     """
+    if hasattr(pago, 'recargo_convenio_liquidado'):
+        return {
+            'editable': False,
+            'razon': 'El pago liquida una penalidad de convenio. Anúlelo y registre el pago correcto para conservar la auditoría.',
+            'cuota': None, 'cuotas': [],
+        }
     buckets = (
         ('solvencia', list(pago.cuotas_solvencia_pagadas.all())),
         ('mensualidad', list(pago.mensualidades_pagadas.all())),
@@ -221,6 +227,9 @@ def corregir_pago(pago: Pago, cambios: dict, usuario, motivo: str) -> Pago:
     responsabilidad del caller (CorregirPagoView) vía IsSystemAdminOrDirector,
     no de esta función.
     """
+    # Comparte el candado con la imputación de penalidades: no se puede
+    # validar un pago libre y cambiarle el importe después de imputarlo.
+    pago = Pago.objects.select_for_update().get(pk=pago.pk)
     if pago.estatus == 'anulado':
         raise ValidationError({
             'estatus': "No se puede corregir un pago anulado."

@@ -126,10 +126,12 @@ def annotate_en_mora(alumno_qs, hoy=None):
     """
     hoy = _hoy(hoy)
     deuda_mensualidad, deuda_inscripcion, deuda_solvencia, deuda_proyecto_inversion = _condicion_mora(hoy)
+    from .saldos_recargos_convenio import penalidades_pendientes
+    deuda_penalidad = Exists(penalidades_pendientes(hoy).filter(alumno_imputado_id=OuterRef('pk')))
     return alumno_qs.annotate(
         en_mora=Case(
             When(
-                deuda_mensualidad | deuda_inscripcion | deuda_solvencia | deuda_proyecto_inversion,
+                deuda_mensualidad | deuda_inscripcion | deuda_solvencia | deuda_proyecto_inversion | deuda_penalidad,
                 then=Value(True),
             ),
             default=Value(False),
@@ -248,11 +250,15 @@ def enriquecer_monto_adeudado_con_recargo(alumnos, hoy=None):
     if not alumnos:
         return alumnos
 
+    from .saldos_recargos_convenio import saldos_penalidades_por_alumno
+    penalidades = saldos_penalidades_por_alumno([a.id for a in alumnos], hoy)
     recargos_por_alumno = calcular_recargos_para_alumnos([a.id for a in alumnos], hoy)
     for a in alumnos:
         capital = a.monto_adeudado
         a.monto_adeudado_capital = capital
-        a.monto_adeudado = capital + recargos_por_alumno.get(a.id, Decimal('0.00'))
+        a.monto_penalidades_convenio = penalidades.get(a.id, Decimal('0.00'))
+        recargo_normal = Decimal('0.00') if getattr(a, '_solo_penalidades_convenio', False) else recargos_por_alumno.get(a.id, Decimal('0.00'))
+        a.monto_adeudado = capital + recargo_normal + a.monto_penalidades_convenio
     return alumnos
 
 

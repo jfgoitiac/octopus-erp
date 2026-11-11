@@ -168,41 +168,65 @@ def registrar_cobro_whatsapp(representante_id, usuario, mensaje, log_id):
 # ── Convenio de pago mínimo ────────────────────────────────────────────────────
 
 def _configuracion_recargo_convenio(configuracion):
-    configuracion = configuracion or {}
-    exonera = bool(configuracion.get('exonera_recargos_durante_vigencia', False))
-    aplica = bool(configuracion.get('aplicar_recargo_incumplimiento', False))
+    configuracion = configuracion if configuracion is not None else {}
+    if not isinstance(configuracion, dict):
+        raise AccionInvalida('La configuración del recargo por incumplimiento no es válida.')
+
+    def booleano(campo):
+        valor = configuracion.get(campo, False)
+        if not isinstance(valor, bool):
+            raise AccionInvalida(f'{campo} debe ser verdadero o falso.')
+        return valor
+
+    def importe(campo, etiqueta, obligatorio=False):
+        valor = configuracion.get(campo)
+        if valor in (None, '') and not obligatorio:
+            return None
+        try:
+            numero = Decimal(str(valor))
+        except (ValueError, TypeError, ArithmeticError):
+            raise AccionInvalida(f'{etiqueta} debe ser un número válido.')
+        # Validar antes de comparar o cuantizar: NaN puede lanzar InvalidOperation
+        # e infinitos/precisiones excesivas no caben en DecimalField(10, 2).
+        if not numero.is_finite():
+            raise AccionInvalida(f'{etiqueta} debe ser un número finito.')
+        if numero <= 0 or numero > Decimal('99999999.99'):
+            raise AccionInvalida(f'{etiqueta} debe estar entre 0.01 y 99999999.99.')
+        if numero.as_tuple().exponent < -2:
+            raise AccionInvalida(f'{etiqueta} admite como máximo dos decimales.')
+        return numero
+
+    def entero(campo, etiqueta, defecto=None):
+        valor = configuracion.get(campo)
+        if valor in (None, ''):
+            return defecto
+        try:
+            numero = Decimal(str(valor))
+        except (ValueError, TypeError, ArithmeticError):
+            raise AccionInvalida(f'{etiqueta} debe ser un entero entre 1 y 32767.')
+        if (not numero.is_finite() or numero < 1 or numero > 32767
+                or numero != numero.to_integral_value()):
+            raise AccionInvalida(f'{etiqueta} debe ser un entero entre 1 y 32767.')
+        return int(numero)
+
+    aplica = booleano('aplicar_recargo_incumplimiento')
     datos = {
-        'exonera_recargos_durante_vigencia': exonera,
+        'exonera_recargos_durante_vigencia': booleano('exonera_recargos_durante_vigencia'),
         'aplicar_recargo_incumplimiento': aplica,
         'modo_recargo': configuracion.get('modo_recargo') or 'monto_fijo_usd',
         'frecuencia_recargo': configuracion.get('frecuencia_recargo') or 'unico',
         'intervalo_unidad': configuracion.get('intervalo_unidad') or 'mes',
+        'intervalo_cantidad': entero('intervalo_cantidad', 'El intervalo', defecto=1),
+        'valor_recargo': importe('valor_recargo', 'El valor del recargo', obligatorio=True) if aplica else None,
+        'maximo_aplicaciones': entero('maximo_aplicaciones', 'El máximo de aplicaciones'),
+        'tope_recargo_usd': importe('tope_recargo_usd', 'El tope del recargo'),
     }
-    try:
-        datos['intervalo_cantidad'] = int(configuracion.get('intervalo_cantidad') or 1)
-        datos['valor_recargo'] = (
-            Decimal(str(configuracion.get('valor_recargo'))) if aplica else None
-        )
-        maximo = configuracion.get('maximo_aplicaciones')
-        datos['maximo_aplicaciones'] = int(maximo) if maximo not in (None, '') else None
-        tope = configuracion.get('tope_recargo_usd')
-        datos['tope_recargo_usd'] = Decimal(str(tope)) if tope not in (None, '') else None
-    except (ValueError, TypeError, ArithmeticError):
-        raise AccionInvalida('La configuración del recargo por incumplimiento no es válida.')
-    if datos['modo_recargo'] not in dict(ConvenioPago.MODOS_RECARGO):
+    if datos['modo_recargo'] not in [valor for valor, _ in ConvenioPago.MODOS_RECARGO]:
         raise AccionInvalida('Modo de recargo por incumplimiento inválido.')
-    if datos['frecuencia_recargo'] not in dict(ConvenioPago.FRECUENCIAS_RECARGO):
+    if datos['frecuencia_recargo'] not in [valor for valor, _ in ConvenioPago.FRECUENCIAS_RECARGO]:
         raise AccionInvalida('Frecuencia de recargo por incumplimiento inválida.')
-    if datos['intervalo_unidad'] not in dict(ConvenioPago.UNIDADES_INTERVALO):
+    if datos['intervalo_unidad'] not in [valor for valor, _ in ConvenioPago.UNIDADES_INTERVALO]:
         raise AccionInvalida('Unidad de intervalo inválida.')
-    if datos['intervalo_cantidad'] < 1:
-        raise AccionInvalida('El intervalo debe ser al menos 1.')
-    if aplica and (datos['valor_recargo'] is None or datos['valor_recargo'] <= 0):
-        raise AccionInvalida('El valor del recargo debe ser mayor que cero.')
-    if datos['maximo_aplicaciones'] is not None and datos['maximo_aplicaciones'] < 1:
-        raise AccionInvalida('El máximo de aplicaciones debe ser al menos 1.')
-    if datos['tope_recargo_usd'] is not None and datos['tope_recargo_usd'] <= 0:
-        raise AccionInvalida('El tope del recargo debe ser mayor que cero.')
     return datos
 
 
@@ -275,11 +299,19 @@ def crear_convenio(
         ciclos__in=ciclos, estado=ConvenioPago.INCUMPLIDO,
         recargos_detenidos_en__isnull=True,
     ).exclude(pk=convenio.pk).distinct()
-    anteriores.update(
-        reemplazado_por=convenio,
-        recargos_detenidos_en=momento,
-        motivo_detencion_recargos='renegociado',
-    )
+    from .recargos_convenio import liquidar_recargos_antes_de_cierre
+    # PostgreSQL no admite FOR UPDATE sobre un SELECT DISTINCT.
+    anteriores_bloqueados = ConvenioPago.objects.select_for_update().filter(
+        pk__in=anteriores.values('pk'),
+    ).order_by('pk')
+    for anterior in anteriores_bloqueados:
+        liquidar_recargos_antes_de_cierre(anterior, momento=momento)
+        anterior.reemplazado_por = convenio
+        anterior.recargos_detenidos_en = momento
+        anterior.motivo_detencion_recargos = 'renegociado'
+        anterior.save(update_fields=[
+            'reemplazado_por', 'recargos_detenidos_en', 'motivo_detencion_recargos',
+        ])
     return convenio
 
 
@@ -291,16 +323,22 @@ def _reanudar_pausados_por_convenio(convenio, usuario=None, hoy=None):
 
 @transaction.atomic
 def marcar_cuota_pagada(cuota, usuario):
-    if cuota.convenio.estado not in (ConvenioPago.VIGENTE, ConvenioPago.INCUMPLIDO):
+    # Mismo orden de bloqueo que el job: convenio antes de sus cuotas.
+    convenio = ConvenioPago.objects.select_for_update().get(pk=cuota.convenio_id)
+    cuota = CuotaConvenio.objects.select_for_update().get(pk=cuota.pk)
+    if convenio.estado not in (ConvenioPago.VIGENTE, ConvenioPago.INCUMPLIDO) or convenio.reemplazado_por_id:
         raise AccionInvalida('El convenio no admite nuevos pagos.')
     if cuota.pagada:
         raise AccionInvalida('La cuota ya está pagada.')
-    cuota.pagada, cuota.pagada_en = True, timezone.now()
+    ahora = timezone.now()
+    from .recargos_convenio import liquidar_recargos_antes_de_cierre
+    liquidar_recargos_antes_de_cierre(convenio, momento=ahora, pago_en_fecha=True)
+    # El generador puede haber detenido automáticamente por tope/máximo.
+    convenio.refresh_from_db()
+    cuota.pagada, cuota.pagada_en = True, ahora
     cuota.save(update_fields=['pagada', 'pagada_en'])
-    convenio = cuota.convenio
     for c in convenio.ciclos.all():
         _evento(c, 'cuota_convenio_pagada', usuario, convenio=convenio.id, cuota=cuota.numero)
-    ahora = timezone.now()
     if not convenio.cuotas.filter(pagada=False).exists():
         convenio.estado = ConvenioPago.CUMPLIDO
         convenio.finalizado_en = ahora
@@ -335,6 +373,7 @@ def marcar_cuota_pagada(cuota, usuario):
 
 @transaction.atomic
 def cancelar_convenio(convenio, usuario, momento=None):
+    convenio = ConvenioPago.objects.select_for_update().get(pk=convenio.pk)
     if convenio.estado != ConvenioPago.VIGENTE:
         raise AccionInvalida('El convenio no está vigente.')
     momento = momento or timezone.now()
@@ -347,6 +386,7 @@ def cancelar_convenio(convenio, usuario, momento=None):
 
 @transaction.atomic
 def incumplir_convenio(convenio, momento=None):
+    convenio = ConvenioPago.objects.select_for_update().get(pk=convenio.pk)
     if convenio.estado != ConvenioPago.VIGENTE:
         return False
     momento = momento or timezone.now()
@@ -445,6 +485,8 @@ def calcular_bandeja(ciclos_qs, hoy=None, ahora=None):
     (todas visibles en la UI). `ciclos_qs` ya viene filtrado por sedes/permisos.
     """
     from portal.models import ComprobantePago
+    from .saldos_recargos_convenio import items_penalidades_convenio
+    from .recargos import precargar_contexto_recargos, resolver_recargo
     hoy = hoy or timezone.localdate()
     ahora = ahora or timezone.now()
     abiertos = list(
@@ -456,10 +498,27 @@ def calcular_bandeja(ciclos_qs, hoy=None, ahora=None):
             mensualidad__alumno__activo=True,
         )
         .exclude(mensualidad__alumno__estatus_financiero='becado')
-        .select_related('mensualidad__alumno__representante', 'responsable'))
+        .select_related('mensualidad__alumno__representante', 'responsable')
+        .prefetch_related('mensualidad__lineas_recargo'))
+    contexto_recargos = precargar_contexto_recargos([c.mensualidad for c in abiertos])
     por_rep = {}
     for c in abiertos:
         por_rep.setdefault(c.mensualidad.alumno.representante_id, []).append(c)
+    # La deuda del convenio se imputa una sola vez al alumno ancla canónico.
+    # El ámbito conserva ciclos cerrados para localizar esa deuda aun cuando
+    # todo el principal ya esté pagado; nunca los incorpora a la cartera.
+    alumno_ids = ciclos_qs.values_list('mensualidad__alumno_id', flat=True).distinct()
+    penalidades_por_rep = {}
+    for item in items_penalidades_convenio(alumno_ids=alumno_ids, hoy=hoy):
+        penalidades_por_rep.setdefault(item['representante_id'], []).append(item)
+    contexto_penalidades = {}
+    if penalidades_por_rep:
+        alumnos_ancla = {item['alumno_id'] for items in penalidades_por_rep.values() for item in items}
+        for ciclo in ciclos_qs.filter(mensualidad__alumno_id__in=alumnos_ancla).select_related(
+                'mensualidad__alumno__representante'):
+            rep_id = ciclo.mensualidad.alumno.representante_id
+            contexto_penalidades.setdefault(rep_id, ciclo.mensualidad.alumno.representante)
+            por_rep.setdefault(rep_id, [])
     if not por_rep:
         return []
 
@@ -485,7 +544,7 @@ def calcular_bandeja(ciclos_qs, hoy=None, ahora=None):
     incumplidos = set(ConvenioPago.objects.filter(
         representante_id__in=ids, estado=ConvenioPago.INCUMPLIDO,
         creado_en__gte=ahora - timedelta(days=60)).values_list('representante_id', flat=True))
-    respuestas = _respuestas_sin_contestar(por_rep, ahora)
+    respuestas = _respuestas_sin_contestar({rep_id: ciclos for rep_id, ciclos in por_rep.items() if ciclos}, ahora)
     proximos = set(CuotaConvenio.objects.filter(
         convenio__representante_id__in=ids, convenio__estado=ConvenioPago.VIGENTE, pagada=False,
         fecha__lte=hoy + timedelta(days=3)).values_list('convenio__representante_id', flat=True))
@@ -512,7 +571,13 @@ def calcular_bandeja(ciclos_qs, hoy=None, ahora=None):
         if dias_max >= 30:
             _razon(razones, 'Más de 30 días de mora', 20)
         _razon(razones, f'{len(cartera)} mensualidades pendientes', 5 * (len(cartera) - 1))
-        saldo = sum((_saldo(c) for c in cartera), Decimal('0.00'))
+        saldo_principal = sum((_saldo(c) for c in cartera), Decimal('0.00'))
+        penalidades = penalidades_por_rep.get(rep_id, [])
+        total_penalidades = sum((item['monto_usd'] for item in penalidades), Decimal('0.00'))
+        total_recargos_normales = sum((
+            (resolver_recargo(c.mensualidad, hoy, _cache_reglas=contexto_recargos) or {}).get('monto_usd', Decimal('0.00'))
+            for c in cartera), Decimal('0.00'))
+        saldo = saldo_principal + total_recargos_normales + total_penalidades
         _razon(razones, f'Saldo total ${saldo}', min(20, int(saldo // 10)))
         if any(0 < c.mensualidad.monto_pagado < c.mensualidad.monto_usd for c in cartera):
             _razon(razones, 'Pago parcial', 5)
@@ -531,10 +596,11 @@ def calcular_bandeja(ciclos_qs, hoy=None, ahora=None):
 
         requiere_atencion = bool(
             morosos or rep_id in pagos_viejos or rep_id in fallidos
-            or rep_id in incumplidos or rep_id in proximos or rep_id in respuestas)
+            or rep_id in incumplidos or rep_id in proximos or rep_id in respuestas
+            or total_penalidades > 0)
         if not requiere_atencion:
             continue
-        rep = ciclos[0].mensualidad.alumno.representante
+        rep = ciclos[0].mensualidad.alumno.representante if ciclos else contexto_penalidades[rep_id]
         responsable = next((c.responsable for c in ciclos if c.responsable_id), None)
         filas.append({
             'representante': {'id': rep.id, 'nombre': f'{rep.nombre} {rep.apellido}',
@@ -542,17 +608,22 @@ def calcular_bandeja(ciclos_qs, hoy=None, ahora=None):
             'puntaje': sum(r['puntos'] for r in razones),
             'razones': razones,
             'saldo_total_usd': str(saldo),
+            'saldo_principal_usd': str(saldo_principal),
+            'total_recargos_normales_usd': str(total_recargos_normales),
+            'total_penalidades_convenio_usd': str(total_penalidades),
+            'penalidades_convenio': penalidades,
             'dias_mora_max': dias_max,
             'ciclos': [c.id for c in cartera],
             'estados': sorted({c.estado for c in cartera}),
             'responsable': responsable.get_username() if responsable else None,
             'gestion_humana': bool(tomados),
-            'accion_sugerida': _accion_sugerida({
+            'accion_sugerida': ({'codigo': 'ver_convenios', 'texto': 'Revisar penalidades del convenio'}
+                                if not cartera and total_penalidades > 0 else _accion_sugerida({
                 'respuesta_pendiente': rep_id in respuestas, 'pago_viejo': rep_id in pagos_viejos, 'incumplido': rep_id in incumplidos,
                 'fallido': rep_id in fallidos, 'cuota_proxima': rep_id in proximos,
                 'dias_max': dias_max, 'deudas': len(cartera),
                 'sin_respuesta': rep_id in avisos_viejos and bool(morosos),
-            }),
+            })),
         })
     return sorted(filas, key=lambda f: (-f['puntaje'], f['representante']['nombre']))
 

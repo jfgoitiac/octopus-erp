@@ -282,6 +282,14 @@ def construir_mensaje(rep, ciclos, regla):
             f"${item['saldo_pendiente_usd']:.2f}"
             + (f" + recargo ${recargo_usd:.2f}" if recargo_usd else '')
         )
+    from .saldos_recargos_convenio import items_penalidades_convenio
+    penalidades = items_penalidades_convenio(
+        alumno_ids={m.alumno_id for m in mensualidades}, representante_ids=[rep.id], hoy=hoy,
+    )
+    for penalidad in penalidades:
+        total += penalidad['monto_usd']
+        lineas.append(f"• {penalidad['alumno_nombre']}: {penalidad['descripcion']} — "
+                      f"$" + format(penalidad['monto_usd'], '.2f'))
     montos = montos_ref(total)
     monto_txt = _monto_whatsapp(montos)
     nota = f"\n_{montos['nota_tasa']}_" if montos.get('nota_tasa') else ''

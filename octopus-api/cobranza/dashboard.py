@@ -246,6 +246,11 @@ def calcular_dashboard(sedes, hoy=None, ahora=None):
     ).values_list('detalle', flat=True):
         cambios[detalle.get('a')] = cambios.get(detalle.get('a'), 0) + 1
 
+    from secretaria.models import Alumno
+    from .saldos_recargos_convenio import items_penalidades_convenio
+    alumnos_penalidades = Alumno.todos.filter(q_sedes(sedes, ''))
+    penalidades = items_penalidades_convenio(alumno_ids=alumnos_penalidades.values_list('id', flat=True), hoy=hoy)
+    total_penalidades = sum((p['monto_usd'] for p in penalidades), Decimal('0.00'))
     bandeja = calcular_bandeja(ciclos, hoy, ahora)
     efectividad = _efectividad(sedes, hoy)
     envios = (
@@ -254,6 +259,8 @@ def calcular_dashboard(sedes, hoy=None, ahora=None):
     )
     return {
         'fecha': hoy,
+        'total_penalidades_convenio_usd': str(total_penalidades),
+        'penalidades_convenio': penalidades,
         'cartera_mes': {
             'facturado_usd': str(facturado), 'cobrado_usd': str(cobrado),
             'pendiente_usd': str(facturado - cobrado), 'cobrado_pct': _pct(cobrado, facturado),

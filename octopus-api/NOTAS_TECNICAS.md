@@ -748,3 +748,30 @@ ocultar ni ajustar ese saldo automáticamente para evitar una doble imputación 
 La migración de esta funcionalidad tampoco inventa `finalizado_en` para convenios históricos cancelados: antes
 no existía evento de cancelación ni `updated_at`. Los cumplidos se reconstruyen desde la última `pagada_en` y los
 incumplidos desde `EventoCiclo(convenio_incumplido)`; los cancelados sin evidencia conservan `NULL`.
+
+## Reparación de penalidades de convenios (2026-11-11)
+
+- Los cargos se devengan al inicio del día programado, antes de los pagos de ese día. Un job atrasado y
+  uno diario reconstruyen la misma base. La liquidación previa a pago, detención o renegociación incluye
+  ese día; las cuotas pagadas reducen la base a partir del día siguiente. No se capitalizan penalidades.
+- Los períodos anulados conservan su posición en el calendario y su snapshot, pero no consumen máximos
+  ni topes. Una anulación posterior a una detención no reactiva automáticamente los cargos.
+- La migración 0061 identifica el episodio de incumplimiento actual cuando existe evidencia; no inventa
+  anclas para episodios históricos. Los duplicados históricos del defecto anterior no se borran ni se
+  corrigen automáticamente: requieren revisión administrativa para no alterar cobros ya auditados.
+- La migración 0062 vincula cada penalidad con un ingreso real de caja (concepto Multa, importe exacto,
+  sin vuelto ni excedente). La aplicación es idempotente, no crea ingresos adicionales y guarda usuario,
+  fecha y eventos, incluyendo el recibo anterior si se sustituye tras una anulación. El mismo recibo no
+  puede liquidar dos penalidades. Anular el ingreso devuelve la penalidad al saldo; no borra auditoría.
+  Las correcciones del monto de un recibo vinculado se bloquean; corresponde anularlo y registrar otro.
+- Los saldos de penalidades se imputan una sola vez al menor alumno_id de todos los ciclos del convenio,
+  sin recalcular el ancla por página, hermano o sede. Las deudas del ancla retirada siguen visibles en
+  portal familiar, caja y morosos; no se generan mensualidades nuevas para estudiantes inactivos.
+- Los GET consultan penalidades persistidas, no ejecutan jobs ni generan cargos. La frescura depende
+  del job diario; los cierres sí materializan los devengos antes de detenerlos.
+- Sigue pendiente el problema ya documentado de amortizar mensualidades desde cuotas del convenio.
+  Esta reparación no modifica esa imputación contable. También queda registrada la validación adyacente
+  de cuotas de convenio no finitas (por ejemplo NaN); la configuración de recargos y topes sí los rechaza.
+- Las pruebas locales usan SQLite: no certifican bloqueos concurrentes reales de PostgreSQL. El entorno
+  no dispone de configuración de acceso PostgreSQL para esa comprobación. Las consultas de bloqueo
+  evitan DISTINCT y limitan FOR UPDATE al registro propio cuando hay relaciones opcionales.
