@@ -250,8 +250,8 @@
     "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "octopus-api/cobranza/models.py": {
-    "mtime": 1794412390.105997,
-    "ast_hash": "8ef828dae5f1ecb799c4b35a1559a3aa",
+    "mtime": 1794424991.26247,
+    "ast_hash": "dca4ad5ac89fe643eb8046a7607b50f2",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/serializers.py": {
@@ -280,8 +280,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/urls.py": {
-    "mtime": 1794412445.4132655,
-    "ast_hash": "4c7b5cfd8e213a3d57bc920ad7de14a0",
+    "mtime": 1794425047.3631117,
+    "ast_hash": "7b33ccf210bba4c9a99ecf956aeec45b",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/utils.py": {
@@ -290,8 +290,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/views.py": {
-    "mtime": 1794412476.3611727,
-    "ast_hash": "9d02ef64dfd43e0029c753253a79c894",
+    "mtime": 1794425583.8124692,
+    "ast_hash": "079d438bf6700fd7f0493abd0f573af5",
     "semantic_hash": ""
   },
   "octopus-api/config/__init__.py": {
@@ -620,8 +620,8 @@
     "semantic_hash": ""
   },
   "octopus-api/portal/views.py": {
-    "mtime": 1794412458.8484163,
-    "ast_hash": "cbd0ee7d5b894eb9980317b5fd7d5dec",
+    "mtime": 1794425391.8003564,
+    "ast_hash": "6707e343cee1d8aa1da53676bcc47e2b",
     "semantic_hash": ""
   },
   "octopus-api/rrhh/__init__.py": {
@@ -1355,8 +1355,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/api/cobranza.service.js": {
-    "mtime": 1794415166.2045383,
-    "ast_hash": "b79c348c611aee8f5610af900ee0552b",
+    "mtime": 1794425087.2428577,
+    "ast_hash": "dfb6676d7f2a7058e16299cc9242cdcb",
     "semantic_hash": ""
   },
   "octopus-frontend/src/api/dashboardService.js": {
@@ -2461,8 +2461,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/mora.py": {
-    "mtime": 1793992452.3457303,
-    "ast_hash": "4e96b4acca33ccff209b3e606228b356",
+    "mtime": 1794425583.8164759,
+    "ast_hash": "e5a6bdc630af30a45bb2836109315377",
     "semantic_hash": ""
   },
   "octopus-frontend/src/utils/apiError.js": {
@@ -2641,8 +2641,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/components/CobranzaStep1.jsx": {
-    "mtime": 1790021845.9959867,
-    "ast_hash": "1f4ca912e2e0f2cd3bee678a3e8e7438",
+    "mtime": 1794425326.1690779,
+    "ast_hash": "6b7f642db33b8f7cc69c7dfdacc12bca",
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/components/CobranzaStep2.jsx": {
@@ -3216,8 +3216,8 @@
     "semantic_hash": ""
   },
   "octopus-api/NOTAS_TECNICAS.md": {
-    "mtime": 1794415652.0213099,
-    "ast_hash": "2dc2e28d3cbe2ca5e007d8b81b951304",
+    "mtime": 1794425485.3955286,
+    "ast_hash": "9e6037d520d0c3f44a9ce6f980c29984",
     "semantic_hash": ""
   },
   "octopus-api/RESTAURACION_EMERGENCIA.md": {
@@ -3685,8 +3685,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/correcciones.py": {
-    "mtime": 1793304414.5466533,
-    "ast_hash": "390409360f213a3ea910c8708f410e35",
+    "mtime": 1794425386.5024943,
+    "ast_hash": "6ab95a11c97e871973b96bcd47d1f549",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/migrations/0028_clasificacionpagomanual.py": {
@@ -4345,8 +4345,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/portal/components/widgets/WidgetHeroPortal.jsx": {
-    "mtime": 1793845664.0224216,
-    "ast_hash": "883c9b096316d404fa5ad9054acc5c57",
+    "mtime": 1794425498.1453426,
+    "ast_hash": "b6b3bcce81bc2e4dbef92a868cfde157",
     "semantic_hash": ""
   },
   "octopus-frontend/src/portal/components/widgets/WidgetProximosVencimientos.jsx": {
@@ -4355,8 +4355,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/portal/components/widgets/WidgetResumenFinanciero.jsx": {
-    "mtime": 1793834464.2129383,
-    "ast_hash": "1953dfce3cced69b6e49994f8efd89db",
+    "mtime": 1794425197.4661736,
+    "ast_hash": "8d2751128fbee1bc0ce6f7c3c971129a",
     "semantic_hash": ""
   },
   "octopus-frontend/src/portal/components/widgets/WidgetUltimosPagos.jsx": {
@@ -5570,8 +5570,8 @@
     "semantic_hash": ""
   },
   "octopus-api/notificaciones/cobro_whatsapp.py": {
-    "mtime": 1794415055.4352791,
-    "ast_hash": "a014d466dcbe985e0df28aa68dd35746",
+    "mtime": 1794425685.6592288,
+    "ast_hash": "c5eb5c0507a2f2fb0ed6b1836161b699",
     "semantic_hash": ""
   },
   "octopus-api/notificaciones/migrations/0009_cobro_whatsapp.py": {
@@ -6395,13 +6395,13 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/dashboard.py": {
-    "mtime": 1793993217.6703453,
-    "ast_hash": "c0edfb6e441a064d76aed92bd035ac29",
+    "mtime": 1794425197.4534373,
+    "ast_hash": "c5613848f00d14aad85438d991219863",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/gestion.py": {
-    "mtime": 1794415353.5854568,
-    "ast_hash": "472cf8fc3894ddf3a427d8046c44aea7",
+    "mtime": 1794425433.0371041,
+    "ast_hash": "83761e8f1ee67dbfd74abcd86d22b8a5",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/inteligente.py": {
@@ -6470,8 +6470,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/motor.py": {
-    "mtime": 1794415066.0970726,
-    "ast_hash": "8af6777c68333d22f1f65645abef0c43",
+    "mtime": 1794425011.4852958,
+    "ast_hash": "69f2e32a2b3fdd19b5003761374bbb64",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/test_ciclos_cobranza.py": {
@@ -6520,8 +6520,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/views_gestion.py": {
-    "mtime": 1794412433.0464041,
-    "ast_hash": "c251ba51e9dda0979dc99050a175f0c8",
+    "mtime": 1794425263.9209661,
+    "ast_hash": "e5615a0c5f8414e8e35f2b103c234210",
     "semantic_hash": ""
   },
   "octopus-api/config/exception_handler.py": {
@@ -6735,8 +6735,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cobranzaInteligente/AccionSugerida.jsx": {
-    "mtime": 1791913917.9273438,
-    "ast_hash": "416a8388786f33bd946c33fec1ff4303",
+    "mtime": 1794425405.297478,
+    "ast_hash": "526558c31483729565e83368e16c63c6",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cobranzaInteligente/CasosCriticos.jsx": {
@@ -6755,8 +6755,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cobranzaInteligente/ModalesGestion.jsx": {
-    "mtime": 1794415219.8747075,
-    "ast_hash": "9c512ee98743b44ba1f521c7abb60865",
+    "mtime": 1794425436.7513378,
+    "ast_hash": "3d01743472bf5422e9b81b3c479c3d63",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cobranzaInteligente/TablaEstudiantes.jsx": {
@@ -6855,8 +6855,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/hooks/useAccionesCaso.jsx": {
-    "mtime": 1791913917.9337628,
-    "ast_hash": "6333b897f99e114c9acd550c2b10b68a",
+    "mtime": 1794425405.2934797,
+    "ast_hash": "8f0a27d8f5eaa2280103688db80b3166",
     "semantic_hash": ""
   },
   "octopus-frontend/src/hooks/useCargaInteligente.js": {
@@ -6910,13 +6910,13 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/CobranzaInteligenteGestion.jsx": {
-    "mtime": 1794415253.9399066,
-    "ast_hash": "64bf572ed8a4432f7771e6873d9f731f",
+    "mtime": 1794425672.6585114,
+    "ast_hash": "a90bb3414aa3652fecb6eb1ca1c1e93e",
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/CobranzaInteligenteGestion.test.jsx": {
-    "mtime": 1794415573.941787,
-    "ast_hash": "c61b2b9892699e4df8e245b534a83448",
+    "mtime": 1794425501.3120399,
+    "ast_hash": "1221c5f55015cd5781415ff7e5e0ea5c",
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/ConfiguracionCobranzaInteligente.jsx": {
@@ -8161,8 +8161,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/portal/components/FiltroDeudaEstudiante.jsx": {
-    "mtime": 1793678130.8419342,
-    "ast_hash": "78e35ffd6add7875a6bd554e05fe5c88",
+    "mtime": 1794425498.1473475,
+    "ast_hash": "3b215bac4711842a75f7209570320da8",
     "semantic_hash": ""
   },
   "octopus-frontend/src/portal/components/FiltroDeudaEstudiante.test.jsx": {
@@ -8176,13 +8176,13 @@
     "semantic_hash": ""
   },
   "octopus-frontend/test-results/.last-run.json": {
-    "mtime": 1793992943.0919182,
+    "mtime": 1794425717.6310966,
     "ast_hash": "f196824657d8858bc7fa44eecbba38b1",
     "semantic_hash": ""
   },
   "octopus-frontend/playwright-report/index.html": {
-    "mtime": 1793992943.0919182,
-    "ast_hash": "4e8c723fdb2850699f76c4210f493d93",
+    "mtime": 1794425717.6298974,
+    "ast_hash": "7067007100ea853a0761185bd94b7ec1",
     "semantic_hash": ""
   },
   "octopus-api/cantina/migrations/0013_cierrecajacantina_desglose.py": {
@@ -9086,28 +9086,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/e2e/cobranza-inteligente-gestion.spec.js": {
-    "mtime": 1793992930.1027105,
-    "ast_hash": "756fd9a420072ce8037f0198a3cc98cb",
-    "semantic_hash": ""
-  },
-  "octopus-frontend/playwright-report/data/8fbda1f3c7011078536374c6bfdcc89e3114ab2f.png": {
-    "mtime": 1793992943.0723329,
-    "ast_hash": "eef1ac1ae0467f557dfbe98e3c4b2f23",
-    "semantic_hash": ""
-  },
-  "octopus-frontend/playwright-report/data/9c6c042d7766b1e7be2c928ed180f3b2f8bb08b5.png": {
-    "mtime": 1793992943.070326,
-    "ast_hash": "0be0b3d313a234ff7dc38ec5b12f3f42",
-    "semantic_hash": ""
-  },
-  "octopus-frontend/playwright-report/data/d24756b6dd8c87582d3093858efdc18cb9ceef44.png": {
-    "mtime": 1793992943.068318,
-    "ast_hash": "e8608c403d442d0cdc3886ca3a47491f",
-    "semantic_hash": ""
-  },
-  "octopus-frontend/playwright-report/data/f9fc338da056310c5deedf8085b79c539fea1bb9.png": {
-    "mtime": 1793992943.0723329,
-    "ast_hash": "a5809f291908f7b570138e1d9da995e1",
+    "mtime": 1794425672.6542597,
+    "ast_hash": "6ac869def7dbaebeb465e06ea69006c1",
     "semantic_hash": ""
   },
   "octopus-api/cantina/migrations/0015_abonocantina_tarjeta_origen_and_more.py": {
@@ -9141,8 +9121,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/recargos_convenio.py": {
-    "mtime": 1794412300.968696,
-    "ast_hash": "d785f079375594c2f413c7c645312637",
+    "mtime": 1794425032.295867,
+    "ast_hash": "9e2170a08a3f23f036c2bca87f549601",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/test_recargos_convenio.py": {
@@ -9153,6 +9133,81 @@
   "octopus-frontend/src/components/configuracion/ModalReglaRecargoPago.test.jsx": {
     "mtime": 1794415633.9729753,
     "ast_hash": "5000311b9af07dcf4604e8556fac373a",
+    "semantic_hash": ""
+  },
+  ".codex-temp/dry_run_recargos.py": {
+    "mtime": 1794424643.3884797,
+    "ast_hash": "2e491c9335d599015bb4ca92e6991a83",
+    "semantic_hash": ""
+  },
+  ".codex-temp/run_integration_tests.py": {
+    "mtime": 1794425063.870201,
+    "ast_hash": "97318687a7817166c1bef62ab08bf81b",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/migrations/0061_episodio_recargo_convenio.py": {
+    "mtime": 1794424923.0633752,
+    "ast_hash": "d09fce670f131c0e20b5d6138b214dcb",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/migrations/0062_pago_recargo_convenio.py": {
+    "mtime": 1794425047.3389993,
+    "ast_hash": "e6f09601d02196f55bc48d382897e545",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/pagos_recargos_convenio.py": {
+    "mtime": 1794425288.030939,
+    "ast_hash": "e3d21172b299326585f61aa2dd4f1b9a",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/saldos_recargos_convenio.py": {
+    "mtime": 1794425215.7943153,
+    "ast_hash": "2e743ddad0f3cadbbbc3bbd2534a9cb0",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/test_bandeja_penalidades_convenio.py": {
+    "mtime": 1794425496.2447884,
+    "ast_hash": "122466eb795506e3827a871c87eadfe2",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/test_pagos_recargos_convenio.py": {
+    "mtime": 1794425181.142097,
+    "ast_hash": "9dc4dd9cd019b27194708aa233a33a10",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/test_regresiones_devengo_convenio.py": {
+    "mtime": 1794425070.941255,
+    "ast_hash": "c695b0ca66915533697b5468d7995f75",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/test_saldos_recargos_convenio.py": {
+    "mtime": 1794425686.1257668,
+    "ast_hash": "35c763d93c38bc2e4bac27870a30ff22",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/test_validacion_recargos_convenio.py": {
+    "mtime": 1794424946.0623515,
+    "ast_hash": "2dba2b23adaaee164a339721d58a09cb",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/e2e/penalidades-convenio.spec.js": {
+    "mtime": 1794425498.1483397,
+    "ast_hash": "b2bcc8455d5286471dde1ae6bd6c7e07",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/pages/components/CobranzaStep1.penalidades.test.jsx": {
+    "mtime": 1794425263.100828,
+    "ast_hash": "f3f82667b68897ca6b735b7164daac37",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/components/widgets/WidgetHeroPortal.penalidades.test.jsx": {
+    "mtime": 1794425498.170829,
+    "ast_hash": "f63929c46e28c5585830682cea62e111",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal/components/widgets/WidgetResumenFinanciero.test.jsx": {
+    "mtime": 1794425263.0988286,
+    "ast_hash": "8652c86e6de16ef09eb5e579d10d6fd4",
     "semantic_hash": ""
   }
 }
