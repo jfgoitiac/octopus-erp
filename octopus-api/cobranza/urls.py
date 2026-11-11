@@ -2,7 +2,7 @@ from django.urls import path
 from .views_gestion import (
     AccionCicloView, BandejaView, CancelarConvenioView, ConveniosView, ConversacionView,
     CuotaConvenioPagadaView,
-    DashboardInteligenteView, LineaBaseView, PagosRevisionView,
+    DashboardInteligenteView, DetenerRecargosConvenioView, LineaBaseView, PagosRevisionView,
 )
 from .views_ciclos import CarteraCiclosView, EnviosCobranzaView, ExpedienteRepresentanteView, ResumenSombraView
 from .conciliacion_semiauto import (
@@ -103,6 +103,7 @@ urlpatterns = [
     path('inteligente/convenios/',         ConveniosView.as_view(),                name='cobranza-inteligente-convenios'),
     path('inteligente/convenios/cuotas/<int:cuota_id>/pagar/', CuotaConvenioPagadaView.as_view(), name='cobranza-inteligente-cuota-pagar'),
     path('inteligente/convenios/<int:convenio_id>/cancelar/', CancelarConvenioView.as_view(), name='cobranza-inteligente-convenio-cancelar'),
+    path('inteligente/convenios/<int:convenio_id>/detener-recargos/', DetenerRecargosConvenioView.as_view(), name='cobranza-inteligente-convenio-detener-recargos'),
     path('inteligente/dashboard/',         DashboardInteligenteView.as_view(),     name='cobranza-inteligente-dashboard'),
     path('inteligente/mensualidades-por-monto/detalle/', DetalleMensualidadesPorMontoView.as_view(), name='mensualidades-por-monto-detalle'),
     path('inteligente/mensualidades-por-monto/exportar-excel/', ExportarMensualidadesPorMontoExcelView.as_view(), name='mensualidades-por-monto-exportar-excel'),

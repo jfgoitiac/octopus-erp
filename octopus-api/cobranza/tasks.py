@@ -309,8 +309,13 @@ def procesar_envios_cobranza_inteligente():
 
 @shared_task(name='cobranza.tasks.revisar_convenios_cobranza_inteligente')
 def revisar_convenios_cobranza_inteligente():
-    """Diaria: los convenios con una cuota vencida sin pagar pasan a incumplidos."""
+    """Diaria: actualiza incumplimientos y devenga penalidades pendientes."""
     from .gestion import revisar_convenios
-    n = revisar_convenios()
-    logger.info(f'[Beat] revisar_convenios_cobranza_inteligente: {n} incumplidos.')
-    return n
+    from .recargos_convenio import generar_recargos_convenios_incumplidos
+    incumplidos = revisar_convenios()
+    recargos = generar_recargos_convenios_incumplidos()
+    logger.info(
+        '[Beat] revisar_convenios_cobranza_inteligente: %s incumplidos, %s recargos.',
+        incumplidos, recargos,
+    )
+    return {'incumplidos': incumplidos, 'recargos_generados': recargos}

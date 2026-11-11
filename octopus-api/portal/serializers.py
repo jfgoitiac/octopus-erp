@@ -4,6 +4,7 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django.utils import timezone
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -218,7 +219,7 @@ class MensualidadSerializer(serializers.ModelSerializer):
         """Calcula días de mora para mensualidades no pagadas y ya vencidas."""
         if obj.pagado:
             return 0
-        hoy = date.today()
+        hoy = timezone.localdate()
         fecha_vencimiento = self._fecha_vencimiento(obj)
         if hoy > fecha_vencimiento:
             return (hoy - fecha_vencimiento).days
@@ -242,7 +243,7 @@ class MensualidadSerializer(serializers.ModelSerializer):
         else:
             from cobranza.recargos import resolver_recargo
             cache_reglas = self.context.get('cache_reglas')
-            resultado = resolver_recargo(obj, date.today(), _cache_reglas=cache_reglas)
+            resultado = resolver_recargo(obj, timezone.localdate(), _cache_reglas=cache_reglas)
         obj._recargo_resuelto_cache = resultado
         return resultado
 
@@ -267,7 +268,7 @@ class MensualidadSerializer(serializers.ModelSerializer):
         else:
             from cobranza.descuentos import resolver_descuento
             cache_reglas = self.context.get('cache_reglas')
-            resultado = resolver_descuento(obj, date.today(), _cache_reglas=cache_reglas)
+            resultado = resolver_descuento(obj, timezone.localdate(), _cache_reglas=cache_reglas)
         obj._descuento_resuelto_cache = resultado
         return resultado
 

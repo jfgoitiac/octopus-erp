@@ -268,7 +268,7 @@ class PortalDashboardView(APIView):
         for a in alumnos:
             a.estatus_financiero = estatus_financiero_actual(a)
 
-        hoy = date.today()
+        hoy = timezone.localdate()
 
         # Una sola query para las mensualidades pendientes de todos los alumnos
         # (antes: 2 queries de Mensualidad por alumno, N+1 con varios hijos).
@@ -277,9 +277,10 @@ class PortalDashboardView(APIView):
         pendientes_por_alumno = defaultdict(list)
         # select_related('alumno'): fecha_vencimiento_mensualidad lee el
         # dia_limite_pago del alumno en cuotas antiguas sin fecha congelada.
-        for m in Mensualidad.objects.filter(
+        mensualidades_pendientes = list(Mensualidad.objects.filter(
             alumno__in=alumnos, pagado=False
-        ).select_related('alumno').order_by('anio', 'mes'):
+        ).select_related('alumno').prefetch_related('lineas_recargo').order_by('anio', 'mes'))
+        for m in mensualidades_pendientes:
             pendientes_por_alumno[m.alumno_id].append(m)
 
         # Cuotas de inscripción pendientes de todos los alumnos (una sola query,
@@ -314,7 +315,8 @@ class PortalDashboardView(APIView):
         # que MensualidadSerializer resuelva la regla de recargo una sola vez
         # por request (a lo sumo 1 query), no una por mensualidad (N+1, ver
         # PortalDashboardNPlusOneTest).
-        cache_reglas_recargo = {}
+        from cobranza.recargos import precargar_contexto_recargos
+        cache_reglas_recargo = precargar_contexto_recargos(mensualidades_pendientes)
 
         # Subtotal de deuda por hijo: el total de arriba es la suma de todos
         # los hijos; esto le permite al portal mostrar cuánto debe cada uno.

@@ -260,15 +260,19 @@ def construir_mensaje(rep, ciclos, regla):
     """Asunto y texto plano. El monto en Bs se calcula AHORA con la tasa vigente."""
     from notificaciones.services import _config_colegio, _monto_whatsapp, montos_ref
     from .deudas import item_deuda
-    from .recargos import resolver_recargo
+    from django.db.models import prefetch_related_objects
+    from .recargos import precargar_contexto_recargos, resolver_recargo
     cfg = _config_colegio()
     hoy = timezone.localdate()
-    cache_reglas = {}
+    ciclos = sorted(ciclos, key=lambda c: c.fecha_vencimiento)
+    mensualidades = [c.mensualidad for c in ciclos]
+    prefetch_related_objects(mensualidades, 'lineas_recargo')
+    cache_reglas = precargar_contexto_recargos(mensualidades)
     total = Decimal('0.00')
     lineas = []
     # Mismo desglose que el cobro manual por WhatsApp: saldo + recargo vigente,
     # y el total es la suma exacta de los renglones.
-    for c in sorted(ciclos, key=lambda c: c.fecha_vencimiento):
+    for c in ciclos:
         item = item_deuda(c.mensualidad)
         recargo = resolver_recargo(c.mensualidad, hoy, _cache_reglas=cache_reglas)
         recargo_usd = recargo['monto_usd'] if recargo else Decimal('0.00')

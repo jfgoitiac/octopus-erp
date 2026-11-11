@@ -65,17 +65,17 @@ def agrupar_morosos_por_representante(alumnos_anotados, hoy=None):
     from cobranza.models import (
         CuotaInscripcion, CuotaProyectoInversion, CuotaSolvencia, Mensualidad,
     )
-    from cobranza.recargos import resolver_recargo
+    from cobranza.recargos import precargar_contexto_recargos, resolver_recargo
     from django.db.models import F
     hoy = hoy or timezone.localdate()
     alumnos = list(alumnos_anotados)
-    pendientes = (
+    pendientes = list(
         Mensualidad.objects.filter(alumno__in=alumnos).filter(q_mensualidad_vencida(hoy))
         .filter(monto_usd__gt=F('monto_pagado'))
         .select_related('alumno').prefetch_related('lineas_recargo').order_by('anio', 'mes')
     )
     mensualidades_por_alumno = {}
-    cache_reglas = {}
+    cache_reglas = precargar_contexto_recargos(pendientes)
     for mensualidad in pendientes:
         recargo = resolver_recargo(mensualidad, hoy, _cache_reglas=cache_reglas)
         mensualidades_por_alumno.setdefault(mensualidad.alumno_id, []).append({

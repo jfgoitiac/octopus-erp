@@ -1178,6 +1178,14 @@ class ReglaRecargoPago(models.Model):
         null=True, blank=True, validators=[MinValueValidator(1)],
         help_text="Solo recargo recurrente: intervalo entre cargos en días.",
     )
+    vigente_desde = models.DateField(
+        default=timezone.localdate,
+        help_text=(
+            "Primer día de vigencia de la regla. Las mensualidades de meses "
+            "anteriores quedan excluidas y ninguna aplicación puede generarse "
+            "antes de esta fecha."
+        ),
+    )
     activa = models.BooleanField(default=True)
     creada_por = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True,
@@ -1277,24 +1285,38 @@ class ReglaRecargoPago(models.Model):
                 recargo_activo = ReglaRecargoPago.objects.filter(
                     tipo='recargo', activa=True,
                 ).exclude(pk=self.pk).first()
-                if recargo_activo and self.dia_hasta >= recargo_activo.dia_aplicacion:
-                    raise ValidationError(
-                        f"El rango de descuento (hasta día {self.dia_hasta}) se solapa "
-                        f"con la regla de recargo activa '{recargo_activo.nombre}' "
-                        f"(aplica desde el día {recargo_activo.dia_aplicacion}). "
-                        f"Ajuste el rango o desactive el recargo primero."
-                    )
+                if recargo_activo:
+                    if recargo_activo.ancla_recargo == 'vencimiento':
+                        raise ValidationError(
+                            "No puede activarse un descuento mientras exista un recargo "
+                            "anclado al vencimiento: su día varía por mensualidad y no "
+                            "es posible garantizar que ambos rangos no se solapen."
+                        )
+                    if self.dia_hasta >= recargo_activo.dia_aplicacion:
+                        raise ValidationError(
+                            f"El rango de descuento (hasta día {self.dia_hasta}) se solapa "
+                            f"con la regla de recargo activa '{recargo_activo.nombre}' "
+                            f"(aplica desde el día {recargo_activo.dia_aplicacion}). "
+                            f"Ajuste el rango o desactive el recargo primero."
+                        )
             elif self.tipo == 'recargo':
                 descuento_activo = ReglaRecargoPago.objects.filter(
                     tipo='descuento', activa=True,
                 ).exclude(pk=self.pk).first()
-                if descuento_activo and descuento_activo.dia_hasta >= self.dia_aplicacion:
-                    raise ValidationError(
-                        f"El día de aplicación ({self.dia_aplicacion}) se solapa con la "
-                        f"regla de descuento activa '{descuento_activo.nombre}' "
-                        f"(rango hasta el día {descuento_activo.dia_hasta}). "
-                        f"Ajuste el día o desactive el descuento primero."
-                    )
+                if descuento_activo:
+                    if self.ancla_recargo == 'vencimiento':
+                        raise ValidationError(
+                            "No puede activarse un recargo anclado al vencimiento mientras "
+                            "exista un descuento activo: el día del recargo varía por "
+                            "mensualidad y no es posible descartar el solape."
+                        )
+                    if descuento_activo.dia_hasta >= self.dia_aplicacion:
+                        raise ValidationError(
+                            f"El día de aplicación ({self.dia_aplicacion}) se solapa con la "
+                            f"regla de descuento activa '{descuento_activo.nombre}' "
+                            f"(rango hasta el día {descuento_activo.dia_hasta}). "
+                            f"Ajuste el día o desactive el descuento primero."
+                        )
 
 
 class LineaRecargoPago(models.Model):
@@ -1646,11 +1668,47 @@ class ConvenioPago(models.Model):
         (VIGENTE, 'Vigente'), (CUMPLIDO, 'Cumplido'),
         (INCUMPLIDO, 'Incumplido'), (CANCELADO, 'Cancelado'),
     )
+    MODOS_RECARGO = (
+        ('monto_fijo_usd', 'Monto fijo (USD)'),
+        ('porcentaje', 'Porcentaje'),
+    )
+    FRECUENCIAS_RECARGO = (
+        ('unico', 'Un solo cargo'),
+        ('recurrente', 'Cargo recurrente'),
+    )
+    UNIDADES_INTERVALO = (
+        ('dia', 'Día'), ('semana', 'Semana'), ('mes', 'Mes'),
+    )
 
     representante = models.ForeignKey(
         'secretaria.Representante', on_delete=models.CASCADE, related_name='convenios_cobranza')
     ciclos = models.ManyToManyField(CicloCobranza, related_name='convenios')
     estado = models.CharField(max_length=10, choices=ESTADOS, default=VIGENTE, db_index=True)
+    exonera_recargos_durante_vigencia = models.BooleanField(default=False)
+    aplicar_recargo_incumplimiento = models.BooleanField(default=False)
+    modo_recargo = models.CharField(max_length=20, choices=MODOS_RECARGO, default='monto_fijo_usd')
+    valor_recargo = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    frecuencia_recargo = models.CharField(max_length=15, choices=FRECUENCIAS_RECARGO, default='unico')
+    intervalo_cantidad = models.PositiveSmallIntegerField(default=1, validators=[MinValueValidator(1)])
+    intervalo_unidad = models.CharField(max_length=10, choices=UNIDADES_INTERVALO, default='mes')
+    maximo_aplicaciones = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MinValueValidator(1)])
+    tope_recargo_usd = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True,
+        validators=[MinValueValidator(Decimal('0.01'))],
+    )
+    incumplido_en = models.DateTimeField(null=True, blank=True)
+    finalizado_en = models.DateTimeField(null=True, blank=True)
+    recargos_detenidos_en = models.DateTimeField(null=True, blank=True)
+    recargos_detenidos_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='+',
+    )
+    motivo_detencion_recargos = models.CharField(max_length=200, blank=True, default='')
+    reemplazado_por = models.ForeignKey(
+        'self', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='convenios_reemplazados',
+    )
     notas = models.TextField(blank=True, default='')
     creado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
@@ -1658,6 +1716,65 @@ class ConvenioPago(models.Model):
 
     class Meta:
         ordering = ['-creado_en']
+
+    def clean(self):
+        super().clean()
+        if self.aplicar_recargo_incumplimiento:
+            if self.valor_recargo is None or self.valor_recargo <= 0:
+                raise ValidationError({'valor_recargo': 'Debe ser mayor que cero.'})
+            if self.frecuencia_recargo == 'recurrente' and self.intervalo_cantidad < 1:
+                raise ValidationError({'intervalo_cantidad': 'Debe ser al menos 1.'})
+
+
+class IntervaloExoneracionRecargoConvenio(models.Model):
+    """Ventana auditable en la que un convenio suprimió recargos normales."""
+    convenio = models.ForeignKey(
+        ConvenioPago, on_delete=models.CASCADE, related_name='intervalos_exoneracion_recargos')
+    iniciado_en = models.DateTimeField()
+    finalizado_en = models.DateTimeField(null=True, blank=True)
+    motivo_finalizacion = models.CharField(max_length=30, blank=True, default='')
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['iniciado_en', 'id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['convenio'], condition=models.Q(finalizado_en__isnull=True),
+                name='uniq_intervalo_exoneracion_abierto_convenio',
+            ),
+        ]
+
+
+class RecargoConvenio(models.Model):
+    """Aplicación devengada y auditable de la penalidad de un convenio."""
+    PENDIENTE = 'pendiente'
+    PAGADO = 'pagado'
+    ANULADO = 'anulado'
+    ESTADOS = (
+        (PENDIENTE, 'Pendiente'), (PAGADO, 'Pagado'), (ANULADO, 'Anulado'),
+    )
+
+    convenio = models.ForeignKey(
+        ConvenioPago, on_delete=models.CASCADE, related_name='recargos_incumplimiento')
+    numero_periodo = models.PositiveIntegerField()
+    fecha_programada = models.DateField()
+    fecha_generada = models.DateTimeField(default=timezone.now)
+    modo_calculo = models.CharField(max_length=20, choices=ConvenioPago.MODOS_RECARGO)
+    valor_configurado = models.DecimalField(max_digits=10, decimal_places=2)
+    saldo_base_usd = models.DecimalField(max_digits=10, decimal_places=2)
+    monto_recargo_usd = models.DecimalField(max_digits=10, decimal_places=2)
+    estado = models.CharField(max_length=12, choices=ESTADOS, default=PENDIENTE, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['convenio_id', 'numero_periodo']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['convenio', 'numero_periodo'],
+                name='uniq_recargo_convenio_periodo',
+            ),
+        ]
 
 
 class CuotaConvenio(models.Model):

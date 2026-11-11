@@ -3,6 +3,7 @@ from datetime import timedelta
 from decimal import Decimal
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db.models import F, Sum
+from django.utils import timezone
 from rest_framework import serializers
 from .models import (
     BancoInstitucional, CierreCaja, ClasificacionPagoManual, CuotaInscripcion,
@@ -579,6 +580,7 @@ class ReglaRecargoPagoSerializer(serializers.ModelSerializer):
             'id', 'nombre', 'descripcion', 'tipo', 'modo_calculo', 'valor',
             'dia_aplicacion', 'dia_desde', 'dia_hasta',
             'ancla_recargo', 'dias_desde_vencimiento', 'frecuencia_recargo', 'cada_dias',
+            'vigente_desde',
             'activa', 'creada_por',
             'creada_en', 'modificada_en',
         ]
@@ -624,6 +626,8 @@ class ReglaRecargoPagoSerializer(serializers.ModelSerializer):
             dias_desde_vencimiento=data.get('dias_desde_vencimiento', getattr(self.instance, 'dias_desde_vencimiento', None)),
             frecuencia_recargo=data.get('frecuencia_recargo', getattr(self.instance, 'frecuencia_recargo', 'unico')),
             cada_dias=data.get('cada_dias', getattr(self.instance, 'cada_dias', None)),
+            vigente_desde=data.get(
+                'vigente_desde', getattr(self.instance, 'vigente_desde', timezone.localdate())),
             activa=data.get('activa', getattr(self.instance, 'activa', True)),
         )
         try:

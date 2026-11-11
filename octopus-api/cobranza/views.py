@@ -339,10 +339,11 @@ class BuscarAlumnoCobranzaView(APIView):
             mostraba el recargo en absoluto (deuda técnica detectada). Recargo
             y descuento son mutuamente excluyentes (ver ReglaRecargoPago.clean()),
             así que a lo sumo uno de los dos es distinto de cero por fila."""
-            from .recargos import resolver_recargo
+            from .recargos import precargar_contexto_recargos, resolver_recargo
             from .descuentos import resolver_descuento
             from .mora import fecha_vencimiento_mensualidad
-            cache_reglas = {}
+            qs = list(qs)
+            cache_reglas = precargar_contexto_recargos(qs)
             lineas = []
             for m in qs:
                 saldo = m.monto_usd - m.monto_pagado
@@ -3794,12 +3795,11 @@ class ListaMorososView(APIView):
         return qs
 
     def get(self, request):
-        from datetime import date as _date
         from decimal import Decimal
         from django.db.models import Sum
         from .mora import calcular_dias_atraso, enriquecer_monto_adeudado_con_recargo
         from .recargos import calcular_recargos_para_alumnos
-        hoy    = _date.today()
+        hoy    = timezone.localdate()
         buscar = request.query_params.get('buscar', '').strip()
         qs     = self._build_qs(hoy, buscar, user=request.user)
 

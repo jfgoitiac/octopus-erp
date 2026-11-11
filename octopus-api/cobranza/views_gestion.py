@@ -172,12 +172,35 @@ class PagosRevisionView(APIView):
 
 
 def _serializar_convenio(c):
+    recargos = list(c.recargos_incumplimiento.all())
     return {
         'id': c.id, 'estado': c.estado, 'notas': c.notas, 'creado_en': c.creado_en,
+        'finalizado_en': c.finalizado_en, 'incumplido_en': c.incumplido_en,
         'representante': c.representante_id,
-        'ciclos': list(c.ciclos.values_list('id', flat=True)),
+        'ciclos': [ciclo.id for ciclo in c.ciclos.all()],
+        'exonera_recargos_durante_vigencia': c.exonera_recargos_durante_vigencia,
+        'aplicar_recargo_incumplimiento': c.aplicar_recargo_incumplimiento,
+        'modo_recargo': c.modo_recargo,
+        'valor_recargo': str(c.valor_recargo) if c.valor_recargo is not None else None,
+        'frecuencia_recargo': c.frecuencia_recargo,
+        'intervalo_cantidad': c.intervalo_cantidad,
+        'intervalo_unidad': c.intervalo_unidad,
+        'maximo_aplicaciones': c.maximo_aplicaciones,
+        'tope_recargo_usd': str(c.tope_recargo_usd) if c.tope_recargo_usd is not None else None,
+        'recargos_detenidos_en': c.recargos_detenidos_en,
+        'motivo_detencion_recargos': c.motivo_detencion_recargos,
+        'reemplazado_por': c.reemplazado_por_id,
         'cuotas': [{'id': q.id, 'numero': q.numero, 'fecha': q.fecha, 'monto_usd': str(q.monto_usd),
                     'pagada': q.pagada, 'pagada_en': q.pagada_en} for q in c.cuotas.all()],
+        'recargos': [{
+            'id': r.id, 'numero_periodo': r.numero_periodo,
+            'fecha_programada': r.fecha_programada, 'fecha_generada': r.fecha_generada,
+            'modo_calculo': r.modo_calculo, 'valor_configurado': str(r.valor_configurado),
+            'saldo_base_usd': str(r.saldo_base_usd),
+            'monto_recargo_usd': str(r.monto_recargo_usd), 'estado': r.estado,
+        } for r in recargos],
+        'total_recargos_pendientes_usd': str(sum(
+            (r.monto_recargo_usd for r in recargos if r.estado == 'pendiente'), Decimal('0.00'))),
     }
 
 
@@ -192,7 +215,8 @@ class ConveniosView(APIView):
         sedes = sedes_activas_accesibles(request.user)
         if not sedes:
             return _apagada()
-        qs = ConvenioPago.objects.filter(ciclos__in=_ciclos(sedes)).distinct().prefetch_related('cuotas')
+        qs = (ConvenioPago.objects.filter(ciclos__in=_ciclos(sedes)).distinct()
+              .prefetch_related('cuotas', 'ciclos', 'recargos_incumplimiento'))
         if request.query_params.get('representante'):
             qs = qs.filter(representante_id=request.query_params['representante'])
         return Response({'results': [_serializar_convenio(c) for c in qs]})
@@ -214,7 +238,20 @@ class ConveniosView(APIView):
         except (KeyError, ValueError, InvalidOperation, TypeError):
             return _error('Cuotas inválidas: cada una necesita fecha (AAAA-MM-DD) y monto.')
         try:
-            convenio = gestion.crear_convenio(rep, ciclos, cuotas, request.user, d.get('notas', ''))
+            convenio = gestion.crear_convenio(
+                rep, ciclos, cuotas, request.user, d.get('notas', ''),
+                configuracion={
+                    'exonera_recargos_durante_vigencia': d.get('exonera_recargos_durante_vigencia', False),
+                    'aplicar_recargo_incumplimiento': d.get('aplicar_recargo_incumplimiento', False),
+                    'modo_recargo': d.get('modo_recargo'),
+                    'valor_recargo': d.get('valor_recargo'),
+                    'frecuencia_recargo': d.get('frecuencia_recargo'),
+                    'intervalo_cantidad': d.get('intervalo_cantidad'),
+                    'intervalo_unidad': d.get('intervalo_unidad'),
+                    'maximo_aplicaciones': d.get('maximo_aplicaciones'),
+                    'tope_recargo_usd': d.get('tope_recargo_usd'),
+                },
+            )
         except gestion.AccionInvalida as e:
             return _error(str(e))
         return Response(_serializar_convenio(convenio), status=status.HTTP_201_CREATED)
@@ -257,6 +294,30 @@ class CancelarConvenioView(APIView):
         except gestion.AccionInvalida as e:
             return _error(str(e))
         convenio.refresh_from_db()
+        return Response(_serializar_convenio(convenio))
+
+
+class DetenerRecargosConvenioView(APIView):
+    """POST /inteligente/convenios/<id>/detener-recargos/"""
+    permission_classes = [permissions.IsAuthenticated, EsPersonalCobranza]
+
+    def post(self, request, convenio_id):
+        sedes = sedes_activas_accesibles(request.user)
+        if not sedes:
+            return _apagada()
+        convenio = ConvenioPago.objects.filter(
+            pk=convenio_id, ciclos__in=_ciclos(sedes),
+        ).distinct().first()
+        if convenio is None:
+            return _error('No encontrado.', status.HTTP_404_NOT_FOUND)
+        if not convenio.aplicar_recargo_incumplimiento:
+            return _error('Este convenio no tiene recargo por incumplimiento configurado.')
+        from .recargos_convenio import detener_recargos_convenio
+        convenio = detener_recargos_convenio(
+            convenio, request.user, request.data.get('motivo') or 'Detenido por un administrador',
+        )
+        convenio = (ConvenioPago.objects.prefetch_related(
+            'cuotas', 'ciclos', 'recargos_incumplimiento').get(pk=convenio.pk))
         return Response(_serializar_convenio(convenio))
 
 

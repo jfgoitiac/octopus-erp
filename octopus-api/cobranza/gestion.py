@@ -13,7 +13,8 @@ from django.utils import timezone
 
 from .ciclos import dias_de_mora, etapa_por_dias
 from .models import (
-    CicloCobranza, ConvenioPago, CuotaConvenio, EnvioCobranza, EventoCiclo, Pago,
+    CicloCobranza, ConvenioPago, CuotaConvenio, EnvioCobranza, EventoCiclo,
+    IntervaloExoneracionRecargoConvenio, Pago,
 )
 
 MOTIVOS_CIERRE = ('anulada', 'condonada', 'retirado', 'conciliada', 'descartada')
@@ -166,14 +167,71 @@ def registrar_cobro_whatsapp(representante_id, usuario, mensaje, log_id):
 
 # ── Convenio de pago mínimo ────────────────────────────────────────────────────
 
+def _configuracion_recargo_convenio(configuracion):
+    configuracion = configuracion or {}
+    exonera = bool(configuracion.get('exonera_recargos_durante_vigencia', False))
+    aplica = bool(configuracion.get('aplicar_recargo_incumplimiento', False))
+    datos = {
+        'exonera_recargos_durante_vigencia': exonera,
+        'aplicar_recargo_incumplimiento': aplica,
+        'modo_recargo': configuracion.get('modo_recargo') or 'monto_fijo_usd',
+        'frecuencia_recargo': configuracion.get('frecuencia_recargo') or 'unico',
+        'intervalo_unidad': configuracion.get('intervalo_unidad') or 'mes',
+    }
+    try:
+        datos['intervalo_cantidad'] = int(configuracion.get('intervalo_cantidad') or 1)
+        datos['valor_recargo'] = (
+            Decimal(str(configuracion.get('valor_recargo'))) if aplica else None
+        )
+        maximo = configuracion.get('maximo_aplicaciones')
+        datos['maximo_aplicaciones'] = int(maximo) if maximo not in (None, '') else None
+        tope = configuracion.get('tope_recargo_usd')
+        datos['tope_recargo_usd'] = Decimal(str(tope)) if tope not in (None, '') else None
+    except (ValueError, TypeError, ArithmeticError):
+        raise AccionInvalida('La configuración del recargo por incumplimiento no es válida.')
+    if datos['modo_recargo'] not in dict(ConvenioPago.MODOS_RECARGO):
+        raise AccionInvalida('Modo de recargo por incumplimiento inválido.')
+    if datos['frecuencia_recargo'] not in dict(ConvenioPago.FRECUENCIAS_RECARGO):
+        raise AccionInvalida('Frecuencia de recargo por incumplimiento inválida.')
+    if datos['intervalo_unidad'] not in dict(ConvenioPago.UNIDADES_INTERVALO):
+        raise AccionInvalida('Unidad de intervalo inválida.')
+    if datos['intervalo_cantidad'] < 1:
+        raise AccionInvalida('El intervalo debe ser al menos 1.')
+    if aplica and (datos['valor_recargo'] is None or datos['valor_recargo'] <= 0):
+        raise AccionInvalida('El valor del recargo debe ser mayor que cero.')
+    if datos['maximo_aplicaciones'] is not None and datos['maximo_aplicaciones'] < 1:
+        raise AccionInvalida('El máximo de aplicaciones debe ser al menos 1.')
+    if datos['tope_recargo_usd'] is not None and datos['tope_recargo_usd'] <= 0:
+        raise AccionInvalida('El tope del recargo debe ser mayor que cero.')
+    return datos
+
+
+def _abrir_intervalo_exoneracion(convenio, momento):
+    if not convenio.exonera_recargos_durante_vigencia:
+        return
+    IntervaloExoneracionRecargoConvenio.objects.get_or_create(
+        convenio=convenio, finalizado_en__isnull=True,
+        defaults={'iniciado_en': momento},
+    )
+
+
+def _cerrar_intervalo_exoneracion(convenio, momento, motivo):
+    IntervaloExoneracionRecargoConvenio.objects.filter(
+        convenio=convenio, finalizado_en__isnull=True,
+    ).update(finalizado_en=momento, motivo_finalizacion=motivo)
+
+
 @transaction.atomic
-def crear_convenio(representante, ciclos, cuotas, usuario, notas='', hoy=None):
+def crear_convenio(
+        representante, ciclos, cuotas, usuario, notas='', hoy=None,
+        configuracion=None, momento=None):
     """
     `cuotas`: lista de (fecha, monto). La suma debe igualar el saldo de las
     deudas incluidas (±0.01) y las fechas no pueden ser pasadas ni desordenadas.
     Pausa el ciclo de cada deuda con motivo 'convenio'.
     """
     hoy = hoy or timezone.localdate()
+    momento = momento or timezone.now()
     ciclos = list(ciclos)
     if not ciclos:
         raise AccionInvalida('Seleccione al menos una deuda.')
@@ -195,7 +253,11 @@ def crear_convenio(representante, ciclos, cuotas, usuario, notas='', hoy=None):
     if abs(saldo - total) > Decimal('0.01'):
         raise AccionInvalida(f'La suma de las cuotas ({total}) debe igualar el saldo ({saldo}).')
 
-    convenio = ConvenioPago.objects.create(representante=representante, notas=notas, creado_por=usuario)
+    configuracion_validada = _configuracion_recargo_convenio(configuracion)
+    convenio = ConvenioPago.objects.create(
+        representante=representante, notas=notas, creado_por=usuario,
+        **configuracion_validada,
+    )
     convenio.ciclos.set(ciclos)
     CuotaConvenio.objects.bulk_create([
         CuotaConvenio(convenio=convenio, numero=i, fecha=f, monto_usd=Decimal(m))
@@ -205,6 +267,19 @@ def crear_convenio(representante, ciclos, cuotas, usuario, notas='', hoy=None):
         if c.estado != CicloCobranza.PAUSADA:
             pausar_ciclo(c, 'convenio', usuario)
         _evento(c, 'convenio_creado', usuario, convenio=convenio.id, cuotas=len(cuotas))
+    _abrir_intervalo_exoneracion(convenio, momento)
+
+    # Crear un convenio sobre ciclos de uno incumplido equivale a una
+    # renegociación: congela las recurrencias del anterior y deja el vínculo.
+    anteriores = ConvenioPago.objects.filter(
+        ciclos__in=ciclos, estado=ConvenioPago.INCUMPLIDO,
+        recargos_detenidos_en__isnull=True,
+    ).exclude(pk=convenio.pk).distinct()
+    anteriores.update(
+        reemplazado_por=convenio,
+        recargos_detenidos_en=momento,
+        motivo_detencion_recargos='renegociado',
+    )
     return convenio
 
 
@@ -216,8 +291,8 @@ def _reanudar_pausados_por_convenio(convenio, usuario=None, hoy=None):
 
 @transaction.atomic
 def marcar_cuota_pagada(cuota, usuario):
-    if cuota.convenio.estado != ConvenioPago.VIGENTE:
-        raise AccionInvalida('El convenio no está vigente.')
+    if cuota.convenio.estado not in (ConvenioPago.VIGENTE, ConvenioPago.INCUMPLIDO):
+        raise AccionInvalida('El convenio no admite nuevos pagos.')
     if cuota.pagada:
         raise AccionInvalida('La cuota ya está pagada.')
     cuota.pagada, cuota.pagada_en = True, timezone.now()
@@ -225,37 +300,92 @@ def marcar_cuota_pagada(cuota, usuario):
     convenio = cuota.convenio
     for c in convenio.ciclos.all():
         _evento(c, 'cuota_convenio_pagada', usuario, convenio=convenio.id, cuota=cuota.numero)
+    ahora = timezone.now()
     if not convenio.cuotas.filter(pagada=False).exists():
         convenio.estado = ConvenioPago.CUMPLIDO
-        convenio.save(update_fields=['estado'])
+        convenio.finalizado_en = ahora
+        if convenio.incumplido_en and not convenio.recargos_detenidos_en:
+            convenio.recargos_detenidos_en = ahora
+            convenio.recargos_detenidos_por = usuario
+            convenio.motivo_detencion_recargos = 'cumplido'
+        convenio.save(update_fields=[
+            'estado', 'finalizado_en', 'recargos_detenidos_en',
+            'recargos_detenidos_por', 'motivo_detencion_recargos',
+        ])
+        _cerrar_intervalo_exoneracion(convenio, ahora, 'cumplido')
         _reanudar_pausados_por_convenio(convenio, usuario)
+    elif convenio.estado == ConvenioPago.INCUMPLIDO:
+        hoy = timezone.localdate(ahora)
+        if not convenio.cuotas.filter(pagada=False, fecha__lt=hoy).exists():
+            convenio.estado = ConvenioPago.VIGENTE
+            convenio.finalizado_en = None
+            convenio.recargos_detenidos_en = ahora
+            convenio.recargos_detenidos_por = usuario
+            convenio.motivo_detencion_recargos = 'regularizado'
+            convenio.save(update_fields=[
+                'estado', 'finalizado_en', 'recargos_detenidos_en',
+                'recargos_detenidos_por', 'motivo_detencion_recargos',
+            ])
+            _abrir_intervalo_exoneracion(convenio, ahora)
+            for c in convenio.ciclos.all():
+                if c.estado != CicloCobranza.PAUSADA:
+                    pausar_ciclo(c, 'convenio', usuario)
+                _evento(c, 'convenio_regularizado', usuario, convenio=convenio.id)
 
 
 @transaction.atomic
-def cancelar_convenio(convenio, usuario):
+def cancelar_convenio(convenio, usuario, momento=None):
     if convenio.estado != ConvenioPago.VIGENTE:
         raise AccionInvalida('El convenio no está vigente.')
+    momento = momento or timezone.now()
     convenio.estado = ConvenioPago.CANCELADO
-    convenio.save(update_fields=['estado'])
+    convenio.finalizado_en = momento
+    convenio.save(update_fields=['estado', 'finalizado_en'])
+    _cerrar_intervalo_exoneracion(convenio, convenio.finalizado_en, 'cancelado')
     _reanudar_pausados_por_convenio(convenio, usuario)
 
 
 @transaction.atomic
-def revisar_convenios(hoy=None):
+def incumplir_convenio(convenio, momento=None):
+    if convenio.estado != ConvenioPago.VIGENTE:
+        return False
+    momento = momento or timezone.now()
+    convenio.estado = ConvenioPago.INCUMPLIDO
+    convenio.incumplido_en = momento
+    convenio.finalizado_en = momento
+    if convenio.motivo_detencion_recargos == 'regularizado':
+        convenio.recargos_detenidos_en = None
+        convenio.recargos_detenidos_por = None
+        convenio.motivo_detencion_recargos = ''
+    convenio.save(update_fields=[
+        'estado', 'incumplido_en', 'finalizado_en', 'recargos_detenidos_en',
+        'recargos_detenidos_por', 'motivo_detencion_recargos',
+    ])
+    _cerrar_intervalo_exoneracion(convenio, momento, 'incumplido')
+    for c in convenio.ciclos.all():
+        _evento(c, 'convenio_incumplido', None, convenio=convenio.id)
+    _reanudar_pausados_por_convenio(convenio, None, timezone.localdate(momento))
+    if convenio.aplicar_recargo_incumplimiento:
+        from .recargos_convenio import generar_recargos_convenio
+        generar_recargos_convenio(
+            convenio.id, fecha_referencia=timezone.localdate(momento), momento=momento,
+        )
+    return True
+
+
+@transaction.atomic
+def revisar_convenios(hoy=None, momento=None):
     """
     Tarea diaria: un convenio vigente con una cuota vencida sin pagar pasa a
     'incumplido' y sus deudas vuelven al ciclo en su etapa. Devuelve cuántos.
     """
     hoy = hoy or timezone.localdate()
+    momento = momento or timezone.now()
     incumplidos = 0
     for convenio in ConvenioPago.objects.filter(
             estado=ConvenioPago.VIGENTE, cuotas__pagada=False, cuotas__fecha__lt=hoy).distinct():
-        convenio.estado = ConvenioPago.INCUMPLIDO
-        convenio.save(update_fields=['estado'])
-        for c in convenio.ciclos.all():
-            _evento(c, 'convenio_incumplido', None, convenio=convenio.id)
-        _reanudar_pausados_por_convenio(convenio, None, hoy)
-        incumplidos += 1
+        if incumplir_convenio(convenio, momento=momento):
+            incumplidos += 1
     return incumplidos
 
 
