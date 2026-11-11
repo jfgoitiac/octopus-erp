@@ -250,13 +250,13 @@
     "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "octopus-api/cobranza/models.py": {
-    "mtime": 1793304416.1587927,
-    "ast_hash": "20e825680341e50c2c266afad9e6230a",
+    "mtime": 1794412390.105997,
+    "ast_hash": "8ef828dae5f1ecb799c4b35a1559a3aa",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/serializers.py": {
-    "mtime": 1793304416.1627822,
-    "ast_hash": "d307a58fd2f1deac57c70a93dbaea2cb",
+    "mtime": 1794412402.8186026,
+    "ast_hash": "7b8554d25d030abc14411c8b8a389039",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/services.py": {
@@ -270,8 +270,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/tasks.py": {
-    "mtime": 1791913917.9052813,
-    "ast_hash": "f58b335a979b05941ad15905acff922e",
+    "mtime": 1794412367.1715045,
+    "ast_hash": "ed097fc44e83e0ee88f3b6aea4d8a54d",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/tests.py": {
@@ -280,8 +280,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/urls.py": {
-    "mtime": 1792770626.1878273,
-    "ast_hash": "a6f575a75c7ff77c2204a1f9dabfbda4",
+    "mtime": 1794412445.4132655,
+    "ast_hash": "4c7b5cfd8e213a3d57bc920ad7de14a0",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/utils.py": {
@@ -290,8 +290,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/views.py": {
-    "mtime": 1793834309.3912265,
-    "ast_hash": "cba16ff4b1033a0bdc1cc501a61df885",
+    "mtime": 1794412476.3611727,
+    "ast_hash": "9d02ef64dfd43e0029c753253a79c894",
     "semantic_hash": ""
   },
   "octopus-api/config/__init__.py": {
@@ -600,8 +600,8 @@
     "semantic_hash": ""
   },
   "octopus-api/portal/serializers.py": {
-    "mtime": 1793834232.5027642,
-    "ast_hash": "2a23519815bb7dc59bb96322f085a882",
+    "mtime": 1794412470.890839,
+    "ast_hash": "bd78c9d85cc7312d67b04e4f7bcf5539",
     "semantic_hash": ""
   },
   "octopus-api/portal/tasks.py": {
@@ -620,8 +620,8 @@
     "semantic_hash": ""
   },
   "octopus-api/portal/views.py": {
-    "mtime": 1793845497.891588,
-    "ast_hash": "eb540e9627aa031b1eb033d7c2902618",
+    "mtime": 1794412458.8484163,
+    "ast_hash": "cbd0ee7d5b894eb9980317b5fd7d5dec",
     "semantic_hash": ""
   },
   "octopus-api/rrhh/__init__.py": {
@@ -1355,8 +1355,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/api/cobranza.service.js": {
-    "mtime": 1792770626.1878273,
-    "ast_hash": "f32c79bee57c7c1199b30686209e0646",
+    "mtime": 1794415166.2045383,
+    "ast_hash": "b79c348c611aee8f5610af900ee0552b",
     "semantic_hash": ""
   },
   "octopus-frontend/src/api/dashboardService.js": {
@@ -3216,8 +3216,8 @@
     "semantic_hash": ""
   },
   "octopus-api/NOTAS_TECNICAS.md": {
-    "mtime": 1792257372.894578,
-    "ast_hash": "c03e61905c2e6271b937f42100166d26",
+    "mtime": 1794415652.0213099,
+    "ast_hash": "2dc2e28d3cbe2ca5e007d8b81b951304",
     "semantic_hash": ""
   },
   "octopus-api/RESTAURACION_EMERGENCIA.md": {
@@ -4640,8 +4640,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/recargos.py": {
-    "mtime": 1793304414.5531964,
-    "ast_hash": "ad1344acd366e8c0a5418c19ae743b4f",
+    "mtime": 1794412232.4565594,
+    "ast_hash": "1ecfa5182834f4fe4f8fc537e54ca519",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/solvencia_reportes.py": {
@@ -4660,8 +4660,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/test_recargo_pago_tardio.py": {
-    "mtime": 1793304414.5578973,
-    "ast_hash": "8384e0262b9600f36b80fcfb1687636d",
+    "mtime": 1794415480.494687,
+    "ast_hash": "f19d786050ecd8bf69d4d36f58ef3cb8",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/test_solvencia_reportes.py": {
@@ -4905,8 +4905,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/configuracion/ModalReglaRecargoPago.jsx": {
-    "mtime": 1793304414.565516,
-    "ast_hash": "f09ac4047149f8b00db83414f49ab7d4",
+    "mtime": 1794415141.7779565,
+    "ast_hash": "57af872b6598f317ef660f9ac890b2d9",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/configuracion/ModalTipoCargoEspecial.jsx": {
@@ -4915,8 +4915,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/configuracion/ReglasRecargoPagoTab.jsx": {
-    "mtime": 1792619010.6671913,
-    "ast_hash": "283c7cbda9bcdcf09759bb46c30d8f64",
+    "mtime": 1794415158.0105534,
+    "ast_hash": "14d186a868f5d3fd66a2da38e475bcbe",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/configuracion/TiposCargoEspecialTab.jsx": {
@@ -5075,8 +5075,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/hooks/useReglasRecargoPago.js": {
-    "mtime": 1792618955.8280387,
-    "ast_hash": "a30ad55e74f7f78b2d7fe7b8907b793f",
+    "mtime": 1794415117.0149345,
+    "ast_hash": "ead338614e22594b1cb1ce475baed851",
     "semantic_hash": ""
   },
   "octopus-frontend/src/hooks/useResumenPorConcepto.js": {
@@ -5570,8 +5570,8 @@
     "semantic_hash": ""
   },
   "octopus-api/notificaciones/cobro_whatsapp.py": {
-    "mtime": 1793674512.8857172,
-    "ast_hash": "c0d931e86987de071ac0b4a489f12cf5",
+    "mtime": 1794415055.4352791,
+    "ast_hash": "a014d466dcbe985e0df28aa68dd35746",
     "semantic_hash": ""
   },
   "octopus-api/notificaciones/migrations/0009_cobro_whatsapp.py": {
@@ -6400,8 +6400,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/gestion.py": {
-    "mtime": 1793993217.6703453,
-    "ast_hash": "26e0cdcc503059cd9b9f7a500ea153b1",
+    "mtime": 1794415353.5854568,
+    "ast_hash": "472cf8fc3894ddf3a427d8046c44aea7",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/inteligente.py": {
@@ -6470,8 +6470,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/motor.py": {
-    "mtime": 1793993217.6727884,
-    "ast_hash": "f563ecd286086677cd74a6034836921b",
+    "mtime": 1794415066.0970726,
+    "ast_hash": "8af6777c68333d22f1f65645abef0c43",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/test_ciclos_cobranza.py": {
@@ -6485,8 +6485,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/test_gestion_cobranza.py": {
-    "mtime": 1793992065.472909,
-    "ast_hash": "9032a403b9c3a9bedc14587f08fd8f42",
+    "mtime": 1794415605.339838,
+    "ast_hash": "64a70edaeff52768c389484376a76478",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/test_motor_cobranza.py": {
@@ -6520,8 +6520,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cobranza/views_gestion.py": {
-    "mtime": 1793274584.3317616,
-    "ast_hash": "f29ac66b4f85318550659c8386c369f6",
+    "mtime": 1794412433.0464041,
+    "ast_hash": "c251ba51e9dda0979dc99050a175f0c8",
     "semantic_hash": ""
   },
   "octopus-api/config/exception_handler.py": {
@@ -6755,8 +6755,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cobranzaInteligente/ModalesGestion.jsx": {
-    "mtime": 1791913917.9330435,
-    "ast_hash": "6225f8ce8ae6e5a4ed4d381d14953d42",
+    "mtime": 1794415219.8747075,
+    "ast_hash": "9c512ee98743b44ba1f521c7abb60865",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cobranzaInteligente/TablaEstudiantes.jsx": {
@@ -6910,13 +6910,13 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/CobranzaInteligenteGestion.jsx": {
-    "mtime": 1793992284.7986825,
-    "ast_hash": "9fa77807ef72ff997ceed84c9b659e2b",
+    "mtime": 1794415253.9399066,
+    "ast_hash": "64bf572ed8a4432f7771e6873d9f731f",
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/CobranzaInteligenteGestion.test.jsx": {
-    "mtime": 1793992284.7997167,
-    "ast_hash": "c535fa1121cb46f827558b330e3e6024",
+    "mtime": 1794415573.941787,
+    "ast_hash": "c61b2b9892699e4df8e245b534a83448",
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/ConfiguracionCobranzaInteligente.jsx": {
@@ -9133,6 +9133,26 @@
   "octopus-frontend/src/components/cantina/pos/CarritoVenta.test.jsx": {
     "mtime": 1794409131.0112748,
     "ast_hash": "0f9827d26570408e0ee8c7d11033f91b",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/migrations/0060_vigencia_y_recargos_convenio.py": {
+    "mtime": 1794412181.6094348,
+    "ast_hash": "f1a8342898001f6f3d390669d50e0935",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/recargos_convenio.py": {
+    "mtime": 1794412300.968696,
+    "ast_hash": "d785f079375594c2f413c7c645312637",
+    "semantic_hash": ""
+  },
+  "octopus-api/cobranza/test_recargos_convenio.py": {
+    "mtime": 1794417379.1008089,
+    "ast_hash": "1667735637d9abc575ea56aa4e2d982f",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/configuracion/ModalReglaRecargoPago.test.jsx": {
+    "mtime": 1794415633.9729753,
+    "ast_hash": "5000311b9af07dcf4604e8556fac373a",
     "semantic_hash": ""
   }
 }
