@@ -16,7 +16,7 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { useCargaInteligente, mensajeErrorInteligente } from '../hooks/useCargaInteligente';
 import {
     getBandejaInteligente, getPagosRevisionInteligente, getConveniosInteligente,
-    pagarCuotaConvenio, cancelarConvenioInteligente,
+    pagarCuotaConvenio, cancelarConvenioInteligente, detenerRecargosConvenioInteligente,
 } from '../api/cobranza.service';
 import { fmt } from '../utils/format';
 
@@ -353,6 +353,9 @@ function TarjetaConvenio({ c, ejecutar }) {
     const cobrado = suma(pagadas, 'monto_usd');
     const hoy = startOfDay(new Date());
     const vigente = c.estado === 'vigente';
+    const permitePagoCuotas = vigente || c.estado === 'incumplido';
+    const recargos = c.recargos ?? [];
+    const valorRecargo = c.modo_recargo === 'porcentaje' ? `${fmt(c.valor_recargo, 2)}%` : `$${fmt(c.valor_recargo, 2)}`;
     return (
         <article className="h-full rounded-[var(--radius-card)] p-4 sm:p-5 flex flex-col gap-4" style={panel}>
             <header className="flex items-start gap-3">
@@ -380,6 +383,24 @@ function TarjetaConvenio({ c, ejecutar }) {
                 </div>
             </div>
 
+            {(c.exonera_recargos_durante_vigencia || c.aplicar_recargo_incumplimiento) && (
+                <div className="rounded-xl p-3 text-xs space-y-1.5" style={{ background: 'var(--ash-light)', color: 'var(--jet-mid)' }}>
+                    {c.exonera_recargos_durante_vigencia && <p><strong>Exoneración:</strong> sin recargos normales mientras el convenio esté vigente.</p>}
+                    {c.aplicar_recargo_incumplimiento && (
+                        <p><strong>Incumplimiento:</strong> {valorRecargo} · {c.frecuencia_recargo === 'unico'
+                            ? 'una sola vez'
+                            : `cada ${c.intervalo_cantidad} ${c.intervalo_unidad}(s)`}.
+                            {c.maximo_aplicaciones ? ` Máximo ${c.maximo_aplicaciones}.` : ''}
+                            {c.tope_recargo_usd ? ` Tope $${fmt(c.tope_recargo_usd, 2)}.` : ''}
+                        </p>
+                    )}
+                    {c.modo_recargo === 'porcentaje' && c.aplicar_recargo_incumplimiento && (
+                        <p>El porcentaje usa solo el saldo principal pendiente; no genera interés compuesto.</p>
+                    )}
+                    {c.recargos_detenidos_en && <p style={{ color: 'var(--red)' }}>Recargos detenidos: {c.motivo_detencion_recargos || 'sin motivo indicado'}.</p>}
+                </div>
+            )}
+
             <ol className="space-y-2">
                 {c.cuotas.map(q => {
                     const vencida = !q.pagada && isBefore(parseISO(q.fecha), hoy);
@@ -399,7 +420,7 @@ function TarjetaConvenio({ c, ejecutar }) {
                                     </p>
                                 </div>
                             </div>
-                            {!q.pagada && vigente && (
+                            {!q.pagada && permitePagoCuotas && (
                                 <button type="button" className="btn btn-primary btn-sm w-full sm:w-auto"
                                     onClick={() => ejecutar(() => pagarCuotaConvenio(q.id), 'Cuota registrada')}>
                                     <CheckCircle2 size={15} />Marcar pagada
@@ -409,6 +430,23 @@ function TarjetaConvenio({ c, ejecutar }) {
                     );
                 })}
             </ol>
+
+            {recargos.length > 0 && (
+                <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                        <strong style={{ color: 'var(--jet)' }}>Recargos devengados</strong>
+                        <span className="font-semibold tabular-nums" style={{ color: 'var(--red)' }}>${fmt(c.total_recargos_pendientes_usd, 2)}</span>
+                    </div>
+                    <ol className="space-y-1.5">
+                        {recargos.map(r => (
+                            <li key={r.id} className="rounded-lg px-3 py-2 text-xs flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between" style={{ border: '1px solid var(--border)' }}>
+                                <span>Período {r.numero_periodo} · {fecha(r.fecha_programada)} · base ${fmt(r.saldo_base_usd, 2)}</span>
+                                <strong className="tabular-nums" style={{ color: 'var(--red)' }}>${fmt(r.monto_recargo_usd, 2)}</strong>
+                            </li>
+                        ))}
+                    </ol>
+                </div>
+            )}
 
             <div className="mt-auto flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 {c.representante && (
@@ -420,6 +458,12 @@ function TarjetaConvenio({ c, ejecutar }) {
                     <button type="button" className="btn btn-secondary btn-sm w-full sm:w-auto"
                         onClick={() => ejecutar(() => cancelarConvenioInteligente(c.id), 'Convenio cancelado')}>
                         Cancelar convenio
+                    </button>
+                )}
+                {c.estado === 'incumplido' && c.aplicar_recargo_incumplimiento && !c.recargos_detenidos_en && (
+                    <button type="button" className="btn btn-secondary btn-sm w-full sm:w-auto"
+                        onClick={() => ejecutar(() => detenerRecargosConvenioInteligente(c.id, 'Detenido desde la gestión administrativa'), 'Recargos detenidos')}>
+                        Detener recargos
                     </button>
                 )}
             </div>

@@ -1,4 +1,6 @@
-import { AlertTriangle, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
+import { AlertTriangle, Pencil, Plus, Trash2 } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale/es';
 import ConfirmDeleteModal from '../ConfirmDeleteModal';
 import { TablaScroll } from '../ui/TablaScroll';
 import { useReglasRecargoPago } from '../../hooks/useReglasRecargoPago';
@@ -17,6 +19,18 @@ const formatearDia = (regla) =>
         : regla.ancla_recargo === 'vencimiento'
             ? `Vencimiento + ${regla.dias_desde_vencimiento || 0} día(s)${regla.frecuencia_recargo === 'recurrente' ? ` · cada ${regla.cada_dias} día(s)` : ''}`
             : `Día ${regla.dia_aplicacion}`;
+
+const formatearVigencia = (valor) => valor
+    ? format(parseISO(valor), "d 'de' MMM yyyy", { locale: es })
+    : '—';
+
+const SkeletonReglas = () => (
+    <div className="p-4 sm:p-5 space-y-3" role="status" aria-label="Cargando reglas">
+        {[0, 1, 2].map(i => (
+            <div key={i} className="h-14 rounded-xl animate-pulse" style={{ background: 'var(--ash-light)' }} />
+        ))}
+    </div>
+);
 
 /**
  * Sección "Recargos y Descuentos por Pago" de Configuración: CRUD de
@@ -55,9 +69,7 @@ export default function ReglasRecargoPagoTab() {
             </div>
 
             {reglasRecargoPagoLoading ? (
-                <div className="flex justify-center py-10">
-                    <Loader2 className="animate-spin" size={22} style={{ color: 'var(--pb)' }} />
-                </div>
+                <SkeletonReglas />
             ) : reglasRecargoPago.length === 0 ? (
                 <div className="flex flex-col items-center py-10" style={{ color: 'var(--ash)' }}>
                     <AlertTriangle size={30} className="mb-2 opacity-20" />
@@ -65,10 +77,10 @@ export default function ReglasRecargoPagoTab() {
                 </div>
             ) : (
                 <TablaScroll>
-                    <table className="w-full text-left min-w-[820px]">
+                    <table className="w-full text-left min-w-[980px]">
                         <thead>
                             <tr style={{ borderBottom: '0.5px solid var(--border-md)' }}>
-                                {['Nombre', 'Tipo', 'Valor', 'Día(s)', 'Estado', ''].map(h => (
+                                {['Nombre', 'Tipo', 'Valor', 'Programación', 'Vigente desde', 'Estado', ''].map(h => (
                                     <th key={h} className="px-5 py-3 text-[11px] uppercase tracking-widest"
                                         style={{ color: 'var(--ash)', background: 'var(--bg)' }}>{h}</th>
                                 ))}
@@ -88,6 +100,10 @@ export default function ReglasRecargoPagoTab() {
                                     </td>
                                     <td className="px-5 py-3.5 text-sm" style={{ color: 'var(--jet)' }}>{formatearValor(regla)}</td>
                                     <td className="px-5 py-3.5 text-xs" style={{ color: 'var(--ash)' }}>{formatearDia(regla)}</td>
+                                    <td className="px-5 py-3.5 text-xs" style={{ color: 'var(--ash)' }}>
+                                        <p>{formatearVigencia(regla.vigente_desde)}</p>
+                                        {regla.tipo === 'recargo' && <p className="mt-1 max-w-44">Períodos anteriores excluidos</p>}
+                                    </td>
                                     <td className="px-5 py-3.5">
                                         <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
                                             style={regla.activa

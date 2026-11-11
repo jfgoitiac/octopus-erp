@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import axiosInstance from '../api/apiClient';
 import { toast } from 'react-toastify';
+import { format } from 'date-fns';
 
 const normalizeList = (data) =>
     Array.isArray(data) ? data : (data?.results ?? []);
@@ -18,6 +19,7 @@ const FORM_INICIAL = {
     dias_desde_vencimiento: '',
     frecuencia_recargo: 'unico',
     cada_dias: '',
+    vigente_desde: format(new Date(), 'yyyy-MM-dd'),
     activa: true,
 };
 
@@ -35,6 +37,7 @@ const construirPayload = (form) => {
         tipo: form.tipo,
         activa: form.activa,
         valor: form.valor,
+        vigente_desde: form.vigente_desde,
     };
     if (form.tipo === 'descuento') {
         return { ...base, modo_calculo: 'monto_fijo_usd', dia_desde: form.dia_desde, dia_hasta: form.dia_hasta };
@@ -100,6 +103,7 @@ export function useReglasRecargoPago() {
             dias_desde_vencimiento: regla.dias_desde_vencimiento ?? '',
             frecuencia_recargo: regla.frecuencia_recargo || 'unico',
             cada_dias: regla.cada_dias ?? '',
+            vigente_desde: regla.vigente_desde || format(new Date(), 'yyyy-MM-dd'),
             activa: regla.activa,
         });
         setShowReglaRecargoPagoModal(true);

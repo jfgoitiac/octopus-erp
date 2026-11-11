@@ -1,10 +1,34 @@
 import { Loader2, Save } from 'lucide-react';
+import { format, isValid, lastDayOfMonth, parseISO, setDate, startOfMonth, subMonths } from 'date-fns';
+import { es } from 'date-fns/locale/es';
+import DatePickerES from '../DatePickerES';
 import { Modal } from '../ui/Modal';
 
 const inputStyle = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' };
 const labelStyle = { color: 'var(--ash)' };
 
 const MONTO_EJEMPLO = 32;
+
+const calcularVistaVigencia = (form) => {
+    if (!form.vigente_desde) return null;
+    const vigencia = parseISO(form.vigente_desde);
+    if (!isValid(vigencia)) return null;
+    const anterior = subMonths(vigencia, 1);
+    let primera = null;
+    if (form.ancla_recargo === 'dia_mes') {
+        const dia = Number(form.dia_aplicacion);
+        if (dia > 0) {
+            const calculada = setDate(startOfMonth(vigencia), Math.min(dia, lastDayOfMonth(vigencia).getDate()));
+            primera = calculada > vigencia ? calculada : vigencia;
+        }
+    }
+    return {
+        anterior: format(anterior, 'MMMM yyyy', { locale: es }),
+        mesVigente: format(vigencia, 'MMMM yyyy', { locale: es }),
+        vigencia: format(vigencia, "d 'de' MMMM 'de' yyyy", { locale: es }),
+        primera: primera ? format(primera, "d 'de' MMMM 'de' yyyy", { locale: es }) : null,
+    };
+};
 
 /**
  * Calcula la previsualización en vivo del recargo, 100% en el cliente,
@@ -62,6 +86,7 @@ export default function ModalReglaRecargoPago({
     const esDescuento = form.tipo === 'descuento';
     const ejemploRecargo = !esDescuento ? calcularEjemploRecargo(form) : null;
     const ejemploDescuento = esDescuento ? calcularEjemploDescuento(form) : null;
+    const vistaVigencia = !esDescuento ? calcularVistaVigencia(form) : null;
 
     return (
         <Modal
@@ -133,6 +158,22 @@ export default function ModalReglaRecargoPago({
                             </select>
                         </div>
                     )}
+
+                    <div className="sm:col-span-2">
+                        <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={labelStyle}>Vigente desde *</label>
+                        <DatePickerES
+                            value={form.vigente_desde}
+                            onChange={e => setForm(p => ({ ...p, vigente_desde: e.target.value }))}
+                            className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                            style={inputStyle}
+                            required
+                        />
+                        {!esDescuento && (
+                            <p className="text-[11px] mt-1" style={{ color: 'var(--ash)' }}>
+                                Las mensualidades de meses anteriores quedan excluidas, aunque sigan pendientes.
+                            </p>
+                        )}
+                    </div>
 
                     {!esDescuento && (
                         <div>
@@ -229,6 +270,18 @@ export default function ModalReglaRecargoPago({
                         )
                     ) : ejemploRecargo ? (
                         <div className="space-y-1.5 text-sm">
+                            {vistaVigencia && (
+                                <>
+                                    <p style={{ color: 'var(--ash)' }}>
+                                        {vistaVigencia.anterior} queda excluido. {vistaVigencia.mesVigente} es el primer período elegible.
+                                    </p>
+                                    <p style={{ color: 'var(--jet)' }}>
+                                        Primera fecha efectiva: <span className="font-semibold">
+                                            {vistaVigencia.primera || `la fecha programada, nunca antes del ${vistaVigencia.vigencia}`}
+                                        </span>.
+                                    </p>
+                                </>
+                            )}
                             <p style={{ color: 'var(--jet)' }}>
                                 Una mensualidad de ${MONTO_EJEMPLO.toFixed(2)} pagada el día {ejemploRecargo.diaSinRecargo} → <span className="font-semibold">${ejemploRecargo.montoSinRecargo}</span> (sin recargo)
                             </p>
