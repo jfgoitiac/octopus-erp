@@ -3900,8 +3900,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/pos/CarritoVenta.jsx": {
-    "mtime": 1794327537.033027,
-    "ast_hash": "0b26258bdf4af9f8d572b8030fe984a7",
+    "mtime": 1794409131.0129304,
+    "ast_hash": "517c4744ce32c43eb0ee8e063a5c3395",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/pos/ResumenCobro.jsx": {
@@ -9128,6 +9128,11 @@
   "octopus-frontend/src/components/cantina/cxc/PagarConTarjetaModal.jsx": {
     "mtime": 1794328260.6838737,
     "ast_hash": "47181576a80e083a3aa325b277474a16",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/cantina/pos/CarritoVenta.test.jsx": {
+    "mtime": 1794409131.0112748,
+    "ast_hash": "0f9827d26570408e0ee8c7d11033f91b",
     "semantic_hash": ""
   }
 }
