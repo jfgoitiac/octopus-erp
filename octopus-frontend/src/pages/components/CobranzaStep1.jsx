@@ -3,6 +3,9 @@ import DecimalInput from '../../components/DecimalInput';
 import { fmt } from '../../utils/formato';
 import { Bone } from '../../components/shared/Skeleton.jsx';
 import { Card } from '../../components/ui/Card';
+import { Link } from 'react-router-dom';
+import { format, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 /** Alterna la selección de todos los ids de una lista contra un array `selected*`,
  * invocando el toggle existente solo para los ids que falten (o sobren). */
@@ -47,6 +50,7 @@ const BloqueDeudaAlumno = ({
     const mensualidadesFuturas    = datos.mensualidades_futuras || [];
     const cuotasInscripcion       = datos.cuotas_inscripcion_pendientes || [];
     const cuotasSolvencia         = datos.cuotas_solvencia_pendientes || [];
+    const penalidades = datos.penalidades_convenio || [];
     const selectedMens            = sel?.selectedMens || [];
     const selectedCuotas          = sel?.selectedCuotas || [];
     const selectedSolvencias      = sel?.selectedSolvencias || [];
@@ -239,6 +243,25 @@ const BloqueDeudaAlumno = ({
                         })}
                     </div>
                 </div>
+            )}
+
+            {penalidades.length > 0 && (
+                <section aria-label="Penalidades de convenios" className="space-y-3 rounded-xl border border-[var(--border-md)] bg-white p-3">
+                    <h3 className="text-sm font-semibold text-[var(--jet)]">Penalidades de convenios</h3>
+                    <ul className="space-y-3">
+                        {penalidades.map(p => (
+                            <li key={p.id} className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+                                <div className="min-w-0 break-words">
+                                    <p className="text-sm text-[var(--jet)]">{p.descripcion}</p>
+                                    <p className="text-xs text-[var(--jet-mid)]">{p.fecha_programada ? format(parseISO(p.fecha_programada), "d 'de' MMM yyyy", { locale: es }) : ''}</p>
+                                </div>
+                                <p className="shrink-0 text-sm font-semibold tabular-nums text-[var(--red)]">USD {fmt(p.monto_usd)}</p>
+                            </li>
+                        ))}
+                    </ul>
+                    <p className="text-xs text-[var(--jet-mid)]">Se cobran por separado de las mensualidades. Registra el pago con concepto Multa y aplica el recibo desde Convenios.</p>
+                    <Link to="/cobranza/inteligente/gestion?tab=convenios" className="inline-flex min-h-11 items-center text-sm font-semibold text-[var(--pb)] underline underline-offset-4">Ir a Convenios</Link>
+                </section>
             )}
 
             {/* Mensualidades */}

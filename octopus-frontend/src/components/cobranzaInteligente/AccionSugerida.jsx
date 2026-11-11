@@ -2,7 +2,7 @@ import { Phone, Handshake, ReceiptText, PhoneOff, Lightbulb, Reply } from 'lucid
 import WhatsAppIcon from '../ui/WhatsAppIcon';
 
 const ICONOS = {
-    revisar_pago: ReceiptText, renegociar: Handshake, ofrecer_convenio: Handshake,
+    revisar_pago: ReceiptText, renegociar: Handshake, ofrecer_convenio: Handshake, ver_convenios: Handshake,
     verificar_contacto: PhoneOff, llamar: Phone, responder: Reply,
 };
 

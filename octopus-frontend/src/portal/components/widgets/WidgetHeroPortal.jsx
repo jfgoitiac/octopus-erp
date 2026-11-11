@@ -43,7 +43,7 @@ const WidgetHeroPortal = ({ nombre, resumen, logoColegio, variosAlumnos = false,
           ) : (
             <div className={tarjeta}>
               {contenidoDeuda}
-              <span className="mt-3 block text-sm text-[var(--portal-muted)]">Tus comprobantes están en revisión.</span>
+              <span className="mt-3 block text-sm text-[var(--portal-muted)]">{(resumen?.penalidades_convenio?.length || resumen?.otros_conceptos_pendientes?.length) ? 'Consulta el detalle y coordina estos conceptos con administración.' : 'Tus comprobantes están en revisión.'}</span>
             </div>
           )
         ) : (

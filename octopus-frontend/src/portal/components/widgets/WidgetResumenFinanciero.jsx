@@ -2,7 +2,7 @@ import { AlertTriangle, CheckCircle } from 'lucide-react';
 import SkeletonCard from '../SkeletonCard';
 import MontoRef, { NotaTasaBcv } from '../MontoRef';
 import { fmtMonto } from '../../utils/montos';
-import { textoVencimiento } from '../../utils/fechas';
+import { fmtFecha, textoVencimiento } from '../../utils/fechas';
 import { ESTATUS_COMPROBANTE } from '../../utils/estados';
 import EstadoBadge from '../EstadoBadge';
 
@@ -37,7 +37,10 @@ const WidgetResumenFinanciero = ({ resumen, tieneDeuda, loading, onPagar, varios
   const mensualidades = (resumen.mensualidades_vencidas || []).filter(
     (mensualidad) => alumnoId === null || String(mensualidad.alumno_id) === String(alumnoId),
   );
-  const otrosConceptos = (resumen.otros_conceptos_pendientes || []).filter(
+  const otrosConceptos = [
+    ...(resumen.otros_conceptos_pendientes || []),
+    ...(resumen.penalidades_convenio || []),
+  ].filter(
     (concepto) => alumnoId === null || String(concepto.alumno_id) === String(alumnoId),
   );
   const cantidadPendientes = mensualidades.length + otrosConceptos.length;
@@ -117,12 +120,13 @@ const WidgetResumenFinanciero = ({ resumen, tieneDeuda, loading, onPagar, varios
       {otrosConceptos.length > 0 && (
         <div className="space-y-2.5 mt-2.5">
           {otrosConceptos.map((c) => (
-            <div key={`${c.tipo}-${c.id}`} className="flex items-center justify-between gap-3 bg-[var(--portal-canvas)] rounded-[var(--portal-radius-sm)] px-4 py-3.5">
-              <div className="min-w-0">
+            <div key={`${c.tipo}-${c.id}`} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3 bg-[var(--portal-canvas)] rounded-[var(--portal-radius-sm)] px-4 py-3.5">
+              <div className="min-w-0 break-words">
                 <p className="text-sm font-semibold text-[var(--portal-ink)]">{c.concepto}</p>
                 <p className="text-xs text-[var(--ash)]">
                   {c.alumno_nombre || 'Aplica a toda la familia'}
                 </p>
+                {c.tipo === 'recargo_convenio' && <p className="mt-1 text-xs text-[var(--portal-muted)]">Generada el {fmtFecha(c.fecha_programada)} · Incluida en tu saldo pendiente.</p>}
               </div>
               <MontoRef usd={c.monto_usd} tasaBcv={tasaBcv} className="flex-shrink-0" />
             </div>

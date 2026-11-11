@@ -77,7 +77,8 @@ export function ModalAccion({ fila, onClose, onHecho, accionInicial = 'llamada' 
 
 /* ── Convenio de pago ── */
 export function ModalConvenio({ fila, onClose, onHecho }) {
-    const [cuotas, setCuotas] = useState([{ fecha: '', monto: fila.saldo_total_usd }]);
+    const saldoConvenio = fila.saldo_principal_usd ?? fila.saldo_total_usd;
+    const [cuotas, setCuotas] = useState([{ fecha: '', monto: saldoConvenio }]);
     const [condiciones, setCondiciones] = useState({
         exonera_recargos_durante_vigencia: false,
         aplicar_recargo_incumplimiento: false,
@@ -124,7 +125,7 @@ export function ModalConvenio({ fila, onClose, onHecho }) {
             footer={
                 <Botones guardando={guardando} onCancelar={onClose} onConfirmar={crear}
                     deshabilitado={cuotas.some(c => !c.fecha)
-                        || Math.abs(suma - parseFloat(fila.saldo_total_usd)) > 0.01
+                        || Math.abs(suma - parseFloat(saldoConvenio)) > 0.01
                         || (condiciones.aplicar_recargo_incumplimiento && valorRecargo <= 0)}>
                     Crear convenio
                 </Botones>
@@ -132,7 +133,7 @@ export function ModalConvenio({ fila, onClose, onHecho }) {
         >
             <div className="space-y-3 text-sm">
                 <p style={{ color: 'var(--ash)' }}>
-                    Saldo a cubrir: <strong>${fila.saldo_total_usd}</strong>. Mientras el convenio esté vigente,
+                    Principal a cubrir: <strong>${saldoConvenio}</strong>. Mientras el convenio esté vigente,
                     se pausa el seguimiento; si una cuota se incumple, el caso vuelve a la bandeja.
                 </p>
                 {cuotas.map((c, i) => (
@@ -153,7 +154,7 @@ export function ModalConvenio({ fila, onClose, onHecho }) {
                     onClick={() => setCuotas(cs => [...cs, { fecha: '', monto: '' }])}>
                     <Plus size={16} />Agregar cuota
                 </button>
-                <p style={{ color: Math.abs(suma - parseFloat(fila.saldo_total_usd)) > 0.01 ? 'var(--red)' : 'var(--green)' }}>
+                <p style={{ color: Math.abs(suma - parseFloat(saldoConvenio)) > 0.01 ? 'var(--red)' : 'var(--green)' }}>
                     Suma de cuotas: ${suma.toFixed(2)}
                 </p>
 

@@ -149,6 +149,9 @@ export const crearConvenioInteligente = (datos) =>
 export const pagarCuotaConvenio = (cuotaId) =>
     apiClient.post(`${BASE_INT}/convenios/cuotas/${cuotaId}/pagar/`);
 
+export const aplicarPagoRecargoConvenio = (recargoId, pagoId) =>
+    apiClient.post(`${BASE_INT}/convenios/recargos/${recargoId}/pagar/`, { pago_id: pagoId });
+
 export const cancelarConvenioInteligente = (convenioId) =>
     apiClient.post(`${BASE_INT}/convenios/${convenioId}/cancelar/`);
 

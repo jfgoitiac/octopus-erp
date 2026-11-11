@@ -12,6 +12,7 @@ const FiltroDeudaEstudiante = ({ alumnos = [], resumen, alumnoId, onChange }) =>
   const pendientesPorAlumno = [
     ...(resumen?.mensualidades_vencidas || []),
     ...(resumen?.otros_conceptos_pendientes || []),
+    ...(resumen?.penalidades_convenio || []),
   ].reduce((acumulado, concepto) => {
     if (concepto.alumno_id == null) return acumulado;
     const id = String(concepto.alumno_id);

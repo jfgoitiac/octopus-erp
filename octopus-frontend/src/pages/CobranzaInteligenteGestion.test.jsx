@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import CobranzaInteligenteGestion from './CobranzaInteligenteGestion';
 
 const m = vi.hoisted(() => ({
-    bandeja: vi.fn(), accion: vi.fn(), pagos: vi.fn(), convenios: vi.fn(), crear: vi.fn(), detener: vi.fn(),
+    bandeja: vi.fn(), accion: vi.fn(), pagos: vi.fn(), convenios: vi.fn(), crear: vi.fn(), detener: vi.fn(), aplicar: vi.fn(),
 }));
 
 vi.mock('../api/cobranza.service', () => ({
@@ -17,6 +17,7 @@ vi.mock('../api/cobranza.service', () => ({
     pagarCuotaConvenio: vi.fn(),
     cancelarConvenioInteligente: vi.fn(),
     detenerRecargosConvenioInteligente: (...a) => m.detener(...a),
+    aplicarPagoRecargoConvenio: (...a) => m.aplicar(...a),
 }));
 vi.mock('../context/SedeContext', () => ({ useSede: () => ({ sedeActiva: { id: 1 }, sedes: [{ id: 1 }] }) }));
 vi.mock('react-toastify', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
@@ -29,6 +30,26 @@ const fila = {
 
 describe('CobranzaInteligenteGestion', () => {
     beforeEach(() => Object.values(m).forEach(f => f.mockReset()));
+
+    it('aplica un ingreso de caja a una penalidad y conserva el modal si la API falla', async () => {
+        m.bandeja.mockResolvedValue({ data: { results: [] } });
+        m.convenios.mockResolvedValue({ data: { results: [{
+            id: 9, estado: 'incumplido', cuotas: [], total_recargos_pendientes_usd: '5.00',
+            recargos: [{ id: 33, numero_periodo: 1, fecha_programada: '2026-07-20', saldo_base_usd: '50.00', monto_recargo_usd: '5.00', estado: 'pendiente' }],
+        }] } });
+        m.aplicar.mockRejectedValueOnce({ response: { data: { detail: 'Importe incorrecto' } } }).mockResolvedValueOnce({});
+        render(<CobranzaInteligenteGestion />, { wrapper: MemoryRouter });
+        await userEvent.click(screen.getByRole('tab', { name: 'Convenios' }));
+        await userEvent.click(await screen.findByRole('button', { name: 'Aplicar pago de caja' }));
+        const confirmar = screen.getByRole('button', { name: 'Aplicar pago', exact: true });
+        expect(confirmar).toBeDisabled();
+        await userEvent.type(screen.getByLabelText('ID del pago de caja'), '123');
+        await userEvent.click(confirmar);
+        await waitFor(() => expect(m.aplicar).toHaveBeenCalledWith(33, '123'));
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Aplicar pago', exact: true }));
+        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    });
 
     it('muestra el puntaje con sus razones', async () => {
         m.bandeja.mockResolvedValue({ data: { count: 1, results: [fila] } });
@@ -55,7 +76,7 @@ describe('CobranzaInteligenteGestion', () => {
     });
 
     it('el convenio parte con una cuota igual al saldo', async () => {
-        m.bandeja.mockResolvedValue({ data: { count: 1, results: [fila] } });
+        m.bandeja.mockResolvedValue({ data: { count: 1, results: [{ ...fila, saldo_total_usd: '65.00', saldo_principal_usd: '50.00' }] } });
         m.crear.mockResolvedValue({});
         render(<CobranzaInteligenteGestion />, { wrapper: MemoryRouter });
         await userEvent.click(await screen.findByText('Crear convenio'));

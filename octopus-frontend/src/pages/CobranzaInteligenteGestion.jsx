@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { format, parseISO, isBefore, startOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'react-toastify';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
     Sparkles, ChevronLeft, MessagesSquare, UserCheck, Inbox, Wallet, Clock, Search, PartyPopper, PowerOff,
     ReceiptText, Handshake, ClipboardPen, CheckCircle2, AlertCircle, Circle, FileImage, BadgeDollarSign, CalendarClock,
@@ -13,10 +13,11 @@ import AccionSugerida from '../components/cobranzaInteligente/AccionSugerida';
 import { nivel, etapaDe, ETAPAS_CICLO } from '../components/cobranzaInteligente/prioridad';
 import { useAccionesCaso } from '../hooks/useAccionesCaso';
 import { PageHeader } from '../components/ui/PageHeader';
+import { Modal } from '../components/ui/Modal';
 import { useCargaInteligente, mensajeErrorInteligente } from '../hooks/useCargaInteligente';
 import {
     getBandejaInteligente, getPagosRevisionInteligente, getConveniosInteligente,
-    pagarCuotaConvenio, cancelarConvenioInteligente, detenerRecargosConvenioInteligente,
+    pagarCuotaConvenio, cancelarConvenioInteligente, detenerRecargosConvenioInteligente, aplicarPagoRecargoConvenio,
 } from '../api/cobranza.service';
 import { fmt } from '../utils/format';
 
@@ -130,6 +131,7 @@ function Dato({ icono: Icono, children, color = 'var(--jet-mid)' }) {
 
 function TarjetaCaso({ f, ejecutar }) {
     const n = nivel(f.puntaje);
+    const cantidadDeudas = f.ciclos.length + (f.penalidades_convenio?.length || 0);
     const etapa = etapaDe(f.estados);
     const { nombre, apellido } = partes(f.representante.nombre);
     return (
@@ -164,9 +166,15 @@ function TarjetaCaso({ f, ejecutar }) {
             <div className="flex flex-wrap gap-x-4 gap-y-1.5">
                 <Dato icono={Wallet} color="var(--jet)"><strong className="font-semibold">${fmt(f.saldo_total_usd, 2)}</strong></Dato>
                 <Dato icono={Clock} color={f.dias_mora_max > 15 ? 'var(--red)' : 'var(--jet-mid)'}>{f.dias_mora_max} días de mora</Dato>
-                <Dato icono={ReceiptText}>{f.ciclos.length} {f.ciclos.length === 1 ? 'deuda' : 'deudas'}</Dato>
+                <Dato icono={ReceiptText}>{cantidadDeudas} {cantidadDeudas === 1 ? 'deuda' : 'deudas'}</Dato>
                 {f.responsable && !f.gestion_humana && <Dato icono={UserCheck}>{f.responsable}</Dato>}
             </div>
+
+            {Number(f.total_penalidades_convenio_usd) > 0 && (
+                <p className="text-xs break-words" style={{ color: 'var(--jet-mid)' }}>
+                    Principal ${fmt(f.saldo_principal_usd, 2)} · Recargos normales ${fmt(f.total_recargos_normales_usd, 2)} · Penalidades ${fmt(f.total_penalidades_convenio_usd, 2)}
+                </p>
+            )}
 
             <BarraRazones razones={f.razones} puntaje={f.puntaje} color={n.color} />
 
@@ -252,7 +260,7 @@ function Bandeja() {
     }
 
     const moraMax = Math.max(...filas.map(f => f.dias_mora_max));
-    const deudas = filas.reduce((s, f) => s + f.ciclos.length, 0);
+    const deudas = filas.reduce((s, f) => s + f.ciclos.length + (f.penalidades_convenio?.length || 0), 0);
 
     return (
         <div className="space-y-3 sm:space-y-4">
@@ -347,13 +355,30 @@ function PagosRevision() {
 
 /* ── Convenios ── */
 function TarjetaConvenio({ c, ejecutar }) {
+    const [recargoPago, setRecargoPago] = useState(null);
+    const [pagoId, setPagoId] = useState('');
+    const [aplicando, setAplicando] = useState(false);
+    const aplicar = async (event) => {
+        event.preventDefault();
+        if (aplicando || !/^\d+$/.test(pagoId)) return;
+        setAplicando(true);
+        try {
+            await aplicarPagoRecargoConvenio(recargoPago.id, pagoId);
+            setRecargoPago(null);
+            await ejecutar(async () => {}, 'Pago aplicado a la penalidad');
+        } catch (error) {
+            toast.error(mensajeErrorInteligente(error));
+        } finally {
+            setAplicando(false);
+        }
+    };
     const estado = ESTADO_CONVENIO[c.estado] ?? ESTADO_CONVENIO.cancelado;
     const pagadas = c.cuotas.filter(q => q.pagada);
     const total = suma(c.cuotas, 'monto_usd');
     const cobrado = suma(pagadas, 'monto_usd');
     const hoy = startOfDay(new Date());
     const vigente = c.estado === 'vigente';
-    const permitePagoCuotas = vigente || c.estado === 'incumplido';
+    const permitePagoCuotas = !c.reemplazado_por && (vigente || c.estado === 'incumplido');
     const recargos = c.recargos ?? [];
     const valorRecargo = c.modo_recargo === 'porcentaje' ? `${fmt(c.valor_recargo, 2)}%` : `$${fmt(c.valor_recargo, 2)}`;
     return (
@@ -440,8 +465,14 @@ function TarjetaConvenio({ c, ejecutar }) {
                     <ol className="space-y-1.5">
                         {recargos.map(r => (
                             <li key={r.id} className="rounded-lg px-3 py-2 text-xs flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between" style={{ border: '1px solid var(--border)' }}>
-                                <span>Período {r.numero_periodo} · {fecha(r.fecha_programada)} · base ${fmt(r.saldo_base_usd, 2)}</span>
-                                <strong className="tabular-nums" style={{ color: 'var(--red)' }}>${fmt(r.monto_recargo_usd, 2)}</strong>
+                                <span className="min-w-0">Período {r.numero_periodo} · {fecha(r.fecha_programada)} · base ${fmt(r.saldo_base_usd, 2)} · {r.estado === 'pagado' ? 'Pagado' : r.estado === 'anulado' ? 'Anulado' : 'Pendiente'}</span>
+                                <strong className="tabular-nums" style={{ color: r.estado === 'pagado' ? 'var(--green)' : 'var(--red)' }}>${fmt(r.monto_recargo_usd, 2)}</strong>
+                                {r.estado === 'pendiente' && (
+                                    <button type="button" className="btn btn-secondary btn-sm w-full sm:w-auto"
+                                        onClick={() => { setPagoId(''); setRecargoPago(r); }}>
+                                        Aplicar pago de caja
+                                    </button>
+                                )}
                             </li>
                         ))}
                     </ol>
@@ -467,6 +498,19 @@ function TarjetaConvenio({ c, ejecutar }) {
                     </button>
                 )}
             </div>
+            <Modal open={!!recargoPago} onClose={() => { if (!aplicando) setRecargoPago(null); }}
+                titulo="Aplicar pago a la penalidad" size="sm" bodyClassName="p-4 sm:p-5"
+                footer={<>
+                    <button type="button" className="btn btn-secondary w-full sm:w-auto" disabled={aplicando} onClick={() => setRecargoPago(null)}>Cancelar</button>
+                    <button type="submit" form={`pago-recargo-${c.id}`} className="btn btn-primary w-full sm:w-auto" disabled={aplicando || !/^\d+$/.test(pagoId)}>{aplicando ? 'Aplicando…' : 'Aplicar pago'}</button>
+                </>}>
+                <form id={`pago-recargo-${c.id}`} onSubmit={aplicar} className="space-y-4">
+                    <p className="text-sm" style={{ color: 'var(--jet)' }}>Registra primero en caja un pago con concepto Multa por <strong>${fmt(recargoPago?.monto_recargo_usd || 0, 2)}</strong> y luego indica su ID. El importe debe coincidir exactamente con esta penalidad.</p>
+                    <label className="block text-sm font-medium" htmlFor={`pago-id-${c.id}`}>ID del pago de caja</label>
+                    <input id={`pago-id-${c.id}`} className="input w-full text-base" type="text" inputMode="numeric" pattern="[0-9]+" maxLength={18}
+                        required autoComplete="off" value={pagoId} disabled={aplicando} onChange={e => setPagoId(e.target.value)} />
+                </form>
+            </Modal>
         </article>
     );
 }
@@ -515,7 +559,13 @@ const PESTANAS = [
 ];
 
 const CobranzaInteligenteGestion = () => {
-    const [activa, setActiva] = useState('bandeja');
+    const [parametros, setParametros] = useSearchParams();
+    const activa = PESTANAS.some(p => p.id === parametros.get('tab')) ? parametros.get('tab') : 'bandeja';
+    const setActiva = (tab) => setParametros(previos => {
+        const nuevos = new URLSearchParams(previos);
+        nuevos.set('tab', tab);
+        return nuevos;
+    }, { replace: true });
     const { Vista } = PESTANAS.find(p => p.id === activa);
     return (
         <div className="w-full max-w-6xl mx-auto space-y-4 sm:space-y-5 pb-20">
