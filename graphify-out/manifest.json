@@ -3850,8 +3850,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/cantina/pages/CantinaPOS.jsx": {
-    "mtime": 1794570831.2669168,
-    "ast_hash": "7ed8f31e81702c4e6bd7811a4003e153",
+    "mtime": 1794572694.4688659,
+    "ast_hash": "7834f2841878d4981e233c808e2c61d2",
     "semantic_hash": ""
   },
   "octopus-frontend/src/cantina/pages/CantinaReportes.jsx": {
@@ -3900,8 +3900,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/pos/CarritoVenta.jsx": {
-    "mtime": 1794409131.0129304,
-    "ast_hash": "517c4744ce32c43eb0ee8e063a5c3395",
+    "mtime": 1794572694.4708843,
+    "ast_hash": "8b055f7d5f3a9b82a8fe596508181612",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/pos/ResumenCobro.jsx": {
