@@ -36,6 +36,7 @@ import DescuentoVenta from '../../components/cantina/pos/DescuentoVenta';
 import { Modal } from '../../components/ui/Modal';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { guardarCachePos, leerCachePos, valorCachePos } from '../posCache';
+import { suscribirTasaCantinaCambiada } from '../tasaCantinaEvento';
 
 // Origen de la venta (D2, CONTRATO_AUDITORIA_CANTINA.md §8): cada línea del
 // carrito recuerda por dónde entró ('escaner' = ScannerProducto; 'manual' =
@@ -190,6 +191,11 @@ export default function CantinaPOS() {
     })();
     return () => controller.abort();
   }, []);
+
+  useEffect(() => suscribirTasaCantinaCambiada((detalle) => {
+    const vigente = Number(detalle?.valor_bs) || 0;
+    setTasaVigente(vigente);
+  }), []);
 
   // Mostrar primero el catálogo local del área y actualizarlo en segundo plano.
   const areaCaja = apertura?.area ?? null;

@@ -116,11 +116,20 @@ export const getTarjetas = (params, signal) =>
 export const getBancosCantina = (signal) =>
   cantinaApiClient.get('bancos/', { signal });
 
-// Tasa BCV que Cantina aplica hoy, la misma de cobranza (TasaVigenteCantinaView):
-// { valor_bs, fecha, vigente_desde, fuente }. Sirve para convertir en pantalla
-// un monto en VES a USD; el backend recalcula con su propia tasa al guardar.
+// Tasa que Cantina aplica hoy. El backend conserva la autoridad sobre el
+// valor, la fuente y el permiso para cambiarla; las pantallas solo usan este
+// contrato para mostrar equivalencias.
 export const getTasaVigenteCantina = (signal) =>
   cantinaApiClient.get('tasa-vigente/', { signal });
+
+// Activa o actualiza la tasa propia de Cantina. Cada cambio agrega una fila al
+// historial inmutable del backend.
+export const activarTasaPersonalizadaCantina = (payload, signal) =>
+  cantinaApiClient.post('tasa/', payload, { signal });
+
+// Desactiva el modo personalizado y devuelve Cantina a la BCV vigente.
+export const restablecerTasaBcvCantina = (signal) =>
+  cantinaApiClient.post('tasa/restablecer-bcv/', {}, { signal });
 
 // Recarga en caja (efectivo o transferencia/pago móvil/zelle presencial),
 // aprobada al instante — NO pasa por el estado 'pendiente' (RecargarTarjetaCajeroView).

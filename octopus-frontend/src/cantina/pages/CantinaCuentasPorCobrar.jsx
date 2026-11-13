@@ -10,6 +10,7 @@ import ClienteFormModal from '../../components/cantina/cxc/ClienteFormModal';
 import {
   ROLES_ADMIN_CANTINA, listaDe, num, esCancelacion, mensajeError, descargarBlob,
 } from '../../components/cantina/cxc/utilsCxc';
+import { suscribirTasaCantinaCambiada } from '../tasaCantinaEvento';
 
 const AREAS = [
   { value: '', label: 'Todas las áreas' },
@@ -55,6 +56,10 @@ export default function CantinaCuentasPorCobrar() {
       });
     return () => controller.abort();
   }, []);
+
+  useEffect(() => suscribirTasaCantinaCambiada((detalle) => {
+    setTasa(num(detalle?.valor_bs));
+  }), []);
 
   const claveFiltros = `${area}|${tipo}|${soloDeuda}|${pagina}`;
   const cargando = cargadoPara !== claveFiltros;
