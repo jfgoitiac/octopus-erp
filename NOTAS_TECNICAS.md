@@ -4533,3 +4533,20 @@ tasa). Deuda nueva (solo anotada):
 7. **El e2e `portal-finanzas-cantina.spec.js` responde `{}` con 200 a cualquier
    ruta no mockeada**, lo que puede ocultar llamadas rotas, y no revisa errores
    de consola.
+
+## Tasa personalizada de Cantina (2026-11-13)
+
+1. **La infraestructura quedó parcialmente dormida**: el modelo append-only
+   `cantina.TasaCantina`, su migración y el permiso
+   `PerfilUsuario.puede_gestionar_tasa_cantina` permanecieron en el esquema,
+   pero el endpoint de escritura fue retirado y `tasa_cantina_activa()` pasó a
+   ignorar el historial propio para usar siempre `cobranza.TasaCambio`. Esta
+   divergencia entre esquema y comportamiento hizo que pareciera existir una
+   capacidad que ya no estaba disponible. La reactivación debe conservar una
+   única función como fuente de verdad y pruebas que cubran ambos modos.
+2. **El permiso delegado no forma parte del JWT administrativo**: el token solo
+   contiene identidad y rol. Para no duplicar autorización en el cliente, la
+   interfaz de Cantina debe usar el indicador `puede_gestionar` devuelto por el
+   endpoint de tasa, mientras el backend mantiene la validación autoritativa.
+   Si otras pantallas necesitan este permiso en el futuro, conviene definir un
+   contrato común de capacidades en vez de seguir agregando claims al token.
