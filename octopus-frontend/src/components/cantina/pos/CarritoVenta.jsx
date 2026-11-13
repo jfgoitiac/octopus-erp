@@ -60,7 +60,7 @@ export default function CarritoVenta({
     <div
       className={embebido
         ? 'flex flex-col bg-[var(--surface)] overflow-hidden'
-        : 'flex flex-col lg:h-full lg:overflow-y-auto rounded-2xl bg-[var(--surface)] overflow-hidden'}
+        : 'flex flex-col lg:h-full rounded-2xl bg-[var(--surface)] overflow-hidden'}
       style={embebido ? undefined : { border: '0.5px solid var(--border-md)' }}
     >
       {!embebido && (
@@ -80,7 +80,8 @@ export default function CarritoVenta({
         </div>
       )}
 
-      <div className="flex-1 px-3 sm:px-4 py-3 space-y-2 min-h-[132px]" style={{ background: 'var(--surface-sunken)' }}>
+      <div className="scroll-fino scroll-fino-y min-h-0 flex-1 overflow-y-auto overscroll-contain" tabIndex={0} aria-label="Contenido del carrito">
+      <div className="px-3 sm:px-4 py-3 space-y-2 min-h-[132px]" style={{ background: 'var(--surface-sunken)' }}>
         {items.length === 0 ? (
           <div className="min-h-[116px] flex flex-col items-center justify-center text-center px-4 py-6">
             <span className="w-11 h-11 rounded-full flex items-center justify-center mb-3" style={{ background: 'var(--surface)', color: 'var(--ash)', border: '0.5px solid var(--border-md)' }}>
@@ -219,6 +220,7 @@ export default function CarritoVenta({
         </section>
 
         {children}
+      </div>
       </div>
 
       <div

@@ -795,18 +795,31 @@ export default function CantinaPOS() {
             />
           )}
 
-          <div className="lg:flex-1 lg:overflow-y-auto rounded-2xl p-3" style={{ border: '0.5px solid var(--border-md)', background: '#fff' }}>
-            <p className="text-xs uppercase tracking-widest mb-2 flex items-center gap-1.5" style={{ color: 'var(--ash)' }}>
+          <section
+            className="flex min-h-[18rem] flex-col overflow-hidden rounded-2xl bg-[var(--surface)] lg:min-h-0 lg:flex-1"
+            style={{ border: '0.5px solid var(--border-md)' }}
+            aria-labelledby="catalogo-productos-titulo"
+          >
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--border)] px-3 py-2.5 sm:px-4">
+              <p id="catalogo-productos-titulo" className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: 'var(--jet)' }}>
               <Package size={13} /> Productos
-            </p>
-            {loadingProductos || !areaCaja ? (
-              <SkeletonGrid />
-            ) : productos.length === 0 ? (
-              <p className="text-sm py-8 text-center" style={{ color: 'var(--ash)' }}>No hay productos activos cargados en inventario.</p>
-            ) : (
-              <GrillaProductos productos={productos} onAgregar={agregarManual} />
-            )}
-          </div>
+              </p>
+              {!loadingProductos && areaCaja && (
+                <span className="shrink-0 text-xs tabular-nums text-[var(--ash)]">
+                  {productos.length} producto{productos.length !== 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+            <div className="scroll-fino scroll-fino-y min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4" tabIndex={0}>
+              {loadingProductos || !areaCaja ? (
+                <SkeletonGrid />
+              ) : productos.length === 0 ? (
+                <p className="py-8 text-center text-sm" style={{ color: 'var(--ash)' }}>No hay productos activos cargados en inventario.</p>
+              ) : (
+                <GrillaProductos productos={productos} onAgregar={agregarManual} />
+              )}
+            </div>
+          </section>
         </div>
 
         {/* Columna derecha: carrito (desde lg; debajo vive en el Modal del pie) */}
