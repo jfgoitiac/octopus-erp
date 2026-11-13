@@ -20,7 +20,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from cobranza.exports import ExcelExporter
-from cobranza.models import BancoInstitucional, Pago
+from cobranza.models import BancoInstitucional, Pago, TasaCambio
 from common.busqueda import filtrar_busqueda
 from secretaria.models import Alumno, Representante
 from .mora_cantina import cuentas_cxc_morosas, dias_en_negativo
@@ -40,6 +40,7 @@ from .models import (
     ProductoCantina,
     RecargaTarjeta,
     TarjetaPrepago,
+    TasaCantina,
     VentaCantina,
 )
 from .permissions import EsAdminCantina, EsCajeroOAdmin
@@ -54,6 +55,7 @@ from .serializers import (
     RecargaTarjetaSerializer,
     TarjetaMorosaSerializer,
     TarjetaPrepagoSerializer,
+    TasaCantinaManualSerializer,
     VentaCantinaSerializer,
 )
 from .services_inventario import aplicar_movimiento_inventario
@@ -887,7 +889,7 @@ class BuscarTarjetaView(APIView):
         return Response(TarjetaPrepagoSerializer(tarjeta, context={'request': request}).data)
 
 
-def _tasa_sincronizada():
+def _tasa_bcv_sincronizada():
     """
     Última tasa BCV, sincronizándola si falta o no es de hoy: así no se queda
     atrás aunque Celery esté caído. Si ya es de hoy no se consulta nada. Como un
@@ -896,13 +898,34 @@ def _tasa_sincronizada():
     """
     from cobranza.tasks import sincronizar_tasa_con_blindaje
 
-    tasa = tasa_cantina_activa()
+    tasa = TasaCambio.objects.order_by('-fecha').first()
     if tasa and timezone.localtime(tasa.fecha).date() >= timezone.localdate():
         return tasa
     if tasa is None or cache.add('cantina_tasa_bcv_sincronizada', True, 3600):
         sincronizar_tasa_con_blindaje()
-        tasa = tasa_cantina_activa()
+        tasa = TasaCambio.objects.order_by('-fecha').first()
     return tasa
+
+
+def _puede_gestionar_tasa_cantina(user):
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    try:
+        perfil = user.perfil
+        return perfil.esta_activo and (
+            perfil.rol == 'director' or perfil.puede_gestionar_tasa_cantina
+        )
+    except Exception:
+        return False
+
+
+class PuedeGestionarTasaCantina(permissions.BasePermission):
+    message = 'No tiene permiso para gestionar la tasa de Cantina.'
+
+    def has_permission(self, request, view):
+        return _puede_gestionar_tasa_cantina(request.user)
 
 
 class TasaVigenteCantinaView(APIView):
@@ -914,17 +937,87 @@ class TasaVigenteCantinaView(APIView):
     permission_classes = [permissions.IsAuthenticated, EsCajeroOAdmin]
 
     def get(self, request):
-        tasa = _tasa_sincronizada()
+        tasa_bcv = _tasa_bcv_sincronizada()
+        tasa = tasa_cantina_activa()
         if not tasa:
             return Response(
-                {'detail': 'No se ha registrado ninguna tasa de cambio.'},
+                {
+                    'detail': 'No se ha registrado ninguna tasa de cambio.',
+                    'valor_bs': None,
+                    'fuente': 'bcv',
+                    'personalizada_activa': False,
+                    'tasa_bcv': None,
+                    'puede_gestionar': _puede_gestionar_tasa_cantina(request.user),
+                },
                 status=status.HTTP_404_NOT_FOUND,
+            )
+        personalizada_activa = isinstance(tasa, TasaCantina) and tasa.fuente == 'manual'
+        return Response({
+            'valor_bs': str(tasa.valor_bs),
+            'fecha': tasa.vigente_desde if personalizada_activa else tasa.fecha,
+            'vigente_desde': tasa.vigente_desde if personalizada_activa else tasa.fecha,
+            'fuente': 'manual' if personalizada_activa else 'bcv',
+            'personalizada_activa': personalizada_activa,
+            'tasa_bcv': str(tasa_bcv.valor_bs) if tasa_bcv else None,
+            'motivo': tasa.motivo if personalizada_activa else '',
+            'puede_gestionar': _puede_gestionar_tasa_cantina(request.user),
+        })
+
+
+class TasaCantinaManualView(APIView):
+    """Activa o reemplaza la tasa manual; cada cambio agrega historial."""
+
+    permission_classes = [permissions.IsAuthenticated, PuedeGestionarTasaCantina]
+
+    def post(self, request):
+        serializer = TasaCantinaManualSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            tasa = TasaCantina.objects.create(
+                valor_bs=serializer.validated_data['valor_bs'],
+                motivo=serializer.validated_data['motivo'],
+                fuente='manual',
+                modificado_por=request.user,
             )
         return Response({
             'valor_bs': str(tasa.valor_bs),
-            'fecha': tasa.fecha,
-            'vigente_desde': tasa.fecha,
+            'vigente_desde': tasa.vigente_desde,
+            'fuente': 'manual',
+            'personalizada_activa': True,
+            'tasa_bcv': str(tasa.tasa_bcv_referencia) if tasa.tasa_bcv_referencia is not None else None,
+            'motivo': tasa.motivo,
+            'puede_gestionar': True,
+        }, status=status.HTTP_201_CREATED)
+
+
+class RestablecerTasaBcvCantinaView(APIView):
+    """Desactiva la tasa manual y vuelve a seguir la BCV vigente."""
+
+    permission_classes = [permissions.IsAuthenticated, PuedeGestionarTasaCantina]
+
+    def post(self, request):
+        tasa_bcv = _tasa_bcv_sincronizada()
+        if not tasa_bcv:
+            return Response(
+                {'detail': 'No hay una tasa BCV disponible para restablecer.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        with transaction.atomic():
+            modo = TasaCantina.objects.create(
+                valor_bs=tasa_bcv.valor_bs,
+                motivo='Restablecimiento a tasa BCV',
+                fuente='bcv',
+                modificado_por=request.user,
+            )
+        return Response({
+            'valor_bs': str(tasa_bcv.valor_bs),
+            'fecha': tasa_bcv.fecha,
+            'vigente_desde': modo.vigente_desde,
             'fuente': 'bcv',
+            'personalizada_activa': False,
+            'tasa_bcv': str(tasa_bcv.valor_bs),
+            'motivo': '',
+            'puede_gestionar': True,
         })
 
 

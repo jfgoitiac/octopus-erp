@@ -36,7 +36,9 @@ from .views import (
     ReporteMorosidadView,
     ReporteStockCriticoView,
     ReporteVentasView,
+    RestablecerTasaBcvCantinaView,
     TarjetasListView,
+    TasaCantinaManualView,
     TasaVigenteCantinaView,
 )
 
@@ -72,6 +74,8 @@ urlpatterns = [
     # Fase 3 — Recargas, moneda dual y validación de referencias cruzada (§8 FASE 3 de cantina.md)
     path('bancos/', BancosCantinaView.as_view(), name='cantina-bancos'),
     path('tasa-vigente/', TasaVigenteCantinaView.as_view(), name='cantina-tasa-vigente'),
+    path('tasa/', TasaCantinaManualView.as_view(), name='cantina-tasa-manual'),
+    path('tasa/restablecer-bcv/', RestablecerTasaBcvCantinaView.as_view(), name='cantina-tasa-restablecer-bcv'),
     path('tarjetas/buscar/', BuscarTarjetaView.as_view(), name='cantina-buscar-tarjeta'),
     path('tarjetas/', TarjetasListView.as_view(), name='cantina-tarjetas-lista'),
     path('tarjetas/recargar/', RecargarTarjetaCajeroView.as_view(), name='cantina-recargar-cajero'),

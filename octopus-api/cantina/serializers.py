@@ -60,6 +60,19 @@ class ProductoCantinaSerializer(serializers.ModelSerializer):
         return value
 
 
+class TasaCantinaManualSerializer(serializers.Serializer):
+    """Entrada para activar o reemplazar la tasa manual de Cantina."""
+
+    valor_bs = serializers.DecimalField(
+        max_digits=12, decimal_places=4, min_value=Decimal('0.0001'),
+    )
+    motivo = serializers.CharField(max_length=255, allow_blank=False, trim_whitespace=True)
+
+    def validate_motivo(self, value):
+        if not value.strip():
+            raise serializers.ValidationError('Indique el motivo del cambio de tasa.')
+        return value.strip()
+
 class MovimientoInventarioSerializer(serializers.ModelSerializer):
     """
     Serializer de solo-lectura para exponer el historial de movimientos.

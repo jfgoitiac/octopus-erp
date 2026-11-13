@@ -57,11 +57,20 @@ def generar_pdf_reverso_recarga(recarga):
 
 def tasa_cantina_activa():
     """
-    Tasa que Cantina aplica a ventas, recargas y abonos: la BCV vigente, la
-    misma de cobranza (última `cobranza.TasaCambio`). `None` si no existe ninguna.
+    Fuente única de la tasa aplicada por Cantina.
+
+    La última fila de ``TasaCantina`` funciona como cambio de modo: una fila
+    ``manual`` mantiene ese valor hasta que se agregue una fila ``bcv``. En
+    modo BCV (o cuando nunca se configuró un modo) se usa siempre la última
+    ``cobranza.TasaCambio``, para que las sincronizaciones posteriores se
+    reflejen sin crear filas adicionales en el historial de Cantina.
     """
     from cobranza.models import TasaCambio
+    from .models import TasaCantina
 
+    modo = TasaCantina.objects.order_by('-vigente_desde', '-id').first()
+    if modo and modo.fuente == 'manual':
+        return modo
     return TasaCambio.objects.order_by('-fecha').first()
 
 
