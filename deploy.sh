@@ -103,14 +103,6 @@ for texto in "Escanear producto con cámara" "Escanear tarjeta con cámara"; do
 done
 echo "   ✓ Lector móvil verificado"
 
-echo ""
-echo "▶ Instalando dependencias Node (sitio institucional)..."
-cd "$SITIO"
-npm ci --silent
-
-echo "▶ Compilando sitio institucional..."
-npm run build
-
 # ── 2. Backend — dependencias y migraciones ──────────────────────
 echo ""
 echo "▶ Instalando dependencias Python..."
@@ -139,6 +131,19 @@ fi
 
 echo "▶ Aplicando migraciones..."
 "$VENV/python" "$BACKEND/manage.py" migrate --noinput
+
+# `migrate` puede terminar sin error si se ejecutó contra otra configuración
+# o si una app quedó fuera del despliegue. Bloquear el reinicio cuando Django
+# todavía detecta migraciones pendientes evita servir código que espera columnas
+# nuevas (por ejemplo, tarjeta_origen en los pagos de CxC).
+echo "▶ Verificando que no queden migraciones pendientes..."
+MIGRACIONES_PENDIENTES="$($VENV/python "$BACKEND/manage.py" showmigrations --plan | grep '^\[ \]' || true)"
+if [ -n "$MIGRACIONES_PENDIENTES" ]; then
+    echo "✗ ERROR: quedaron migraciones pendientes después de migrate:" >&2
+    echo "$MIGRACIONES_PENDIENTES" >&2
+    exit 1
+fi
+echo "   ✓ Esquema de base de datos actualizado"
 
 echo "▶ Recolectando archivos estáticos..."
 "$VENV/python" "$BACKEND/manage.py" collectstatic --noinput -v 0
