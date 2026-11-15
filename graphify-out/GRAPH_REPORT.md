@@ -1,16 +1,16 @@
-# Graph Report - Octopus  (2026-11-13)
+# Graph Report - Octopus  (2026-11-14)
 
 ## Corpus Check
-- 1653 files · ~1,459,148 words
+- 1655 files · ~1,460,236 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 16990 nodes · 48239 edges · 826 communities (595 shown, 231 thin omitted)
-- Extraction: 71% EXTRACTED · 29% INFERRED · 0% AMBIGUOUS · INFERRED: 13954 edges (avg confidence: 0.53)
+- 16997 nodes · 48285 edges · 827 communities (597 shown, 230 thin omitted)
+- Extraction: 71% EXTRACTED · 29% INFERRED · 0% AMBIGUOUS · INFERRED: 13955 edges (avg confidence: 0.53)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `892da6a4`
+- Built from commit: `f70460a0`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -415,6 +415,8 @@
 - [[_COMMUNITY_Community 407|Community 407]]
 - [[_COMMUNITY_Community 408|Community 408]]
 - [[_COMMUNITY_Community 409|Community 409]]
+- [[_COMMUNITY_Community 410|Community 410]]
+- [[_COMMUNITY_Community 412|Community 412]]
 - [[_COMMUNITY_Community 413|Community 413]]
 - [[_COMMUNITY_Community 414|Community 414]]
 - [[_COMMUNITY_Community 415|Community 415]]
@@ -424,6 +426,7 @@
 - [[_COMMUNITY_Community 419|Community 419]]
 - [[_COMMUNITY_Community 420|Community 420]]
 - [[_COMMUNITY_Community 421|Community 421]]
+- [[_COMMUNITY_Community 422|Community 422]]
 - [[_COMMUNITY_Community 423|Community 423]]
 - [[_COMMUNITY_Community 424|Community 424]]
 - [[_COMMUNITY_Community 425|Community 425]]
@@ -431,6 +434,8 @@
 - [[_COMMUNITY_Community 429|Community 429]]
 - [[_COMMUNITY_Community 430|Community 430]]
 - [[_COMMUNITY_Community 431|Community 431]]
+- [[_COMMUNITY_Community 432|Community 432]]
+- [[_COMMUNITY_Community 433|Community 433]]
 - [[_COMMUNITY_Community 435|Community 435]]
 - [[_COMMUNITY_Community 436|Community 436]]
 - [[_COMMUNITY_Community 437|Community 437]]
@@ -443,13 +448,12 @@
 - [[_COMMUNITY_Community 461|Community 461]]
 - [[_COMMUNITY_Community 462|Community 462]]
 - [[_COMMUNITY_Community 463|Community 463]]
-- [[_COMMUNITY_Community 465|Community 465]]
 - [[_COMMUNITY_Community 476|Community 476]]
 - [[_COMMUNITY_Community 482|Community 482]]
 - [[_COMMUNITY_Community 489|Community 489]]
 - [[_COMMUNITY_Community 524|Community 524]]
 - [[_COMMUNITY_Community 531|Community 531]]
-- [[_COMMUNITY_Community 536|Community 536]]
+- [[_COMMUNITY_Community 537|Community 537]]
 - [[_COMMUNITY_Community 539|Community 539]]
 - [[_COMMUNITY_Community 542|Community 542]]
 - [[_COMMUNITY_Community 544|Community 544]]
@@ -610,6 +614,7 @@
 - [[_COMMUNITY_Community 743|Community 743]]
 - [[_COMMUNITY_Community 744|Community 744]]
 - [[_COMMUNITY_Community 753|Community 753]]
+- [[_COMMUNITY_Community 756|Community 756]]
 - [[_COMMUNITY_Community 757|Community 757]]
 - [[_COMMUNITY_Community 761|Community 761]]
 - [[_COMMUNITY_Community 762|Community 762]]
@@ -617,7 +622,6 @@
 - [[_COMMUNITY_Community 765|Community 765]]
 - [[_COMMUNITY_Community 766|Community 766]]
 - [[_COMMUNITY_Community 769|Community 769]]
-- [[_COMMUNITY_Community 770|Community 770]]
 - [[_COMMUNITY_Community 771|Community 771]]
 - [[_COMMUNITY_Community 773|Community 773]]
 - [[_COMMUNITY_Community 774|Community 774]]
@@ -644,15 +648,11 @@
 - [[_COMMUNITY_Community 801|Community 801]]
 - [[_COMMUNITY_Community 802|Community 802]]
 - [[_COMMUNITY_Community 803|Community 803]]
-- [[_COMMUNITY_Community 804|Community 804]]
 - [[_COMMUNITY_Community 806|Community 806]]
-- [[_COMMUNITY_Community 807|Community 807]]
 - [[_COMMUNITY_Community 808|Community 808]]
-- [[_COMMUNITY_Community 809|Community 809]]
 - [[_COMMUNITY_Community 811|Community 811]]
 - [[_COMMUNITY_Community 813|Community 813]]
 - [[_COMMUNITY_Community 814|Community 814]]
-- [[_COMMUNITY_Community 815|Community 815]]
 - [[_COMMUNITY_Community 816|Community 816]]
 - [[_COMMUNITY_Community 817|Community 817]]
 - [[_COMMUNITY_Community 818|Community 818]]
@@ -690,17 +690,16 @@
 - [[_COMMUNITY_Community 864|Community 864]]
 - [[_COMMUNITY_Community 867|Community 867]]
 - [[_COMMUNITY_Community 868|Community 868]]
-- [[_COMMUNITY_Community 873|Community 873]]
 - [[_COMMUNITY_Community 875|Community 875]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `Mensualidad` - 236 edges
 2. `Pago` - 217 edges
-3. `TarjetaPrepago` - 186 edges
-4. `AperturaCajaCantina` - 186 edges
-5. `ProductoCantina` - 174 edges
-6. `CategoriaProducto` - 173 edges
-7. `VentaCantina` - 171 edges
+3. `TarjetaPrepago` - 188 edges
+4. `AperturaCajaCantina` - 188 edges
+5. `ProductoCantina` - 176 edges
+6. `CategoriaProducto` - 175 edges
+7. `VentaCantina` - 173 edges
 8. `Materia` - 157 edges
 9. `ReglaRecargoPago` - 157 edges
 10. `IncidenteDisciplinario` - 155 edges
@@ -725,7 +724,7 @@
 - **Automated Cobranza Email Notification Templates** — octopus_api_notificaciones_templates_notificaciones_mora_dia_0_template, octopus_api_notificaciones_templates_notificaciones_mora_dia_5_template, octopus_api_notificaciones_templates_notificaciones_mora_dia_10_template, octopus_api_notificaciones_templates_notificaciones_mora_dia_15_template [EXTRACTED 1.00]
 - **Portal Authentication Security Technical Debt** — octopus_frontend_notas_security_debt, octopus_frontend_notas_auth_debt, octopus_frontend_notas_refresh_jwt_dup [INFERRED 0.85]
 
-## Communities (826 total, 231 thin omitted)
+## Communities (827 total, 230 thin omitted)
 
 ### Community 0 - "Community 0"
 Cohesion: 0.50
@@ -741,11 +740,11 @@ Nodes (8): Octopus Frontend Brand Identity, Favicon PNG - School Crest (Maria Au
 
 ### Community 3 - "Community 3"
 Cohesion: 0.03
-Nodes (117): ANIMATION_VALUE_KEYWORDS, borderColorsFromStyle(), borderWidthsFromStyle(), checkBorders(), checkClippedOverflow(), checkEdgeFlushCardsDOM(), checkElementBlinkingCursorDOM(), checkElementBorders() (+109 more)
+Nodes (139): ANIMATION_VALUE_KEYWORDS, borderColorsFromStyle(), borderWidthsFromStyle(), buildHtmlPatternCorpora(), checkClippedOverflow(), checkEdgeFlushCardsDOM(), checkElementBlinkingCursorDOM(), checkElementClippedOverflow() (+131 more)
 
 ### Community 4 - "Community 4"
 Cohesion: 0.06
-Nodes (103): AsistenciaAdmin, BloqueEvaluacionAdmin, BloqueEvaluacionInline, DocenteAdmin, EventoCalendarioAdmin, HorarioClaseAdmin, IncidenteDisciplinarioAdmin, ItemEvaluacionAdmin (+95 more)
+Nodes (96): AsistenciaAdmin, BloqueEvaluacionAdmin, BloqueEvaluacionInline, DocenteAdmin, EventoCalendarioAdmin, HorarioClaseAdmin, IncidenteDisciplinarioAdmin, ItemEvaluacionAdmin (+88 more)
 
 ### Community 5 - "Technical Debt Registry"
 Cohesion: 0.38
@@ -753,27 +752,27 @@ Nodes (7): Accessibility WCAG 2.1 AA Technical Debt, Auth/ApiClient Technical De
 
 ### Community 10 - "Community 10"
 Cohesion: 0.01
-Nodes (198): Vistas JWT con refresh token en cookie HttpOnly. El access token se sigue devol, django_conf, django_contrib_auth_validators, django_core_validators, django_db, django_db_models_deletion, django_utils_timezone, Migration (+190 more)
+Nodes (194): Meta, django_conf, django_contrib_auth_validators, django_core_validators, django_db, django_db_models_deletion, django_utils_timezone, faker (+186 more)
 
 ### Community 11 - "Community 11"
-Cohesion: 0.02
-Nodes (160): AnonRateThrottle, pagos_de_alumno(), Pagos en los que `alumno` participó, ya sea como titular de la     operación (P, django_contrib_auth_tokens, django_utils_encoding, django_utils_http, Punto único de verdad para "¿es un comprobante de pago válido?" — tamaño, extens, Valida un archivo subido (UploadedFile) como comprobante de pago.      Devuelve (+152 more)
+Cohesion: 0.05
+Nodes (111): AnonRateThrottle, django_contrib_auth_tokens, django_utils_encoding, django_utils_http, Punto único de verdad para "¿es un comprobante de pago válido?" — tamaño, extens, Valida un archivo subido (UploadedFile) como comprobante de pago.      Devuelve, validar_comprobante(), PortalJWTAuthentication (+103 more)
 
 ### Community 12 - "Community 12"
 Cohesion: 0.09
-Nodes (161): AbonoCantinaAdmin, AdjuntoRevisionAdmin, AlertaCantinaAdmin, AperturaCajaCantinaAdmin, AplicacionAbonoCantinaAdmin, CargoCantinaAdmin, CategoriaProductoAdmin, CierreCajaCantinaAdmin (+153 more)
+Nodes (119): CierreCajaCantina, DetalleVentaCantina, HistorialCodigoTarjeta, LoteTarjetas, ParametroCantina, Auditoría de reposición: cada vez que el `codigo` de una tarjeta se     regener, Configuración global de cantina — equivalente a cobranza.ParametroGlobal., Tasa de cambio propia de Cantina (Bs. por USD). Historial inmutable.      Solo (+111 more)
 
 ### Community 13 - "Community 13"
-Cohesion: 0.12
-Nodes (150): APIView, PdfSinTablaError, El PDF no tiene tablas/texto extraíble (ej. es un escaneo/imagen)., ExcelExporter, Utilidad global para exportar QuerySets a formato Excel (.xlsx) nativo., MensualidadFilter, PagoFilter, Filtros avanzados para el modelo Mensualidad.      Query params disponibles: (+142 more)
+Cohesion: 0.09
+Nodes (182): APIView, PdfSinTablaError, El PDF no tiene tablas/texto extraíble (ej. es un escaneo/imagen)., ExcelExporter, Utilidad global para exportar QuerySets a formato Excel (.xlsx) nativo., MensualidadFilter, Filtros avanzados para el modelo Mensualidad.      Query params disponibles:, ConciliacionBancaria (+174 more)
 
 ### Community 14 - "Community 14"
 Cohesion: 0.02
-Nodes (78): getBoletin(), apiClient, failedQueue, createCircular(), getLecturasCircular(), activarPortalRepresentante(), desactivarPortalRepresentante(), restablecerContrasenaPortal() (+70 more)
+Nodes (91): getBoletin(), apiClient, failedQueue, getAperturaCajaActual(), activarPortalRepresentante(), desactivarPortalRepresentante(), restablecerContrasenaPortal(), buscarAlumnos() (+83 more)
 
 ### Community 15 - "Community 15"
 Cohesion: 0.13
-Nodes (113): AsistenciaFilter, IncidenteFilter, NotaFilter, Filtros avanzados para el modelo Asistencia.      Query params disponibles:, Filtros avanzados para el modelo Nota.      Query params disponibles:       -, Filtros para IncidenteDisciplinario.      Query params disponibles:       - a, BloqueHorario, DisponibilidadDocente (+105 more)
+Nodes (115): AsistenciaFilter, IncidenteFilter, NotaFilter, Filtros avanzados para el modelo Asistencia.      Query params disponibles:, Filtros avanzados para el modelo Nota.      Query params disponibles:       -, Filtros para IncidenteDisciplinario.      Query params disponibles:       - a, AlertaRendimiento, BloqueHorario (+107 more)
 
 ### Community 16 - "Community 16"
 Cohesion: 0.13
@@ -781,47 +780,51 @@ Nodes (14): 1. Modelo de datos, 2. Endpoints (prefijo real: `/api/constancias/..
 
 ### Community 17 - "Community 17"
 Cohesion: 0.05
-Nodes (30): getConceptosCobrables(), getResumenPorConcepto(), DashboardSkeleton(), DonutChart, InscripcionesBlock(), TendenciaIndicador, InscripcionesSkeleton(), KpiCard (+22 more)
+Nodes (37): exportarEstadoPorConceptoExcel(), getConceptosCobrables(), getEstadoPorConcepto(), getResumenPorConcepto(), getSolvenciaMensual(), getDashboardStats(), getInscripcionesStats(), DashboardSkeleton() (+29 more)
 
 ### Community 18 - "Community 18"
 Cohesion: 0.02
-Nodes (33): Retorna True si la nota definitiva es mayor o igual a 10., AperturaCajaCantinaPostTests, _usuario(), Aunque el cliente mande totales falsos, el backend los ignora y recalcula., AjustarCreditoTarjetaViewTests, Cubre `AjustarCreditoTarjetaView` (PATCH .../credito/)., RepresentanteInactivoConDeudaTests, TasaBcvTests (+25 more)
+Nodes (34): Retorna True si la nota definitiva es mayor o igual a 10., AperturaCajaCantinaPostTests, Aunque el cliente mande totales falsos, el backend los ignora y recalcula., AjustarCreditoTarjetaViewTests, Cubre `AjustarCreditoTarjetaView` (PATCH .../credito/)., TasaBcvTests, Camino rápido por defecto (§7.2): efectivo no exige alumno/tarjeta., propagar_monto_global() (+26 more)
 
 ### Community 19 - "Community 19"
 Cohesion: 0.03
-Nodes (93): getMensualidadesAlumno(), buscarAlumnosPreinscripcion(), descargarPreinscripcionBlob(), descargarPreinscripcionMasivaBlob(), SECCIONES_CAMPOS_PREINSCRIPCION, TODOS_LOS_CAMPOS_PREINSCRIPCION, ROLE_GROUPS, AccionCuentaModal() (+85 more)
+Nodes (77): DecimalInput(), ROLE_GROUPS, AccionCuentaModal(), hoy, color, CuentaCard(), CuentaTabla(), fechaLocal() (+69 more)
 
 ### Community 20 - "Community 20"
-Cohesion: 0.08
-Nodes (54): actualizarClienteCxc(), actualizarCreditoClienteCxc(), actualizarCreditoCxc(), anularAbonoCxc(), buscarRepresentantesCxc(), crearClienteCxc(), descargarReciboVenta(), estadoCuentaClienteCxc() (+46 more)
+Cohesion: 0.09
+Nodes (49): actualizarClienteCxc(), anularAbonoCxc(), buscarRepresentantesCxc(), crearClienteCxc(), descargarReciboVenta(), reciboAbonoCxcUrl(), registrarAbonoCxc(), AnularAbonoModal() (+41 more)
 
 ### Community 21 - "Community 21"
 Cohesion: 0.20
 Nodes (9): 1. Lo que YA existe y debes reutilizar (no reimplementar), 2. Decisión técnica que debes resolver en el plan (IMPORTANTE), 3.1 Editor de plantillas de mensaje (ruta nueva en Configuración o Cobranza), 3.2 Botón de WhatsApp en Morosos, 3.3 Backend, 3.4 Historial, 3. Requerimientos funcionales, 4. Criterios de aceptación (+1 more)
 
+### Community 22 - "Community 22"
+Cohesion: 0.17
+Nodes (27): ArticuloFrecuenteAdmin, BitacoraEgresoAdmin, ComprobanteEgresoInline, ConfiguracionEgresosAdmin, DetallePagoCuentaPorPagarAdmin, EgresoAdmin, RenglonEgresoInline, ArticuloFrecuente (+19 more)
+
 ### Community 23 - "Community 23"
 Cohesion: 0.03
-Nodes (43): _armar_disponibilidad_map(), _buscar_choque_horario(), _docente_disponible_en_bloque(), _docente_tiene_seccion(), _ejecutar_algoritmo_paquete(), _get_rol(), IsAdminOrAbove, IsSecretariaOrAbove (+35 more)
+Nodes (47): _armar_disponibilidad_map(), _buscar_choque_horario(), _docente_disponible_en_bloque(), _docente_tiene_seccion(), _ejecutar_algoritmo_paquete(), _get_rol(), IsAdminOrAbove, IsSecretariaOrAbove (+39 more)
 
 ### Community 24 - "useConfiguracion"
 Cohesion: 0.05
 Nodes (43): Criterios Globales de Aceptación, Dependencias entre Módulos, Estimación de Esfuerzo, FASE 1 EXTENDIDA (Sprints 1–5), FASE 2 (Sprints 6–11), FASE 3 (Sprints 12–15), Objetivos, Objetivos (+35 more)
 
 ### Community 25 - "Community 25"
-Cohesion: 0.02
-Nodes (160): AlertaSerializer, _etiquetas_aperturas(), _etiquetas_cierres(), etiquetas_objetos(), EventoBitacoraSerializer, _ids_enteros(), Meta, ParametrosAuditoriaSerializer (+152 more)
+Cohesion: 0.08
+Nodes (30): AdjuntoRevisionSerializer, CierreDetalleSerializer, EventoAuditoriaSerializer, queryset_cierres(), Cierres con todo lo que necesita la fila del listado, sin N+1., `GET cierres/<id>/`: la fila más el desglose. Espera un cierre de     `queryset, Evento de bitácora con la forma de §5. El usuario sale del snapshot     (`usuar, `?tipo=a&tipo=b` y también `?tipo=a,b`. (+22 more)
 
 ### Community 26 - "Community 26"
 Cohesion: 0.06
-Nodes (65): cerrarCajaCantina(), getCierreCajaHoy(), getUltimoCierreCaja(), notificarAperturaCambiada(), ArqueoPorMoneda(), MONEDAS, aNumero(), arqueoPorMoneda() (+57 more)
+Nodes (61): ArqueoPorMoneda(), MONEDAS, aNumero(), arqueoPorMoneda(), cambiosEsperados(), componer(), detalleRecargas(), esperadosDe() (+53 more)
 
 ### Community 27 - "Community 27"
 Cohesion: 0.12
-Nodes (77): Alumno, Beca, BienNacional, ConfiguracionGrado, ConfiguracionSistema, Inscripcion, Meta, Otorgamiento auditable de una beca a un alumno, vigente para un período     esc (+69 more)
+Nodes (70): Alumno, Beca, BienNacional, ConfiguracionGrado, ConfiguracionSistema, Inscripcion, Otorgamiento auditable de una beca a un alumno, vigente para un período     esc, AlumnoInscripcionSerializer (+62 more)
 
 ### Community 28 - "Community 28"
-Cohesion: 0.02
-Nodes (122): AbstractUser, _firma_coincide(), Meta, Modelos de la Auditoría de Cantina.  Pertenecen a la app `cantina` (app_label, Firma mágica real del archivo según su extensión declarada., Valida extensión (imagen/PDF), tamaño máximo (5 MB) y que el     contenido real, validar_adjunto_revision(), _area_unica() (+114 more)
+Cohesion: 0.04
+Nodes (73): Rutas de la Auditoría de Cantina, montadas en /api/cantina/auditoria/.  Fase 0, Único punto de entrada para modificar ProductoCantina.stock_actual.  Cualquier, AperturaCajaCantinaAislamientoTests, AperturaCajaCantinaGetTests, AperturaCajaCantinaTestsBase, _crear_cajero(), Tests de apertura de caja por cajero — AperturaCajaCantinaView (§ apertura por, Cierre de caja de UN cajero no debe afectar las sesiones abiertas de     los ot (+65 more)
 
 ### Community 29 - "useGrados"
 Cohesion: 0.05
@@ -829,39 +832,39 @@ Nodes (41): 1. Stack Tecnológico de Referencia, 2.1 Diario de Clases y Horarios
 
 ### Community 30 - "Community 30"
 Cohesion: 0.02
-Nodes (99): isTokenValid(), PortalProtectedRoute(), ProtectedRoute(), Asistencia, Auditoria, AuditoriaBitacora, AuditoriaCierreDetalle, AuditoriaCierres (+91 more)
+Nodes (98): isTokenValid(), PortalProtectedRoute(), Asistencia, Auditoria, AuditoriaBitacora, AuditoriaCierreDetalle, AuditoriaCierres, AuditoriaPanel (+90 more)
 
 ### Community 31 - "Community 31"
 Cohesion: 0.05
-Nodes (51): CircularAdmin, LecturaCircularAdmin, MensajeDirectoAdmin, Circular, LecturaCircular, MensajeDirecto, Meta, Comunicado unidireccional del colegio hacia los representantes     (circulares, (+43 more)
+Nodes (50): CircularAdmin, LecturaCircularAdmin, MensajeDirectoAdmin, Circular, LecturaCircular, MensajeDirecto, Meta, Comunicado unidireccional del colegio hacia los representantes     (circulares, (+42 more)
 
 ### Community 32 - "Community 32"
-Cohesion: 0.05
-Nodes (80): actualizarClasificacionLinea(), actualizarConfiguracionMetaBanco(), anularPago(), clasificarPagosBatch(), corregirPago(), crearClasificacionPago(), crearMetaBanco(), eliminarClasificacionLinea() (+72 more)
+Cohesion: 0.07
+Nodes (65): actualizarClasificacionLinea(), anularPago(), clasificarPagosBatch(), corregirPago(), crearClasificacionPago(), eliminarClasificacionLinea(), getDesgloseContable(), getEstadoClasificacionPagos() (+57 more)
 
 ### Community 33 - "Community 33"
 Cohesion: 0.03
-Nodes (73): actualizarParametrosCantina(), actualizarPlantillaVenta(), actualizarProducto(), ajustarCreditoTarjeta(), anularVenta(), aprobarRecarga(), asignarTarjeta(), buscarRepresentantePorCedula() (+65 more)
+Nodes (79): actualizarCreditoClienteCxc(), actualizarCreditoCxc(), actualizarParametrosCantina(), actualizarPlantillaVenta(), actualizarProducto(), ajustarCreditoTarjeta(), anularRecarga(), aprobarRecarga() (+71 more)
 
 ### Community 34 - "Community 34"
-Cohesion: 0.14
-Nodes (3): CorregirPagoMontoTests, Extensión de "Corregir Pago" (Función A) para editar monto_usd/monto_ves     de, Mezclar tipos también cuenta para la regla de 'a lo sumo UNA cuota en total'.
+Cohesion: 0.05
+Nodes (53): ModalAjustarInscripcion(), ModalAjustarMensualidades(), ModalAsignarGrado(), ModalConfirmarQuitarGrado(), ModalConfirmarReactivar(), ESTATUS_FINANCIERO_LABELS, inputStyle, ModalEditarAlumno() (+45 more)
 
 ### Community 35 - "Community 35"
 Cohesion: 0.03
-Nodes (115): applyGlobalBarLabelState(), applyPlaceholderSizingStyles(), averageRgb01(), beginEditPin(), buildAnnotationsForCapture(), buildInsertPlaceholderSnapshotFromDom(), buildPickedAnchorSnapshot(), buildPinElement() (+107 more)
+Nodes (97): addManualContextText(), applyGlobalBarLabelState(), averageRgb01(), beginEditPin(), buildAnnotationsForCapture(), buildPinElement(), buildPlaceholderResizeHandles(), cancelEditingPin() (+89 more)
 
 ### Community 36 - "Community 36"
-Cohesion: 0.04
-Nodes (46): validar_tamano_adjunto(), validar_tamano_adjunto(), _ajustar_redondeo_bs(), anular_abono(), anular_cargo_por_venta(), _chequear_duplicados(), clave_titular(), crear_cargo_por_venta() (+38 more)
+Cohesion: 0.07
+Nodes (46): _ajustar_redondeo_bs(), anular_abono(), anular_cargo_por_venta(), _chequear_duplicados(), clave_titular(), crear_cargo_por_venta(), _dec(), _entero() (+38 more)
 
 ### Community 37 - "Community 37"
-Cohesion: 0.07
-Nodes (40): cargarPagoRetroactivo(), getDeudaAlumno(), getProgresoMetaBanco(), getReciboPdf(), prepararReciboWhatsApp(), dinero(), MetaBancoProgreso(), BloqueDeudaAlumno() (+32 more)
+Cohesion: 0.05
+Nodes (49): cargarPagoRetroactivo(), getBancos(), getDeudaAlumno(), getProgresoMetaBanco(), getReciboPdf(), prepararReciboWhatsApp(), dinero(), MetaBancoProgreso() (+41 more)
 
 ### Community 38 - "Community 38"
-Cohesion: 0.10
-Nodes (9): _es_vencida(), propagar_monto_global(), Mismo criterio de "vencida" que cobranza/mora.py::_condicion_mora,     evaluado, Único punto de verdad para propagar un cambio de ParametroGlobal (montos     po, PropagacionInscripcionYProyectoTest, PropagacionMensualidadTest, seed(), crear_log() (+1 more)
+Cohesion: 0.17
+Nodes (3): CorregirPagoMontoTests, Extensión de "Corregir Pago" (Función A) para editar monto_usd/monto_ves     de, Mezclar tipos también cuenta para la regla de 'a lo sumo UNA cuota en total'.
 
 ### Community 39 - "Community 39"
 Cohesion: 0.10
@@ -872,72 +875,72 @@ Cohesion: 0.07
 Nodes (30): dependencies, axios, date-fns, @dnd-kit/core, @dnd-kit/sortable, @dnd-kit/utilities, jspdf, jspdf-autotable (+22 more)
 
 ### Community 41 - "Community 41"
-Cohesion: 0.02
-Nodes (125): ModalAjustarInscripcion(), ModalAjustarMensualidades(), ModalAsignarGrado(), ModalConfirmarQuitarGrado(), ModalConfirmarReactivar(), ESTATUS_FINANCIERO_LABELS, inputStyle, ModalEditarAlumno() (+117 more)
+Cohesion: 0.03
+Nodes (73): actualizarDocente(), addBloquePaquete(), addDisponibilidadDocente(), addGradoPaquete(), asignarMateriasDocente(), crearDocente(), createMateria(), createPaqueteHorario() (+65 more)
 
 ### Community 42 - "useNotificaciones"
 Cohesion: 0.06
 Nodes (34): 1. Principios de Diseño (no negociables), 2. Sistema de Diseño (tokens existentes), 3.1 Diario de Clases y Horarios, 3.2 Módulo de Comunicación, 3.3 Portal Docente, 3.4 Seguimiento Gráfico del Rendimiento, 3.5 RBAC — Panel de Permisos, 3.6 PWA — Elementos de Instalación (+26 more)
 
 ### Community 43 - "Community 43"
-Cohesion: 0.05
+Cohesion: 0.04
 Nodes (75): _agrupar(), _asignar(), CandidatosConciliacionView, conciliar_item(), conciliar_movimiento(), ConciliarOperacionView, ConfirmarMasivaView, _dec() (+67 more)
 
 ### Community 44 - "Community 44"
-Cohesion: 0.12
-Nodes (17): ESTADOS_BOTONES, FILA_STYLE, FilaAlumno, OBSERV_STYLE, OPCION_RESUMEN, OPCIONES, SelectorVistaAsistencia(), SkeletonFila() (+9 more)
+Cohesion: 0.06
+Nodes (29): ConfirmDeleteModal(), calcularEjemploDescuento(), calcularEjemploRecargo(), calcularVistaVigencia(), inputStyle, labelStyle, ModalReglaRecargoPago(), form (+21 more)
 
 ### Community 45 - "Community 45"
-Cohesion: 0.04
-Nodes (36): _es_acceso_total(), filtrar_por_sede(), Filtrado de querysets de cobranza por sede (multisede.PermisoSede).  Sigue el mi, True si el usuario no debe ser filtrado por sede (ve todo)., Retorna:       - None  => acceso total, no filtrar (ver reglas en el docstring d, Filtra `queryset` a los registros de las sedes accesibles por `user`,     usando, sedes_permitidas_ids(), leer_enlace_recibo() (+28 more)
+Cohesion: 0.05
+Nodes (25): filtrar_por_sede(), Filtra `queryset` a los registros de las sedes accesibles por `user`,     usando, alumnos_de_pago(), Todos los alumnos realmente involucrados en un Pago (titular + hermanos     cuy, _calcular_estado_clasificacion(), _categoria_concepto_desglose(), _desglose_automatico_para_clasificacion(), _estado_coincide() (+17 more)
 
 ### Community 46 - "Community 46"
 Cohesion: 0.03
-Nodes (54): asignarUsuarioSede(), createSede(), deleteSede(), getDashboardConsolidado(), getDashboardSede(), getSedes(), getUsuariosSede(), revocarUsuarioSede() (+46 more)
+Nodes (60): asignarUsuarioSede(), createSede(), deleteSede(), getDashboardConsolidado(), getDashboardSede(), getSedes(), getUsuariosSede(), revocarUsuarioSede() (+52 more)
 
 ### Community 47 - "Community 47"
-Cohesion: 0.13
-Nodes (23): activarTasaPersonalizadaCantina(), getAperturaCajaActual(), getTasaVigenteCantina(), restablecerTasaBcvCantina(), useResumenAlertas(), abrirDb(), guardarCachePos(), leerCachePos() (+15 more)
+Cohesion: 0.06
+Nodes (52): Set de sede_id con el módulo efectivamente encendido (None = sin sede)., sedes_con_inteligente_activa(), CicloCobranza, Ciclo de seguimiento de UNA deuda (hoy: una Mensualidad). Ver     PLAN_COBRANZA, _es_acceso_total(), Filtrado de querysets de cobranza por sede (multisede.PermisoSede).  Sigue el mi, True si el usuario no debe ser filtrado por sede (ve todo)., Retorna:       - None  => acceso total, no filtrar (ver reglas en el docstring d (+44 more)
 
 ### Community 48 - "Community 48"
 Cohesion: 0.09
-Nodes (25): _bloque_firma(), _construir_flowables_desde_html(), _convertir_inline(), _get_config_colegio(), _get_firmante(), _html_a_markup(), _imagen_segura(), _parrafo_seguro() (+17 more)
+Nodes (28): _bloque_firma(), _construir_estilos(), _construir_flowables_desde_html(), _convertir_inline(), generar_pdf_constancia(), _get_config_colegio(), _get_firmante(), _html_a_markup() (+20 more)
 
 ### Community 49 - "Community 49"
 Cohesion: 0.05
-Nodes (23): evaluar_alertas(), _paso_hora_tope(), Pasada la hora tope, toda apertura del día (o anterior) aún abierta., Corre las 6 reglas para `fecha` (hoy por defecto) y devuelve un resumen:     `{, _regla_cierre_faltante(), evaluar_alertas_auditoria_cantina(), Corre el motor de alertas para `fecha` (YYYY-MM-DD; hoy si se omite)., aplicar_movimiento_inventario() (+15 more)
+Nodes (22): evaluar_alertas(), Corre las 6 reglas para `fecha` (hoy por defecto) y devuelve un resumen:     `{, evaluar_alertas_auditoria_cantina(), Tareas Celery de la Auditoría de Cantina — carril B4 (Fase 2).  `cantina.audit, Corre el motor de alertas para `fecha` (YYYY-MM-DD; hoy si se omite)., aplicar_movimiento_inventario(), Aplica un movimiento de inventario bajo lock de fila (select_for_update)     y, AlertasEndpointsTests (+14 more)
 
 ### Community 50 - "Community 50"
-Cohesion: 0.11
-Nodes (46): ConfiguracionNotificacionesAdmin, ConfiguracionNotificacionesForm, Meta, NotificacionLogAdmin, PerfilEmailRemitenteAdmin, SuscripcionPushAdmin, ConfiguracionNotificaciones, NotificacionLog (+38 more)
+Cohesion: 0.10
+Nodes (48): ConfiguracionNotificacionesAdmin, ConfiguracionNotificacionesForm, Meta, NotificacionLogAdmin, PerfilEmailRemitenteAdmin, SuscripcionPushAdmin, ConfiguracionNotificaciones, NotificacionLog (+40 more)
 
 ### Community 51 - "Community 51"
-Cohesion: 0.04
-Nodes (54): Genera un volcado SQL de la base de datos (SQLite en dev, PostgreSQL en producci, main(), Script de un solo uso: autoriza con tu cuenta de Gmail el acceso de 'Octopus Bac, MigracionesSqlTests, Guarda contra un fallo que solo aparece en PostgreSQL (los tests corren en SQLi, celery_schedules, Command, Ejecuta el respaldo externo de forma manual y controlada. (+46 more)
+Cohesion: 0.05
+Nodes (35): Genera un volcado SQL de la base de datos (SQLite en dev, PostgreSQL en producci, MigracionesSqlTests, Guarda contra un fallo que solo aparece en PostgreSQL (los tests corren en SQLi, Command, Ejecuta el respaldo externo de forma manual y controlada., django_core_mail, importlib_util, logging (+27 more)
 
 ### Community 53 - "Community 53"
 Cohesion: 0.06
-Nodes (52): urlCajaComprobante(), CajaComprobanteLayout(), aFecha(), aNumero(), DATOS_EJEMPLO_AVISO, ESTATUS_COMPROBANTE, ESTILO_ESTATUS, etiquetaMetodo() (+44 more)
+Nodes (51): urlCajaComprobante(), CajaComprobanteLayout(), aFecha(), aNumero(), DATOS_EJEMPLO_AVISO, ESTATUS_COMPROBANTE, ESTILO_ESTATUS, etiquetaMetodo() (+43 more)
 
 ### Community 55 - "Community 55"
-Cohesion: 0.06
-Nodes (35): useAlumnosSeccion(), useDocenteAlertasRiesgo(), useDocenteConversaciones(), useDocenteHorarioSemana(), useDocenteIncidentes(), useDocenteMensajes(), useDocenteMisMaterias(), useDocentePerfil() (+27 more)
+Cohesion: 0.09
+Nodes (23): useDocenteAlertasRiesgo(), useDocenteHorarioSemana(), useDocentePerfil(), useDocenteProgresoNotas(), useDocenteRadarCierreLapso(), DocenteDashboard(), DocentePerfil(), Avatar() (+15 more)
 
 ### Community 56 - "Community 56"
 Cohesion: 0.12
-Nodes (32): CuentaPorPagarAdmin, PagoCuentaPagarAdmin, filtrar_plantillas(), AplazamientoCxP, AvisoBandeja, ComprobantePagoCxP, ConfiguracionRecordatorios, CuentaPorPagar (+24 more)
+Nodes (31): CuentaPorPagarAdmin, PagoCuentaPagarAdmin, filtrar_plantillas(), AplazamientoCxP, AvisoBandeja, ComprobantePagoCxP, ConfiguracionRecordatorios, CuentaPorPagar (+23 more)
 
 ### Community 57 - "Community 57"
-Cohesion: 0.04
-Nodes (49): TIPOS, BUSQUEDA_ENDPOINT, DESTINATARIO_LABEL, inputStyle, PASOS, FirmaDelegadaSection(), FORM_INICIAL, inputStyle (+41 more)
+Cohesion: 0.03
+Nodes (64): getAlertasRendimiento(), getRendimientoSeccion(), TIPOS, BUSQUEDA_ENDPOINT, DESTINATARIO_LABEL, inputStyle, PASOS, FirmaDelegadaSection() (+56 more)
 
 ### Community 58 - "Community 58"
-Cohesion: 0.13
-Nodes (23): parseTargetOptions(), parseTargetPath(), TargetArgError, acceptInstructions(), bootInstructions(), deferredWrapperInstructions(), generateInstructions(), insertScaffoldInstructions() (+15 more)
+Cohesion: 0.06
+Nodes (14): crear_aviso_comprobante(), Crea el AvisoPortal (bandeja del portal) del comprobante resuelto con el     te, ArchivoComprobanteTests, AvisosPortalTests, crear_tasa(), DetalleListaTests, MotivosRechazoTests, PlantillasAvisoTests (+6 more)
 
 ### Community 59 - "Community 59"
-Cohesion: 0.09
-Nodes (31): PermisoSedeAdmin, SedeAdmin, PermisoSede, Sede, DashboardConsolidadoSerializer, Meta, PermisoSedeSerializer, SedeResumenSerializer (+23 more)
+Cohesion: 0.10
+Nodes (28): PermisoSedeAdmin, SedeAdmin, PermisoSede, Sede, DashboardConsolidadoSerializer, Meta, PermisoSedeSerializer, SedeResumenSerializer (+20 more)
 
 ### Community 61 - "generarReciboAVECPDF"
 Cohesion: 0.09
@@ -945,75 +948,75 @@ Nodes (22): 1. Estructura de Apps Django, 2. Diagrama Entidad-Relación (ERD), 3
 
 ### Community 62 - "Community 62"
 Cohesion: 0.10
-Nodes (32): detectUrl(), launchBrowser(), runVisualContrastFallback(), serializeDesignSystemForBrowser(), finding(), getAP(), createDetectorProfile(), extractFindingIds() (+24 more)
+Nodes (34): detectUrl(), launchBrowser(), runVisualContrastFallback(), serializeDesignSystemForBrowser(), mergeDesignSystemFindings(), createDetectorProfile(), extractFindingIds(), profileFindings() (+26 more)
 
 ### Community 63 - "Community 63"
-Cohesion: 0.06
-Nodes (49): getRendimientoAlumnoPortal(), confirmarLectura(), getMetodosPago(), subirComprobante(), BandejaAvisos(), ESTILO_DEFECTO, ESTILO_TIPO, ComprobantePagoModal() (+41 more)
+Cohesion: 0.08
+Nodes (39): confirmarLectura(), getMetodosPago(), subirComprobante(), ComprobantePagoModal(), ETIQUETAS_DATOS, TIPOS_PERMITIDOS, CuentaCantinaCard(), usd() (+31 more)
 
 ### Community 64 - "Community 64"
 Cohesion: 0.06
-Nodes (62): ETIQUETA_AREA, etiquetaMetodo(), columnasExcepciones(), ConfigImpresoraModal(), TicketVenta(), abrirCaracteristica(), abrirPuerto(), aBytes() (+54 more)
+Nodes (60): etiquetaMetodo(), ConfigImpresoraModal(), TicketVenta(), abrirCaracteristica(), abrirPuerto(), aBytes(), activarRawBT(), bsDesdeUsd() (+52 more)
 
 ### Community 65 - "Community 65"
-Cohesion: 0.09
-Nodes (48): usd(), ESTILO_BOTON, ReporteBarra(), ReporteExportar(), ReportePaginacion(), ReporteResumen(), ReporteSelector(), filtrosReporteIniciales() (+40 more)
+Cohesion: 0.08
+Nodes (48): ESTILO_BOTON, ReporteBarra(), ReporteExportar(), ReportePaginacion(), ReporteResumen(), ReporteSelector(), filtrosReporteIniciales(), paramsDeFiltros() (+40 more)
 
 ### Community 66 - "Community 66"
-Cohesion: 0.04
-Nodes (62): guardarRetornoConciliador(), LoteAbiertoBadge(), AvisoMovimientoPrevio(), CANDIDATOS_COLUMNAS, Comparacion(), EstadoCandidato(), fechaLarga(), fmt() (+54 more)
+Cohesion: 0.05
+Nodes (61): LoteAbiertoBadge(), AvisoMovimientoPrevio(), CANDIDATOS_COLUMNAS, Comparacion(), EstadoCandidato(), fechaLarga(), fmt(), inputBase (+53 more)
 
 ### Community 67 - "Community 67"
 Cohesion: 0.10
 Nodes (9): aware(), ConfirmarMasivaTest, PropuestasTest, Dos ítems con la misma línea se concilian juntos: 800 en sistema contra, tx(), PagoConjuntoAutomaticoTest, PagoConjuntoManualTest, Pago conjunto: una sola transferencia del banco cubre varias operaciones del si (+1 more)
 
 ### Community 68 - "Community 68"
-Cohesion: 0.13
-Nodes (12): _cerrar(), cerrar_ciclo_si_pagado(), evaluar_ciclos_sede(), _evento(), _mensualidades_de_sede(), Pone al día los ciclos de una sede para `hoy`. IDEMPOTENTE: correrla dos     ve, Cierre inmediato: si la mensualidad quedó saldada y su ciclo sigue abierto,, CicloBase (+4 more)
+Cohesion: 0.09
+Nodes (30): calcular_fecha_vencimiento(), _cerrar(), cerrar_ciclo_si_pagado(), crear_ciclo_para(), etapa_por_dias(), evaluar_ciclos(), evaluar_ciclos_sede(), _mensualidades_de_sede() (+22 more)
 
 ### Community 69 - "Community 69"
-Cohesion: 0.08
-Nodes (7): BaseReportes, ParametrosYPermisosTests, Escenario de hoy:       v1 · Ana · turno 1 · 3 empanadas (costo 0.60) + 1 jugo, ReporteExcepcionesTests, ReporteInventarioTests, ReporteRentabilidadTests, ReporteVentasTests
+Cohesion: 0.06
+Nodes (10): crear_usuario(), PermisoDirectorTests, Todas las rutas del módulo son exclusivas del Director (D5: + superusuario)., BaseReportes, ParametrosYPermisosTests, Escenario de hoy:       v1 · Ana · turno 1 · 3 empanadas (costo 0.60) + 1 jugo, ReporteExcepcionesTests, ReporteInventarioTests (+2 more)
 
 ### Community 70 - "Community 70"
 Cohesion: 0.06
 Nodes (30): Accesibilidad (WCAG 2.1 AA), Auditoría del módulo Inscripciones — 2026-07-02, Auditoría integral 2026-06-13, Auth / ApiClient, Bug crítico corregido (efecto colateral de la auditoría, fuera del módulo), Constancias, Deuda técnica anotada, no implementada, Deuda técnica anotada, no implementada (+22 more)
 
 ### Community 71 - "Community 71"
-Cohesion: 0.05
-Nodes (5): crear_paquete_horario(), crear_usuario(), MateriaDocenteAsignacionTests, Helper de tests (rediseño 2026-09): crea un PaqueteHorario con sus     PaqueteH, Cubre el hallazgo #1 de NOTAS_TECNICAS.md (auditoría 2026-08-24):     docente_i
+Cohesion: 0.04
+Nodes (10): AsistenciaSincroniaPanelDocenteTests, crear_paquete_horario(), crear_usuario(), HorariosViewGetPermisosTests, MateriaDocenteAsignacionTests, Helper de tests (rediseño 2026-09): crea un PaqueteHorario con sus     PaqueteH, Regresión (auditoría 2026-09-15, H7): HorariosView.get era accesible     para c, Portal docente y panel escriben el mismo registro: un guardado hecho     sobre (+2 more)
 
 ### Community 72 - "Community 72"
-Cohesion: 0.04
-Nodes (70): _autor(), construir_conversacion(), _deuda(), _estado_whatsapp(), _eventos(), _mensajes(), Conversación de cobranza con un representante: una sola línea de tiempo con lo, Contesta al representante. modo='api' envía por el proveedor (solo dentro de (+62 more)
+Cohesion: 0.06
+Nodes (24): _evento(), ConvenioPago, EventoCiclo, LineaBaseCobranza, Historial de SOLO INSERCIÓN de un ciclo (o de la sede, para encendido y     apa, Convenio de pago MÍNIMO (PLAN_COBRANZA_INTELIGENTE.md, Fase 3): cuotas con, Línea base medida en la semana 2 del plan (últimos 3 meses del colegio     pilo, AccionesTest (+16 more)
 
 ### Community 73 - "Community 73"
 Cohesion: 0.05
 Nodes (24): filtrar_busqueda(), normalizar_busqueda(), Filtra por todas las palabras en cualquiera de los campos indicados.      Por ej, Devuelve términos comparables, sin alterar el texto almacenado., AlumnoListView, _alumnos_matricula_grado(), BecaViewSet, buscar_representante_por_cedula() (+16 more)
 
 ### Community 74 - "Community 74"
-Cohesion: 0.07
-Nodes (58): notificar_recarga_anulada(), notificar_recarga_aprobada(), notificar_saldo_negativo(), Funciones de contenido para notificaciones de cantina (Fase 6 -- SS5.4 de canti, Avisa el reverso o la corrección sin bloquear la operación principal., Al representante del alumno (email + push) o, si la tarjeta es de     una perso, Tareas Celery de cantina (Fase 6 — §5.5 de cantina.md): - notificación de recar, task_notificar_recarga_anulada() (+50 more)
+Cohesion: 0.05
+Nodes (66): notificar_recarga_anulada(), notificar_recarga_aprobada(), notificar_saldo_negativo(), Funciones de contenido para notificaciones de cantina (Fase 6 -- SS5.4 de canti, Avisa el reverso o la corrección sin bloquear la operación principal., Al representante del alumno (email + push) o, si la tarjeta es de     una perso, Tareas Celery de cantina (Fase 6 — §5.5 de cantina.md): - notificación de recar, task_notificar_recarga_anulada() (+58 more)
 
 ### Community 75 - "Community 75"
 Cohesion: 0.12
 Nodes (16): Archivo Excel requerido, Comportamiento, Datos guardados por docente, Descripción, Ejemplo de salida, Error: "Archivo no encontrado", Error: "Columnas requeridas no encontradas", Error: "ModuleNotFoundError: No module named 'openpyxl'" (+8 more)
 
 ### Community 76 - "Community 76"
-Cohesion: 0.13
-Nodes (28): buildHtmlPatternCorpora(), checkHtmlPatterns(), collectCssCustomProps(), collectMarqueeKeyframes(), collectPulseKeyframes(), cssLengthToPx(), cssTextHasDarkRootBg(), enclosingCssSelector() (+20 more)
+Cohesion: 0.09
+Nodes (45): _abrir_intervalo_exoneracion(), _accion_sugerida(), AccionInvalida, asignar_responsable(), cancelar_convenio(), cerrar_ciclo(), _cerrar_intervalo_exoneracion(), _configuracion_recargo_convenio() (+37 more)
 
 ### Community 77 - "Community 77"
-Cohesion: 0.03
-Nodes (59): _a_json(), calcular_hash(), _contenido_hash(), _datos_usuario(), _ip_desde_request(), Bitácora de Auditoría de Cantina — ÚNICA puerta de escritura.  Uso típico, den, Recorre la bitácora en orden de creación y valida hash y encadenamiento.     De, Normaliza Decimal/fecha/UUID a tipos JSON puros (lo que se guarda es     exacta (+51 more)
+Cohesion: 0.02
+Nodes (80): _a_json(), calcular_hash(), _contenido_hash(), _datos_usuario(), _ip_desde_request(), Bitácora de Auditoría de Cantina — ÚNICA puerta de escritura.  Uso típico, den, Recorre la bitácora en orden de creación y valida hash y encadenamiento.     De, Normaliza Decimal/fecha/UUID a tipos JSON puros (lo que se guarda es     exacta (+72 more)
 
 ### Community 78 - "Community 78"
-Cohesion: 0.26
-Nodes (4): PortalComprobanteTests, El banco receptor es opcional en el portal — nunca bloquea el         envío del, El antifraude de archivo (hash) sigue en la subida., Extensión y content-type de imagen pero contenido que no es imagen.
+Cohesion: 0.03
+Nodes (40): AdminComprobantesTests, asignar_rol(), crear_alumno(), crear_mensualidad(), PortalComprobanteTests, PortalDashboardNPlusOneTest, PortalDashboardTests, PortalIDORTests (+32 more)
 
 ### Community 79 - "Community 79"
-Cohesion: 0.10
-Nodes (20): asignarYRecargarTarjeta(), buscarTarjetaOperacion(), recargarTarjetaCajero(), ESTADO_LABELS, FIELD_STYLE, GestionQrPanel(), METODOS, RecargaFormulario() (+12 more)
+Cohesion: 0.07
+Nodes (37): activarTasaPersonalizadaCantina(), asignarYRecargarTarjeta(), buscarTarjetaOperacion(), getBancosCantina(), getTasaVigenteCantina(), recargarTarjetaCajero(), restablecerTasaBcvCantina(), abrirDb() (+29 more)
 
 ### Community 80 - "Community 80"
 Cohesion: 0.06
@@ -1028,16 +1031,16 @@ Cohesion: 0.04
 Nodes (55): 1. Ajustar los montos del colegio, 1. Cargar notas, 1. Cobrar una mensualidad, 1. Crear un usuario del personal, 1. Inscribir un alumno, 1. Revisar cómo va el colegio hoy, 1. Revisar la mora del día, 1. Ver cuánto debo (+47 more)
 
 ### Community 83 - "Community 83"
-Cohesion: 0.04
-Nodes (93): appendAutonomyCounterDirective(), appendBuildPathDirective(), appendDetectorFallback(), appendImageGenDirective(), appendImageToolsDirective(), appendSubagentAuthorizationDirective(), appendSurfaceBriefContext(), automaticHookMode() (+85 more)
+Cohesion: 0.03
+Nodes (112): buildStalenessDirective(), cachePath(), filterFreshFindings(), pruneCache(), readCache(), readJson(), stalenessCheckDisabled(), writeCache() (+104 more)
 
 ### Community 84 - "Community 84"
-Cohesion: 0.08
-Nodes (35): corte_global_activo(), obtener_configuracion(), Estado del toggle de Cobranza Inteligente (PLAN_COBRANZA_INTELIGENTE.md §3)., _canales_permitidos(), _ciclos_vigentes(), construir_mensaje(), dentro_de_horario(), _destinos() (+27 more)
+Cohesion: 0.06
+Nodes (40): exportarMorososExcel(), actualizarPlantillaWhatsApp(), crearPlantillaWhatsApp(), descargarAdjuntoWhatsApp(), eliminarPlantillaWhatsApp(), listarLogsCobroWhatsApp(), listarPlantillasWhatsApp(), obtenerVariablesWhatsApp() (+32 more)
 
 ### Community 85 - "Community 85"
-Cohesion: 0.05
-Nodes (12): crear_usuario(), PermisoDirectorTests, Todas las rutas del módulo son exclusivas del Director (D5: + superusuario)., AdjuntosCierreTests, BaseAuditoriaB2, CierreDetalleTests, CierresListadoTests, HistorialCierreTests (+4 more)
+Cohesion: 0.06
+Nodes (5): AdjuntosCierreTests, CierreDetalleTests, CierresListadoTests, PanelEjecutivoTests, RevisarCierreTests
 
 ### Community 86 - "Community 86"
 Cohesion: 0.07
@@ -1048,40 +1051,40 @@ Cohesion: 0.07
 Nodes (28): $(), Ae(), B(), Be(), c(), $e(), ee(), F() (+20 more)
 
 ### Community 88 - "Community 88"
-Cohesion: 0.07
-Nodes (45): ConciliadorBancoCampos(), FORMATOS_FECHA, inputStyle, SEPARADORES, FORM_VACIO, ALIAS_BASE, anioCompleto(), cleanCell() (+37 more)
+Cohesion: 0.11
+Nodes (33): ALIAS_BASE, anioCompleto(), cleanCell(), cleanReferencia(), columnasDeFila(), decodeEntities(), detectarEncabezado(), detectarOrden() (+25 more)
 
 ### Community 89 - "Community 89"
 Cohesion: 0.08
-Nodes (6): AnulacionAuditoriaTests, CajaAuditoriaTests, _eventos(), InventarioAuditoriaTests, ProductoAuditoriaTests, VentaAuditoriaTests
+Nodes (4): AnulacionAuditoriaTests, _eventos(), InventarioAuditoriaTests, VentaAuditoriaTests
 
 ### Community 90 - "Community 90"
 Cohesion: 0.09
-Nodes (32): getCierre(), AdjuntoPanel(), AdjuntoSubirModal(), validarArchivo(), CierreCabecera(), colorDiferencia(), ESTADOS_REVISION, ETIQUETA_AREA (+24 more)
+Nodes (33): AdjuntoPanel(), AdjuntoSubirModal(), validarArchivo(), CierreCabecera(), colorDiferencia(), ESTADOS_REVISION, ESTILO_TARJETA, ETIQUETA_AREA (+25 more)
 
 ### Community 91 - "Community 91"
 Cohesion: 0.09
-Nodes (48): BasePermission, ArticuloFrecuenteAdmin, BitacoraEgresoAdmin, ComprobanteEgresoInline, ConfiguracionEgresosAdmin, DetallePagoCuentaPorPagarAdmin, EgresoAdmin, RenglonEgresoInline (+40 more)
+Nodes (23): BasePermission, EsAdministradorODirector, Permiso deliberadamente más estricto que el administrativo general., egresos_libro_compras(), egresos_pagados(), por_mes(), rango_mes_actual(), Consultas agregadas usadas por el tablero y los informes de egresos.  Los import (+15 more)
 
 ### Community 92 - "Community 92"
 Cohesion: 0.07
 Nodes (11): AnularVentaCreditoTests, AperturaPorAreaTests, AreasTestsBase, CierrePorAreaTests, ProductosPorAreaTests, Tests de las dos cajas (Cantina / Librería, D1–D3), del POS con métodos de cobr, ReportesPorAreaTests, _usuario() (+3 more)
 
 ### Community 93 - "Community 93"
-Cohesion: 0.06
-Nodes (47): blankCssComments(), BLOCK_BRACE_PREFIX_KEYWORDS, CSS_IN_JS_EXTENSIONS, detectText(), extFromFilePath(), extractCSSinJS(), extractStyleBlocks(), findCSSinJSTemplates() (+39 more)
+Cohesion: 0.07
+Nodes (40): finding(), getAP(), blankCssComments(), BLOCK_BRACE_PREFIX_KEYWORDS, CSS_IN_JS_EXTENSIONS, detectText(), extFromFilePath(), extractCSSinJS() (+32 more)
 
 ### Community 94 - "Community 94"
-Cohesion: 0.07
-Nodes (7): CandidatosTest, ConciliarTest, crear_usuario(), LoteAbiertoTest, Un cliente que declara una tolerancia enorme igual la ve evaluada por el servido, Mezclado con un pago válido, el comprobante hace fallar la transacción completa., ConfigEstadoCuentaApiTest
+Cohesion: 0.08
+Nodes (6): ConciliarTest, crear_usuario(), LoteAbiertoTest, Un cliente que declara una tolerancia enorme igual la ve evaluada por el servido, Mezclado con un pago válido, el comprobante hace fallar la transacción completa., ConfigEstadoCuentaApiTest
 
 ### Community 95 - "Community 95"
 Cohesion: 0.05
-Nodes (32): calcular_alertas_riesgo_docente(), calcular_comparacion_materia(), calcular_plan_notas(), calcular_radar_cierre_lapso(), calcular_rendimiento_alumno(), calcular_rendimiento_seccion(), generar_alertas_rendimiento(), _moda_letras() (+24 more)
+Nodes (36): calcular_alertas_riesgo_docente(), calcular_comparacion_materia(), calcular_plan_notas(), calcular_radar_cierre_lapso(), calcular_rendimiento_alumno(), calcular_rendimiento_seccion(), generar_alertas_rendimiento(), _moda_letras() (+28 more)
 
 ### Community 96 - "Community 96"
-Cohesion: 0.07
-Nodes (21): django_db_models_query, ConfiguracionSistemaSerializer, InscripcionSerializer, Validación preventiva de período de inscripciones y aforo antes de         inic, AlumnoUpdateInfoEndpointReasignarRepresentanteTest, AlumnoUpdateSerializerReasignarRepresentanteTest, CargoEspecialBloqueoInscripcionTest, _FakeRequest (+13 more)
+Cohesion: 0.08
+Nodes (22): django_db_models_query, AlumnoUpdateSerializer, ConfiguracionSistemaSerializer, InscripcionSerializer, Validación preventiva de período de inscripciones y aforo antes de         inic, AlumnoUpdateInfoEndpointReasignarRepresentanteTest, AlumnoUpdateSerializerReasignarRepresentanteTest, CargoEspecialBloqueoInscripcionTest (+14 more)
 
 ### Community 97 - "Community 97"
 Cohesion: 0.04
@@ -1092,56 +1095,52 @@ Cohesion: 0.18
 Nodes (10): APP FLOW — Flujo de la Aplicación, Convenciones del diagrama, FLUJO 1 — Diario de Clases y Horarios, FLUJO 2 — Módulo de Comunicación, FLUJO 3 — Portal Docente, FLUJO 4 — Seguimiento Gráfico del Rendimiento, FLUJO 5 — RBAC (Sistema de Permisos), FLUJO 6 — PWA e Instalación (+2 more)
 
 ### Community 100 - "Community 100"
-Cohesion: 0.05
-Nodes (32): SidebarFichaAlumno(), COLUMNAS, TablaAlumnos(), TablaAlumnosSkeleton(), getMensualidadesPorGrado(), comparar, ContenidoModal(), nombreGrado() (+24 more)
-
-### Community 101 - "Community 101"
-Cohesion: 0.29
-Nodes (3): Misma validación que Egresos: extensión, firma de bytes y tamaño., validar_comprobante(), validar_comprobante()
+Cohesion: 0.07
+Nodes (26): SidebarFichaAlumno(), COLUMNAS, TablaAlumnos(), TablaAlumnosSkeleton(), FichaAlumnoModal(), INITIAL_EDIT_FORM, INITIAL_REGISTER_FORM, useBoletin() (+18 more)
 
 ### Community 102 - "Community 102"
 Cohesion: 0.14
 Nodes (13): Arranque de Celery + Beat, Desarrollo (3 terminales), Instalacion (una sola vez), Integracion con deploy.sh, Nota sobre config/celery.py, Produccion con Supervisor, Produccion con systemd, Tareas de Cuentas por Pagar (+5 more)
 
 ### Community 103 - "Community 103"
-Cohesion: 0.13
-Nodes (26): CANDIDATE_SCAN_IGNORED, consumeTargetArg(), CONTEXT_FALLBACK_DIRS, DESIGN_NAMES, DEV_CONFIG_MARKERS, discoverAppCandidates(), enterLiveRoot(), exists() (+18 more)
+Cohesion: 0.09
+Nodes (23): Aplicación devengada y auditable de la penalidad de un convenio., RecargoConvenio, _detener_automaticamente(), detener_recargos_convenio(), _fecha_local(), fecha_programada(), generar_recargos_convenio(), _importe() (+15 more)
 
 ### Community 105 - "Community 105"
 Cohesion: 0.07
 Nodes (26): Agente 2A — Datos y migraciones *(único dueño de migraciones)*, Agente 2B — Motor de render *(sin BD, puro y testeable)*, Agente 2C — Estructura frontend *(contra los stubs del contrato)*, Agente 2D — Editor de texto y placeholders, Agente 3A — Endpoints DRF *(depende de 2A y 2B)*, Agente 3B — Generación del PDF *(depende de D2)*, Agente 4A — Permisos y datos sensibles, Agente 4B — Firma, correlativo y auditoría (+18 more)
 
 ### Community 106 - "Community 106"
-Cohesion: 0.02
-Nodes (149): calcular_fecha_vencimiento(), crear_ciclo_para(), dias_de_mora(), etapa_por_dias(), evaluar_ciclos(), poner_al_dia_sede(), poner_al_dia_si_hace_falta(), Ciclos de cobranza (PLAN_COBRANZA_INTELIGENTE.md, Fase 1).  Un CicloCobranza a (+141 more)
+Cohesion: 0.04
+Nodes (63): dias_de_mora(), etapa_mas_avanzada_por_alumno(), {alumno_id: etapa} con la etapa más avanzada entre los ciclos abiertos y no, Días desde el vencimiento; negativo si todavía no vence., calcular_dashboard(), _comparacion(), _efectividad(), _linea_base() (+55 more)
 
 ### Community 107 - "Community 107"
-Cohesion: 0.07
-Nodes (29): actualizarTiposPush(), desuscribirPush(), getAvisosPortal(), getEstadoPush(), marcarAvisoLeido(), marcarTodosAvisosLeidos(), suscribirPush(), cambiarContrasena() (+21 more)
+Cohesion: 0.06
+Nodes (33): actualizarTiposPush(), desuscribirPush(), getAvisosPortal(), getEstadoPush(), marcarAvisoLeido(), marcarTodosAvisosLeidos(), suscribirPush(), cambiarContrasena() (+25 more)
 
 ### Community 108 - "Community 108"
-Cohesion: 0.09
-Nodes (32): getBancos(), getComprobantes(), getConsumosCantina(), getCuentaCantina(), getDashboard(), getHistorial(), getReciboPago(), getSaldoTarjetaCantina() (+24 more)
+Cohesion: 0.08
+Nodes (34): getBancos(), getComprobantes(), getConsumosCantina(), getCuentaCantina(), getDashboard(), getHistorial(), getReciboPago(), getSaldoTarjetaCantina() (+26 more)
 
 ### Community 109 - "Community 109"
-Cohesion: 0.09
-Nodes (25): confirmarResetPassword(), solicitarResetPassword(), AppProviders(), BannerInstalarApp(), BrandingHead(), EstudianteSelector(), InstruccionesIOSModal(), iniciales() (+17 more)
+Cohesion: 0.08
+Nodes (27): confirmarResetPassword(), solicitarResetPassword(), AppProviders(), BannerInstalarApp(), BrandingHead(), EstudianteSelector(), InstruccionesIOSModal(), iniciales() (+19 more)
 
 ### Community 110 - "Community 110"
 Cohesion: 0.05
-Nodes (75): bakeParamValues(), collectAllSelectors(), collectSelectorsFromNodes(), collectUnusedSelectors(), escapeRegExp(), formatBody(), isToggleOn(), normalizeSelector() (+67 more)
+Nodes (76): bakeParamValues(), collectAllSelectors(), collectSelectorsFromNodes(), collectUnusedSelectors(), escapeRegExp(), formatBody(), isToggleOn(), normalizeSelector() (+68 more)
 
 ### Community 111 - "Community 111"
-Cohesion: 0.11
+Cohesion: 0.12
 Nodes (9): _cfg_to_dict(), _check_rol(), ConfiguracionNotificacionesView, _ocultar_secretos(), PerfilEmailRemitenteView, Config SMTP por área (cobranza / control_estudios)., Reemplaza en `data` los campos secretos por '••••' + últimos 4 chars.     El fro, El representante tiene algún alumno en una sede que el usuario puede ver. (+1 more)
 
 ### Community 112 - "Community 112"
-Cohesion: 0.14
-Nodes (18): _construir_estilos(), generar_pdf_constancia(), Genera el PDF de una constancia ya emitida. Devuelve los bytes del     PDF. Nunc, _crear_constancia(), _crear_plantilla(), _crear_usuario(), GenerarPdfConstanciaFirmadaTests, GenerarPdfConstanciaFirmaHeaderTests (+10 more)
+Cohesion: 0.15
+Nodes (15): _crear_constancia(), _crear_plantilla(), _crear_usuario(), GenerarPdfConstanciaFirmadaTests, GenerarPdfConstanciaFirmaHeaderTests, GenerarPdfConstanciaSinImagenesTests, GenerarPdfConstanciaWhitelistHtmlTests, _png_1x1_bytes() (+7 more)
 
 ### Community 113 - "Community 113"
-Cohesion: 0.08
-Nodes (24): anularRecarga(), corregirRecarga(), descargarComprobanteAnulacionRecarga(), getHistorialRecargas(), useConsultaInscripcion(), useRepresentantes(), ConsultaInscripcion(), TIPO_INGRESO_LABELS (+16 more)
+Cohesion: 0.09
+Nodes (21): advertencia_mensualidad_saldada(), advertencias_hash(), aprobar_comprobante_en_caja(), notificar_comprobante_resuelto(), Servicios de dominio del portal de representantes.  Un ``ComprobantePago`` se, Chequeo de solo lectura: ¿el mismo archivo ya fue aprobado antes?, Un comprobante pendiente cuya mensualidad ya quedó saldada por otra vía     (pa, Rechaza un comprobante pendiente (panel). Aprobar se hace registrando el     pa (+13 more)
 
 ### Community 114 - "Community 114"
 Cohesion: 0.07
@@ -1153,11 +1152,11 @@ Nodes (27): AVATAR_STYLE, AvatarAlumno(), BarraProgresoLista, FilaRapida, Marcad
 
 ### Community 116 - "Community 116"
 Cohesion: 0.09
-Nodes (33): buildCollapsible(), buildColorModels(), buildDesignHeader(), buildRadiiModels(), buildTypographyModels(), cssSafe(), designEmptyMessage(), escapeHtml() (+25 more)
+Nodes (11): CierreFilaSerializer, fecha_hora(), Fila del listado `GET cierres/`. Espera un cierre de `queryset_cierres()`., datetime → ISO 8601 en la zona local con offset; None → None., Usuario → {"id", "nombre"}; None → None., Un turno es una `AperturaCajaCantina`. `fin` es el cierre de la apertura     (o, _revision_de(), turno_dict() (+3 more)
 
 ### Community 117 - "Community 117"
-Cohesion: 0.07
-Nodes (28): comprometido_abierto(), Deuda abierta de CxP (pendiente/parcial, no anulada) en USD y VES.      Respet, Persiste ambos snapshots monetarios sin convertir de nuevo en reportes., _actualizar_articulos(), anular(), anular_por_cuenta(), _bitacora(), calcular_totales() (+20 more)
+Cohesion: 0.08
+Nodes (27): comprometido_abierto(), Deuda abierta de CxP (pendiente/parcial, no anulada) en USD y VES.      Respet, Persiste ambos snapshots monetarios sin convertir de nuevo en reportes., _actualizar_articulos(), anular(), anular_por_cuenta(), _bitacora(), calcular_totales() (+19 more)
 
 ### Community 118 - "Community 118"
 Cohesion: 0.06
@@ -1168,24 +1167,24 @@ Cohesion: 0.08
 Nodes (24): _arrayLikeToArray(), augment(), buildAstral(), cacheAstral(), cacheInvertedBmp(), charCode(), clipDuplicates(), copyRegex() (+16 more)
 
 ### Community 120 - "Community 120"
-Cohesion: 0.07
-Nodes (17): cambiarContrasena(), createEventoCalendario(), deleteEventoCalendario(), getAlertasRiesgo(), getEventosCalendario(), getMiHorario(), getProximasEvaluaciones(), getRadarCierreLapso() (+9 more)
+Cohesion: 0.06
+Nodes (18): cambiarContrasena(), createEventoCalendario(), deleteEventoCalendario(), getAlertasRiesgo(), getComparacionMateria(), getEventosCalendario(), getMiHorario(), getProximasEvaluaciones() (+10 more)
 
 ### Community 121 - "Community 121"
-Cohesion: 0.11
-Nodes (18): getComparacionMateria(), AvisoBorrador(), useDocenteComparacionMateria(), useDocenteMateriales(), FIELD_STYLE, ModalNuevoMaterial(), esEnlaceSeguro(), formatFecha() (+10 more)
+Cohesion: 0.07
+Nodes (34): AvisoBorrador(), ESTADOS_BOTONES, FILA_STYLE, FilaAlumno, OBSERV_STYLE, OPCION_RESUMEN, OPCIONES, SelectorVistaAsistencia() (+26 more)
 
 ### Community 122 - "Community 122"
 Cohesion: 0.09
 Nodes (8): PortalCantinaTestBase, PortalConsumosCantinaTests, PortalCuentaCantinaTests, PortalRecargarTarjetaTests, PortalSaldoTarjetaTests, IDOR: pedir el alumno_id de OTRO representante debe dar 404, no 403 ni fuga de d, Una referencia ya usada en cobranza.Pago no puede reutilizarse en una recarga de, Una referencia ya usada en una RecargaTarjeta pendiente/aprobada bloquea un nuev
 
 ### Community 123 - "Community 123"
-Cohesion: 0.09
-Nodes (66): abortSvelteComponentInjection(), cancelEditing(), cancelEditingToPicking(), cancelInsertConfigure(), cleanup(), cleanupAcceptedSession(), clearAnnotations(), clearInsertPicking() (+58 more)
+Cohesion: 0.07
+Nodes (76): abandonForeignSession(), abortSvelteComponentInjection(), buildInsertPlaceholderSnapshotFromDom(), buildPickedAnchorSnapshot(), cancelEditing(), cancelEditingToPicking(), cancelInsertConfigure(), captureAndEmit() (+68 more)
 
 ### Community 124 - "Community 124"
-Cohesion: 0.12
-Nodes (14): _config(), _descargar(), firma_meta_valida(), firma_twilio_valida(), guardar_adjunto(), procesar_meta(), procesar_twilio(), Descarga y guarda el adjunto. Si no se puede, el mensaje queda con una nota. (+6 more)
+Cohesion: 0.09
+Nodes (28): django_core_files_base, hmac, mimetypes, _normalizar_telefono(), avisar_equipo(), buscar_representante(), _config(), _descargar() (+20 more)
 
 ### Community 125 - "Community 125"
 Cohesion: 0.67
@@ -1200,20 +1199,20 @@ Cohesion: 0.11
 Nodes (5): AllowClear(), CloseOnSelect(), EventRelay(), SelectOnClose(), StopPropagation()
 
 ### Community 128 - "Community 128"
-Cohesion: 0.17
-Nodes (10): AbonoFantasmaTest, AbonoParcialCongeladoTest, _crear_alumno(), DescuentoIntegracionBase, DesgloseReciboTest, PantallaDeCobroAdminTest, Tests de integración de "descuento por pago dentro de rango" con el flujo de co, El descuento debe verse como línea NEGATIVA en el desglose contable     (calcul (+2 more)
+Cohesion: 0.07
+Nodes (20): CuotaSolvenciaAdmin, CuotaSolvencia, Lógica unificada de guardado: Generación de referencia para efectivo,         v, Deriva `pagado`/`fecha_pago` de `monto_pagado` vs `monto_usd` en cada         g, Deriva `pagado`/`fecha_pago` de `monto_pagado` vs `monto_usd`, igual         qu, Cargo anual de solvencia por período escolar. El monto se define por     alumno, Deriva `pagado`/`fecha_pago` de `monto_pagado` vs `monto_usd` en cada         g, Deriva `pagado`/`fecha_pago` de `monto_pagado` vs `monto_usd` en cada         g (+12 more)
 
 ### Community 130 - "Community 130"
-Cohesion: 0.27
-Nodes (12): EmpleadoAdmin, TipoCargoAdmin, BancoNomina, Empleado, Meta, TipoCargo, BancoNominaSerializer, EmpleadoSerializer (+4 more)
+Cohesion: 0.25
+Nodes (13): rest_framework_decorators, EmpleadoAdmin, TipoCargoAdmin, BancoNomina, Empleado, Meta, TipoCargo, BancoNominaSerializer (+5 more)
 
 ### Community 131 - "Community 131"
 Cohesion: 0.09
 Nodes (5): ArrayAdapter(), BaseAdapter(), InputData(), MaximumSelectionLength(), SelectAdapter()
 
 ### Community 132 - "Community 132"
-Cohesion: 0.15
-Nodes (26): _abonos(), anular(), anular_pago(), anular_por_egreso(), aplazar(), aprobar_pago(), confirmar_monto(), crear() (+18 more)
+Cohesion: 0.14
+Nodes (28): Única función que traduce una clave de concepto a (modelo, nivel,     filtro_ex, resolver_concepto(), _abonos(), anular(), anular_pago(), anular_por_egreso(), aplazar(), aprobar_pago() (+20 more)
 
 ### Community 133 - "Community 133"
 Cohesion: 0.06
@@ -1232,48 +1231,44 @@ Cohesion: 0.08
 Nodes (15): EmailConfigCard(), PROVIDERS, NotificationRulesTable(), applyPreview(), EXAMPLE_VALUES, TemplateEditor(), VARIABLES, TestSendModal() (+7 more)
 
 ### Community 137 - "Community 137"
-Cohesion: 0.18
-Nodes (16): _antiguedad_texto(), _calcular_edad(), fecha_a_letras(), _formatear_moneda(), _nivel_desde_grado_seccion(), _numero_a_letras(), periodo_escolar_de_alumno(), Resolver de datos: arma el dict `datos` anidado que espera `constancias/render.p (+8 more)
+Cohesion: 0.11
+Nodes (22): _antiguedad_texto(), _calcular_edad(), fecha_a_letras(), _formatear_moneda(), _nivel_desde_grado_seccion(), _numero_a_letras(), periodo_escolar_activo(), periodo_escolar_de_alumno() (+14 more)
 
 ### Community 138 - "Community 138"
 Cohesion: 0.06
 Nodes (29): 13 · Materias, 1. Qué muestra la pantalla, 2. Paso a paso, 3. Campos del formulario, 4. Qué pasa después, 5. Errores frecuentes y qué hacer, 6. Advertencias, Agregar una materia (+21 more)
 
 ### Community 139 - "Community 139"
-Cohesion: 0.09
-Nodes (5): crear_representante_con_portal(), EnviarPushTests, PushRepresentanteContratoTests, Contrato backend -> Service Worker (public/push-sw.js): el payload es     JSON, SuscripcionPushTests
+Cohesion: 0.08
+Nodes (9): enviar_push(), _payload_push(), JSON que lee public/push-sw.js. `icon` (opcional) es el logo del     colegio en, Envia una notificacion Web Push a una SuscripcionPush especifica.     Si el end, crear_representante_con_portal(), EnviarPushTests, PushRepresentanteContratoTests, Contrato backend -> Service Worker (public/push-sw.js): el payload es     JSON (+1 more)
 
 ### Community 140 - "Community 140"
 Cohesion: 0.06
 Nodes (66): addBrowserFindings(), addVisualContrastFindings(), addVisualContrastResult(), analyzeVisualContrast(), analyzeVisualContrastCandidate(), blendRgba(), browserDesignSystemConfig(), browserFindingsFromMap() (+58 more)
 
 ### Community 141 - "Community 141"
-Cohesion: 0.16
-Nodes (8): IsSystemAdminOrDirector, Permite el acceso a superusuarios de Django o a usuarios activos     con roles, periodo_escolar_activo(), _cuerpo_completo(), Helper compartido entre PrevisualizarView y EmitirView. Devuelve     (plantilla, _requiere_permiso_sensible(), _resolver_plantilla_y_objetivo(), _tarifas_constancias()
+Cohesion: 0.06
+Nodes (46): Deja constancia de que el módulo se apagó (los datos se conservan)., registrar_apagado_sede(), corte_global_activo(), obtener_configuracion(), Estado del toggle de Cobranza Inteligente (PLAN_COBRANZA_INTELIGENTE.md §3)., BajaCobranza, EnvioCobranza, Regla del motor de Cobranza Inteligente (PLAN_COBRANZA_INTELIGENTE.md,     Fase (+38 more)
 
 ### Community 142 - "Community 142"
 Cohesion: 0.14
 Nodes (24): BASE, CLAVE, FECHA, montar(), SERVIDOR, useBorradorAsistencia(), borradorDifiere(), borrarBorrador() (+16 more)
 
 ### Community 143 - "Community 143"
-Cohesion: 0.14
-Nodes (20): actualizarParametrosAuditoria(), atenderAlerta(), getAlertas(), getBitacora(), getHistorialCierre(), getPanel(), getParametrosAuditoria(), getReporteExcepciones() (+12 more)
-
-### Community 144 - "Community 144"
-Cohesion: 0.08
-Nodes (9): AbonosClienteTests, AltaClienteTests, BuscadorClientesTests, ClientesBase, EstadoCuentaClienteTests, MorososClientesTests, Tests de clientes generales (personal/otros) en cuentas por cobrar de Cantina., RestriccionesModeloTests (+1 more)
+Cohesion: 0.15
+Nodes (20): actualizarParametrosAuditoria(), atenderAlerta(), getAlertas(), getBitacora(), getCierre(), getHistorialCierre(), getPanel(), getParametrosAuditoria() (+12 more)
 
 ### Community 145 - "Community 145"
 Cohesion: 0.11
 Nodes (11): Sustituye los tokens de ``cuerpo_html`` usando ``datos``.      Parámetros     --, renderizar_plantilla(), CedulaTests, InyeccionTests, Tests del motor de render de constancias (constancias/render.py).  Es un módulo, Formateo de cédula (helper reutilizado, un solo lugar en el motor)., 1. Token inexistente en el diccionario de datos., 4. Intento de inyección vía valor de un dato. (+3 more)
 
 ### Community 146 - "Community 146"
-Cohesion: 0.05
-Nodes (44): 10. Errores frecuentes y qué hacer, 11. Advertencias, 12. Dos cajas: Cantina y Librería, 13. Vender a crédito, 14. Cuentas por cobrar, 15. Registrar un abono, 16. Abono retroactivo, 17. Cierre por área (+36 more)
+Cohesion: 0.04
+Nodes (45): 10. Errores frecuentes y qué hacer, 11. Advertencias, 12. Dos cajas: Cantina y Librería, 13. Vender a crédito, 14. Cuentas por cobrar, 15. Registrar un abono, 16. Abono retroactivo, 17. Cierre por área (+37 more)
 
 ### Community 147 - "Community 147"
-Cohesion: 0.10
-Nodes (21): _datos_bancarios_texto(), hubo_envio_reciente(), _monto_cobro(), REF. 100,00 (Bs. 4.050,00)': mismo formato REF. + bolívares a la     tasa BCV vi, Reemplaza los tokens de `plantilla.cuerpo` con los datos reales del     grupo (s, renderizar_mensaje_cobro(), ultimo_envio(), montos_ref() (+13 more)
+Cohesion: 0.18
+Nodes (12): _datos_bancarios_texto(), hubo_envio_reciente(), _monto_cobro(), Servicio de cobranza por WhatsApp: agrupa la mora por representante (un represen, REF. 100,00 (Bs. 4.050,00)': mismo formato REF. + bolívares a la     tasa BCV vi, Reemplaza los tokens de `plantilla.cuerpo` con los datos reales del     grupo (s, renderizar_mensaje_cobro(), ultimo_envio() (+4 more)
 
 ### Community 148 - "Community 148"
 Cohesion: 0.09
@@ -1284,16 +1279,16 @@ Cohesion: 0.12
 Nodes (17): cuentas_cxc_morosas(), debe_notificarse_hoy(), dias_en_negativo(), parsear_dias_configurados(), Fuente de verdad para el criterio de "saldo negativo sostenido" en cantina. Un, Titulares de CxC (representantes y clientes generales) con deuda pendiente., Convierte el string de ParametroCantina.dias_alerta_saldo_negativo     (ej. '1,, Recorre tarjetas en negativo y notifica según ParametroCantina.dias_alerta_saldo (+9 more)
 
 ### Community 150 - "Community 150"
-Cohesion: 0.13
-Nodes (18): _configuracion(), _destinatarios(), enviar_resumen_diario(), _mensaje(), procesar_recordatorios(), Recordatorios de cuentas por pagar.  El canal ``whatsapp`` queda reservado: esta, Reserva idempotentemente un envío antes de realizar efectos externos., Envía recordatorios pendientes. ``hoy`` permite pruebas deterministas. (+10 more)
+Cohesion: 0.12
+Nodes (19): _configuracion(), _destinatarios(), enviar_resumen_diario(), _mensaje(), procesar_recordatorios(), Recordatorios de cuentas por pagar.  El canal ``whatsapp`` queda reservado: esta, Reserva idempotentemente un envío antes de realizar efectos externos., Envía recordatorios pendientes. ``hoy`` permite pruebas deterministas. (+11 more)
 
 ### Community 151 - "Community 151"
 Cohesion: 0.16
 Nodes (22): importar(), limpiar_cedula(), limpiar_correo(), limpiar_nombre(), limpiar_telefono(), Divide 'APELLIDO NOMBRE' en apellido y nombre., Limpia y normaliza la cedula., Limpia el numero telefonico. (+14 more)
 
 ### Community 154 - "Community 154"
-Cohesion: 0.05
-Nodes (41): _agrupar_por_fila(), ConciliadorBancario, _es_fila_encabezado(), _extraer_tabla_pagina(), extraer_tabla_pdf(), _extraer_tabla_por_palabras(), _norm(), Extrae filas de un estado de cuenta en PDF y las devuelve como     list[list[st (+33 more)
+Cohesion: 0.03
+Nodes (71): _ajustar_cuota(), anular_pago(), cargar_pago_retroactivo(), corregir_pago(), elegibilidad_monto(), fecha_dentro_periodo_activo(), fecha_en_cierre_validado(), Módulo "Corrección de Pagos".  Tres flujos de negocio relacionados pero distin (+63 more)
 
 ### Community 155 - "Community 155"
 Cohesion: 0.08
@@ -1308,24 +1303,24 @@ Cohesion: 0.14
 Nodes (19): fmtBs(), inputStyle, labelStyle, Pagos(), PERIODOS, TABS_CESTA, TIPO_LABEL, useEscape() (+11 more)
 
 ### Community 158 - "Community 158"
-Cohesion: 0.15
-Nodes (9): _formatear_cedula(), importar_notacion_vieja(), _obtener_valor(), Motor de render de plantillas de constancias.  Este módulo es PURO: no consulta, Formatea un dato de cédula ya resuelto a la forma ``"NAC-NUMERO"``.      Único l, Busca ``datos[grupo][campo]``.      Devuelve una tupla ``(valor, encontrado)``., Convierte la notación vieja ``❴❴campo❵❵`` a la notación nueva ``{{grupo.campo}}`, NotacionViejaTests (+1 more)
+Cohesion: 0.08
+Nodes (35): advertencia_sin_costo(), agregados_rentabilidad(), agregados_resumen_inventario(), agregados_ventas_por_linea(), agregados_ventas_por_venta(), _cero(), costo_linea(), descuento_linea() (+27 more)
 
 ### Community 159 - "Community 159"
 Cohesion: 0.06
-Nodes (74): addClampEndpoints(), addColorObject(), addDesignColor(), addFontSizeStep(), addRoundedScale(), addRoundedToken(), addSidecarColors(), addSidecarRadii() (+66 more)
+Nodes (71): addClampEndpoints(), addColorObject(), addDesignColor(), addFontSizeStep(), addRoundedScale(), addRoundedToken(), addSidecarColors(), addSidecarRadii() (+63 more)
 
 ### Community 160 - "Community 160"
 Cohesion: 0.16
 Nodes (4): EliminacionRepresentanteTest, PermisosRolSecretariaTest, Alineación de permisos backend/frontend para eliminar representantes:     - des, Permisos del rol 'secretaria' (revisión de roles):     - NO cobra: sin acceso a
 
 ### Community 161 - "Community 161"
-Cohesion: 0.02
-Nodes (116): accionCicloInteligente(), accionConversacionInteligente(), aplicarPagoRecargoConvenio(), cancelarConvenioInteligente(), crearConvenioInteligente(), detenerRecargosConvenioInteligente(), exportarEstadoPorConceptoExcel(), exportarMensualidadesPorMontoExcel() (+108 more)
+Cohesion: 0.03
+Nodes (55): exportarMensualidadesPorMontoExcel(), getDetalleMensualidadesPorMonto(), getEstadoCuentaRepresentante(), getMensualidadesPorGrado(), getMensualidadesPorMonto(), BarrasPendientes(), DonutEstadoPagos(), ESTADOS_PAGO (+47 more)
 
 ### Community 162 - "Community 162"
-Cohesion: 0.05
-Nodes (58): assembleLiveBrowserScript(), assertLiveBrowserScriptParts(), LIVE_BROWSER_SCRIPT_PARTS, readLiveBrowserScriptParts(), resolveLiveBrowserScriptParts(), selectAvailablePendingEvent(), removeAllSvelteComponentSessions(), sweepInactiveSvelteComponentSessions() (+50 more)
+Cohesion: 0.04
+Nodes (67): assembleLiveBrowserScript(), assertLiveBrowserScriptParts(), LIVE_BROWSER_SCRIPT_PARTS, readLiveBrowserScriptParts(), resolveLiveBrowserScriptParts(), buildGenerationPreflight(), compactError(), execFileAsync (+59 more)
 
 ### Community 163 - "Community 163"
 Cohesion: 0.11
@@ -1340,20 +1335,20 @@ Cohesion: 0.08
 Nodes (26): 1. Las secciones del portal, 2. Inicio, 31 · Portal de Representantes, 3. Reportar un pago por transferencia, 4. Las demás secciones, 5. Campos del formulario, 6. Qué pasa después, 7. Errores frecuentes y qué hacer (+18 more)
 
 ### Community 166 - "Community 166"
-Cohesion: 0.22
-Nodes (8): PuedeVerCxP, rol(), BaseReporteCxP, CalendarioCxPView, EstadoProveedorCxPView, ProyeccionCxPView, ReporteCxPView, TableroCxPView
+Cohesion: 0.15
+Nodes (13): _aplana(), exception_handler_octopus(), Manejador de excepciones DRF.  Solo para api/cuentas-por-pagar/ y api/egresos/ n, PuedeEscribirCxP, PuedeVerCxP, rol(), BaseReporteCxP, CalendarioCxPView (+5 more)
 
 ### Community 167 - "Community 167"
-Cohesion: 0.15
-Nodes (8): actualizarCobranzaInteligente(), getCobranzaInteligente(), getHistorialCobranzaInteligente(), ETAPAS_ENVIO, useCobranzaInteligente(), ConfiguracionCobranzaInteligente(), Historial(), { getMock, patchMock, sedeState }
+Cohesion: 0.10
+Nodes (6): La unicidad de referencia bancaria dejó de ser global: pasa a ser por la     cl, Caso del enunciado: pago móvil 34 Bs '0001' a Banesco y pago móvil         87 B, Regresión: apagar el toggle vía el endpoint real que usa el         frontend (P, Compatibilidad: si el id no aparece en montos_mensualidades, se         paga el, El flag solo rige abonos PARCIALES — un pago que salda el saldo         complet, ReferenciaBancariaCompuestaTests
 
 ### Community 168 - "Community 168"
-Cohesion: 0.05
-Nodes (30): etapa_mas_avanzada_por_alumno(), {alumno_id: etapa} con la etapa más avanzada entre los ciclos abiertos y no, inteligente_activa_para_sede(), Set de sede_id con el módulo efectivamente encendido (None = sin sede)., sedes_con_inteligente_activa(), al_crear_mensualidad(), Al crear una nueva mensualidad impaga, programa automáticamente     las notific, Cobranza Inteligente: crea el ciclo de una mensualidad nueva y cierra el     de (+22 more)
+Cohesion: 0.13
+Nodes (7): inteligente_activa_para_sede(), ExclusionFlujoAnteriorTest, ToggleApiTest, ToggleBase, Task periódica (Celery Beat la corre cada día a las 8am).     Busca todas las m, revisar_y_programar_notificaciones_pendientes(), La task periódica dispara la notificación que corresponde (día 5).
 
 ### Community 169 - "Community 169"
-Cohesion: 0.13
-Nodes (10): AplicacionPago, Abono inmutable de una operación a una deuda concreta.      ``monto_pagado`` d, firmar_enlace_recibo(), Token firmado (SECRET_KEY) con el id del primer pago de la operación., MotorReciboTests, NotificacionPagoReciboTests, El recibo nuevo nunca debe imprimir el nominal como si se cobró., ReciboBase (+2 more)
+Cohesion: 0.12
+Nodes (12): AplicacionPago, Abono inmutable de una operación a una deuda concreta.      ``monto_pagado`` d, datos_recibo(), firmar_enlace_recibo(), Token firmado (SECRET_KEY) con el id del primer pago de la operación., Datos del recibo de la operación a la que pertenece `pago`. Misma lógica     qu, MotorReciboTests, NotificacionPagoReciboTests (+4 more)
 
 ### Community 171 - "Community 171"
 Cohesion: 0.21
@@ -1365,7 +1360,7 @@ Nodes (24): 02 · Acceso y cuenta, 10. Advertencias, 1. Entrar al sistema (perso
 
 ### Community 174 - "Community 174"
 Cohesion: 0.09
-Nodes (19): ParametroAuditoriaCantina, Singleton con los umbrales del motor de alertas. Separado de     `ParametroCant, Meta, PlantillaVenta, PlantillaVentaItem, Combo de venta rápida del POS (ej. 'Combo desayuno', 'Kit de útiles'):     prod, Meta, PlantillaVentaItemSerializer (+11 more)
+Nodes (26): AlertaSerializer, EventoBitacoraSerializer, ParametrosAuditoriaSerializer, GET/PUT `parametros/`. El PUT admite envío parcial: los campos omitidos     con, Snapshot JSON de los campos editables (para `antes`/`despues` del evento)., Evento del listado `GET bitacora/` (§5). Igual al de B2 pero con     `objeto_et, valores_parametros(), AlertasListView (+18 more)
 
 ### Community 175 - "Community 175"
 Cohesion: 0.08
@@ -1380,36 +1375,32 @@ Cohesion: 0.08
 Nodes (24): 10. Advertencias, 1. Las pestañas del módulo, 2. Usuarios, 37 · Sistemas, 3. Notificaciones, 4. Log de envíos, 5. Limpieza de datos, 6. Respaldos (+16 more)
 
 ### Community 178 - "Community 178"
-Cohesion: 0.30
-Nodes (3): PortalReciboPagoTests, Cualquier fila de la operación descarga el recibo con el N° que         imprimió, GET /api/portal/recibo/<id>/ — recibo de cobranza en PDF (motor único).
+Cohesion: 0.07
+Nodes (7): validar_tamano_adjunto(), validar_tamano_adjunto(), Valida ``BancoInstitucional.config_estado_cuenta`` (todas las claves son     op, validar_config_estado_cuenta(), ValidacionConfigEstadoCuentaTest, validar_tamano_adjunto(), ValidationError
 
 ### Community 179 - "Community 179"
 Cohesion: 0.09
 Nodes (22): 1. Autenticación separada para representantes, 2. Dashboard del representante, 3. Pago online, 4. Notificaciones automáticas de cobranza (backend), 5. Diseño y UX, Componentes obligatorios, CONTEXTO DEL PROYECTO, Criterio de aceptación (+14 more)
 
 ### Community 181 - "Community 181"
-Cohesion: 0.12
-Nodes (6): PortalLoginTests, PortalRefreshCookieTests, PortalResetPasswordTests, El link va en el cuerpo HTML del email; lo parseamos de la query string., SEGURIDAD: misma respuesta 200 + mismo mensaje, sin enviar email —         evita, Refresh y logout del portal ahora usan la cookie HttpOnly     `portal_refresh_to
+Cohesion: 0.09
+Nodes (36): CANDIDATE_SCAN_IGNORED, consumeTargetArg(), CONTEXT_FALLBACK_DIRS, DESIGN_NAMES, DEV_CONFIG_MARKERS, discoverAppCandidates(), enterLiveRoot(), exists() (+28 more)
 
 ### Community 182 - "Community 182"
-Cohesion: 0.07
-Nodes (50): firstExisting(), getDesignSidecarCandidates(), getDesignSidecarPath(), getImpeccableDir(), getLegacyLiveAnnotationsDir(), getLegacyLiveConfigPath(), getLegacyLiveServerPath(), getLegacyLiveSessionsDir() (+42 more)
+Cohesion: 0.06
+Nodes (62): firstExisting(), getDesignSidecarCandidates(), getDesignSidecarPath(), getImpeccableDir(), getLegacyLiveAnnotationsDir(), getLegacyLiveConfigPath(), getLegacyLiveServerPath(), getLegacyLiveSessionsDir() (+54 more)
 
 ### Community 183 - "Community 183"
 Cohesion: 0.05
-Nodes (49): browserHasDirectText(), browserPrimaryFont(), browserRadiusTokens(), browserSampleText(), buildSelectorSegment(), checkBrowserDesignSystemSources(), checkClippedOverflow(), checkElementClippedOverflow() (+41 more)
+Nodes (48): browserHasDirectText(), browserPrimaryFont(), browserRadiusTokens(), browserSampleText(), buildSelectorSegment(), checkBrowserDesignSystemSources(), checkClippedOverflow(), checkElementClippedOverflow() (+40 more)
 
 ### Community 184 - "Community 184"
-Cohesion: 0.14
-Nodes (5): PortalDashboardTests, La fecha de vencimiento real de la cuota, la misma que usa mora., Mismo criterio que morosos y WhatsApp: la cuota del mes que todavía         no l, Proyecto de inversión por su saldo (no el bruto) y la solvencia         pendient, Un usuario administrativo (sin RepresentanteUser) no puede usar el portal.
+Cohesion: 0.36
+Nodes (9): addRules(), applyInlineIgnores(), getSet(), hasDirectives(), isInlineIgnored(), normalizeRule(), parseInlineIgnores(), parseRuleList() (+1 more)
 
 ### Community 185 - "Community 185"
-Cohesion: 0.21
-Nodes (8): getAlertasRendimiento(), getRendimientoSeccion(), useRendimiento(), INPUT_STYLE, Rendimiento(), TABS, AlertasRiesgoList(), MapaCalorSeccion()
-
-### Community 186 - "Community 186"
-Cohesion: 0.23
-Nodes (4): AnularPagoTests, La unique constraint de Pago excluye estatus='anulado' — un pago         anulad, Límite conocido (NOTAS_TECNICAS.md): si otro pago vigente abonó a la         mi, Función C del módulo de Corrección de Pagos (cobranza/correcciones.py).
+Cohesion: 0.15
+Nodes (18): getCierres(), BitacoraFiltros(), TIPOS_EVENTO, BitacoraRangoFechas(), filtrosIniciales(), CierreFiltros(), aFechaISO(), esCancelacion() (+10 more)
 
 ### Community 187 - "Community 187"
 Cohesion: 0.09
@@ -1420,8 +1411,8 @@ Cohesion: 0.13
 Nodes (6): AjaxAdapter(), DecoratedClass(), Defaults(), makeRequire(), Options(), Translation()
 
 ### Community 189 - "Community 189"
-Cohesion: 0.20
-Nodes (9): plantilla_vigente(), Plantillas de aviso al representante (comprobante aprobado / rechazado).  Text, (asunto, cuerpo) de la plantilla activa, o el texto por defecto., Reemplaza cada token conocido por su valor (vacío si no viene)., (asunto, cuerpo) ya renderizados para `clave` con `valores`     ({'{{token}}':, Tokens de un ComprobantePago ya resuelto. `{{monto}}` es, si fue     aprobado e, renderizar_aviso(), renderizar_texto() (+1 more)
+Cohesion: 0.13
+Nodes (21): monto_excepcion(), MovimientoReporteSerializer, Qué se suma en `monto_usd`: el descuento otorgado o el total de la venta., Fila de `reportes/inventario/`. Espera `producto` y `usuario` en `select_related, Toda vista del módulo hereda de aquí: exclusiva del Director., VistaAuditoria, _entero(), ParametroInvalido (+13 more)
 
 ### Community 190 - "Community 190"
 Cohesion: 0.13
@@ -1432,7 +1423,7 @@ Cohesion: 0.10
 Nodes (20): 1. Contexto y Justificación, 2. Herramientas identificadas en el documento Eduweb, 3. Herramientas seleccionadas para Octopus, 4. Herramientas descartadas y por qué, 5. Roadmap de Implementación Propuesto, 6. Impacto en el Stack Técnico, 7. Métricas de Éxito, 8. Riesgos y Mitigaciones (+12 more)
 
 ### Community 192 - "Community 192"
-Cohesion: 0.14
+Cohesion: 0.16
 Nodes (5): PagoRetroactivoTasaHistoricaTest, Endpoint A (PagoRetroactivoSerializer / cargar_pago_retroactivo):     tasa manu, Endpoint B (PagoCreateSerializer / RegistrarPagoView): modo     retroactivo mul, Sin fecha_pago, el resultado debe ser bit a bit igual al flujo         actual:, RegistrarPagoFechaRetroactivaTest
 
 ### Community 193 - "Community 193"
@@ -1444,56 +1435,56 @@ Cohesion: 0.13
 Nodes (4): HidePlaceholder(), MultipleSelection(), Placeholder(), SingleSelection()
 
 ### Community 195 - "Community 195"
-Cohesion: 0.35
-Nodes (5): PlanEvaluacionView, Sincroniza bloques+items de un PlanEvaluacion con el payload recibido     (usad, GET/POST/PATCH /api/academico/docente/plan-evaluacion/?materia_id=&lapso_id=, Retorna (materia, lapso, error_response). error_response es None         si tod, _sync_plan_bloques()
+Cohesion: 0.14
+Nodes (12): poner_al_dia_si_hace_falta(), Evalúa los ciclos de cada sede como mucho una vez por día y proceso, al     abr, estado_motor(), ¿Está corriendo Celery Beat? Los recordatorios automáticos solo se crean y, ConfiguracionCobranzaInteligente, Toggle de Cobranza Inteligente, por sede (ver PLAN_COBRANZA_INTELIGENTE.md §3)., Base, EstadoMotorTest (+4 more)
 
 ### Community 196 - "Community 196"
 Cohesion: 0.14
 Nodes (9): puede_firmar_como_director(), Permiso INDEPENDIENTE del rol: quien emite (típicamente secretaria)     puede o, _crear_usuario(), PermisoSensibleSigueFuncionandoTests, PuedeFirmarComoDirectorTests, El contrato exige que separar la edición de plantillas NO le quite a     secreta, Permiso independiente del rol, basado en Group (sin migración nueva)., Re-confirma que el control de datos sensibles (sueldo/bono) en     previsualizar (+1 more)
 
 ### Community 197 - "Community 197"
-Cohesion: 0.17
-Nodes (6): getPlanesEvaluacionAlumnoPortal(), enviarMensajePortal(), getMensajesPortal(), marcarMensajeLeidoPortal(), failedQueue, portalClient
+Cohesion: 0.13
+Nodes (8): getPlanesEvaluacionAlumnoPortal(), getRendimientoAlumnoPortal(), enviarMensajePortal(), getMensajesPortal(), marcarMensajeLeidoPortal(), failedQueue, portalClient, usePortalHeroExtra()
 
 ### Community 198 - "Community 198"
 Cohesion: 0.11
 Nodes (18): alertas, ana, bitacora, cierreDetalle, cierreFila, cierres, director, luis (+10 more)
 
 ### Community 199 - "Community 199"
-Cohesion: 0.15
-Nodes (19): getCierres(), BitacoraFiltros(), BitacoraRangoFechas(), filtrosIniciales(), BitacoraVerificar(), CierreFiltros(), aFechaISO(), esCancelacion() (+11 more)
+Cohesion: 0.14
+Nodes (19): _area_unica(), evaluar_diferencia_caja(), _guardar_alerta(), _paso_hora_tope(), Motor de alertas de la Auditoría de Cantina — carril B4 (Fase 2). Reglas de CON, Anulaciones del día (por `anulada_en`) por quien anuló y en total., Ventas completadas del día con descuento: por cajero (cantidad > límite)     y, Por producto, en el día:       a) la cadena de movimientos se rompe: el `stock_ (+11 more)
 
 ### Community 200 - "Community 200"
-Cohesion: 0.12
-Nodes (16): _dias_recordatorio(), programar_notificaciones_mensualidad(), Push/email al representante tras aprobar o rechazar su comprobante     (best-ef, Envia un push puntual a una suscripcion (ej. notificacion de prueba     al acti, Lee el cronograma configurable de recordatorios de mora (día 0 es fijo)., Verifica que la mensualidad siga impaga antes de delegar el envío en     task_n, Programa los 4 avisos automáticos de mora para una mensualidad recién creada., task_enviar_push() (+8 more)
+Cohesion: 0.11
+Nodes (18): al_crear_mensualidad(), Al crear una nueva mensualidad impaga, programa automáticamente     las notific, _dias_recordatorio(), programar_notificaciones_mensualidad(), Push/email al representante tras aprobar o rechazar su comprobante     (best-ef, Envia un push puntual a una suscripcion (ej. notificacion de prueba     al acti, Lee el cronograma configurable de recordatorios de mora (día 0 es fijo)., Verifica que la mensualidad siga impaga antes de delegar el envío en     task_n (+10 more)
 
 ### Community 201 - "Community 201"
-Cohesion: 0.10
-Nodes (30): _alto_pie(), datos_recibo(), _dec(), _dibujar_encabezado(), _dibujar_pie(), _dibujar_titulo(), _estilo_tabla(), fmt_bs() (+22 more)
+Cohesion: 0.09
+Nodes (30): _alto_pie(), _dec(), _dibujar_encabezado(), _dibujar_pie(), _dibujar_titulo(), _estilo_tabla(), fmt_bs(), generar_pdf_recibo() (+22 more)
 
 ### Community 202 - "Community 202"
-Cohesion: 0.31
-Nodes (9): bindEditBadgeProxy(), editBadgeProxyTargets(), initEditBadge(), initEditBadgeHitProxies(), positionEditBadge(), setImportantStyle(), styleEditBadgeProxy(), syncEditBadgeHitProxies() (+1 more)
+Cohesion: 0.14
+Nodes (17): attachSteerFocusDebug(), attachSteerFocusGuard(), bindEditBadgeProxy(), connectSSE(), editBadgeProxyTargets(), fetchPendingCount(), init(), initAnnotOverlay() (+9 more)
 
 ### Community 203 - "Community 203"
 Cohesion: 0.39
 Nodes (7): allow(), deny(), done(), isStopEvent(), writeAuditLog(), main(), readStdin()
 
 ### Community 204 - "Community 204"
-Cohesion: 0.24
-Nodes (3): AvisoMoraRefTests, AvisoPagoConfirmadoRefTests, El pago confirmado usa la tasa con la que se cobró, no la de hoy:     el monto e
+Cohesion: 0.25
+Nodes (7): AYUDA_MOTIVO, FIELD_STYLE, IDLE_STYLE, LABEL_STYLE, MovimientoStockModal(), TIPOS, TIPOS_CON_MOTIVO
 
 ### Community 205 - "Community 205"
 Cohesion: 0.11
 Nodes (18): 1. El selector de sede, 2. Dashboard Sedes, 35 · Multi-Sede, 3. Gestión de Sedes, 4. Campos del formulario, 5. Qué pasa después, 6. Errores frecuentes y qué hacer, 7. Advertencias (+10 more)
 
 ### Community 206 - "Community 206"
-Cohesion: 0.07
-Nodes (27): annotate_en_mora(), annotate_mora_detalle(), calcular_dias_atraso(), _condicion_mora(), enriquecer_monto_adeudado_con_recargo(), estatus_financiero_actual(), _hoy(), Fuente de verdad ÚNICA para el cálculo de morosidad.  Antes existían dos crite (+19 more)
+Cohesion: 0.08
+Nodes (20): AbstractUser, crear_revision_pendiente(), evaluar_diferencia_al_cerrar(), Señales de la Auditoría de Cantina., Todo cierre nace con su revisión en 'pendiente' para el Director., Al cerrar una caja, evalúa la regla de diferencia de caja de ESE cierre.     Co, invalidar_cache_bancos(), Invalida el cache de bancos activos (BancosListView / PortalBancosView)     al (+12 more)
 
 ### Community 207 - "Community 207"
-Cohesion: 0.05
-Nodes (35): exportarMorososExcel(), listarLogsCobroWhatsApp(), FULL_HEIGHT_PAGES, MainLayout(), PAGE_TITLES, SedeSwitcher(), ACENTOS, navSections (+27 more)
+Cohesion: 0.06
+Nodes (21): AdminJWTAuthentication, Autenticación JWT del panel administrativo.  Los usuarios del portal de represen, ASGI config for config project.  It exposes the ASGI callable as a module-leve, healthcheck(), Readiness check for the reverse proxy and external monitoring.      The endpoint, WSGI config for config project.  It exposes the WSGI callable as a module-leve, django, django_conf_urls_static (+13 more)
 
 ### Community 208 - "Community 208"
 Cohesion: 0.28
@@ -1501,11 +1492,11 @@ Nodes (13): calendario(), _cuentas(), estado_proveedor(), _fecha(), _montos(), p
 
 ### Community 209 - "Community 209"
 Cohesion: 0.08
-Nodes (53): PRODUCT_DEPRECATED_SECTIONS, PRODUCT_V4_SECTIONS, productStampLine(), readProductSchemaVersion(), readSidecarSchemaVersion(), stampProductSchema(), BUILD_PATH_VALUES, checkBuildPathUnset() (+45 more)
+Nodes (52): PRODUCT_DEPRECATED_SECTIONS, PRODUCT_V4_SECTIONS, productStampLine(), readProductSchemaVersion(), readSidecarSchemaVersion(), stampProductSchema(), BUILD_PATH_VALUES, checkBuildPathUnset() (+44 more)
 
 ### Community 210 - "Community 210"
-Cohesion: 0.18
-Nodes (5): asignar_rol(), PortalSinIncidentesDisciplinariosTests, Regla de negocio: el representante NO ve los incidentes disciplinarios     de su, El signal create_perfil_usuario ya creó el perfil; solo cambia el rol., Validación cruzada (cantina.md §5.9): una referencia ya usada para         recar
+Cohesion: 0.14
+Nodes (11): main(), Script de un solo uso: autoriza con tu cuenta de Gmail el acceso de 'Octopus Bac, google_auth_oauthlib_flow, importar(), limpiar_cedula(), limpiar_texto(), main(), Run administrative tasks. (+3 more)
 
 ### Community 211 - "Community 211"
 Cohesion: 0.11
@@ -1524,24 +1515,24 @@ Cohesion: 0.11
 Nodes (18): 1. El cronograma de cobranza automática, 2. Paso a paso, 30 · Notificaciones automáticas, 3. Campos del formulario, 4. Qué pasa después, 5. Errores frecuentes y qué hacer, 6. Advertencias, Cambiar el cronograma de recordatorios (+10 more)
 
 ### Community 215 - "Community 215"
-Cohesion: 0.21
-Nodes (5): Orquestación de la inscripción:         1. Resolver/Actualizar Representante., dia_limite_pago_global(), generate_temporary_cedula_escolar(), Genera un ID numérico temporal/virtual único para estudiantes sin cédula.     F, Día límite de pago definido en ConfiguracionSistema (fallback 5).     Fuente de
+Cohesion: 0.19
+Nodes (7): Orquestación de la inscripción:         1. Resolver/Actualizar Representante., dia_limite_pago_global(), generate_temporary_cedula_escolar(), Genera un ID numérico temporal/virtual único para estudiantes sin cédula.     F, Día límite de pago definido en ConfiguracionSistema (fallback 5).     Fuente de, ImportarEstudiantesView, Carga masiva de la planilla histórica de matrícula (.xlsx).      Solo crea/vin
 
 ### Community 216 - "Community 216"
-Cohesion: 0.11
-Nodes (4): _crear_usuario(), CrudFirmaDelegadaTests, PermisoFirmaDelegadaTests, Solo director/administrador/sistemas/superuser puede gestionar el     grupo de f
+Cohesion: 0.15
+Nodes (9): _formatear_cedula(), importar_notacion_vieja(), _obtener_valor(), Motor de render de plantillas de constancias.  Este módulo es PURO: no consulta, Formatea un dato de cédula ya resuelto a la forma ``"NAC-NUMERO"``.      Único l, Busca ``datos[grupo][campo]``.      Devuelve una tupla ``(valor, encontrado)``., Convierte la notación vieja ``❴❴campo❵❵`` a la notación nueva ``{{grupo.campo}}`, NotacionViejaTests (+1 more)
 
 ### Community 217 - "Community 217"
-Cohesion: 0.07
-Nodes (20): Meta, Mensualidad, ConfiguracionCobranzaViewPropagacionTest, _crear_alumno(), PropagacionMontosGlobalesBase, Tests de propagar_monto_global (cobranza/services.py) y su integración en Config, Integra propagar_monto_global en el endpoint que la UI consume., Bug original: el guardado reportaba éxito pero las mensualidades         ya gene (+12 more)
+Cohesion: 0.11
+Nodes (4): _crear_usuario(), CrudFirmaDelegadaTests, PermisoFirmaDelegadaTests, Solo director/administrador/sistemas/superuser puede gestionar el     grupo de f
 
 ### Community 218 - "Community 218"
 Cohesion: 0.22
 Nodes (9): calcAVEC(), calcPrimaAntiguedad(), calcPrimaPostgrado(), CESTA_DEFAULT, EMPTY_RECIBO, loadCestaConfig(), loadConceptosUniversales(), POSTGRADO_PCT (+1 more)
 
 ### Community 219 - "Community 219"
-Cohesion: 0.35
-Nodes (9): buildGenerationPreflight(), compactError(), execFileAsync, insertTarget(), normalizeTarget(), replaceTarget(), runGenerationPreflight(), sourceResolutionCache (+1 more)
+Cohesion: 0.19
+Nodes (10): dinero(), `CierreCajaCantina.totales_por_metodo` ({metodo: {ventas, abonos,         recar, Decimal → string con 2 decimales ("12.50"); None → None., fila_rentabilidad(), margen_pct(), margen / ventas × 100 con 2 decimales; null si no hay ventas con costo., Fila (con clave) o totales (sin clave) de `reportes/rentabilidad/`., PanelEjecutivoView (+2 more)
 
 ### Community 220 - "Community 220"
 Cohesion: 0.26
@@ -1556,8 +1547,8 @@ Cohesion: 0.12
 Nodes (16): Bancos, Contrato — Revisión de comprobantes del portal (2026-10-29), Decisión del usuario (manda sobre todo lo demás), Endpoints de administración (roles director, sistemas, administrador, cobranza), Endpoints del portal (representante autenticado con portal_token), Fuera de alcance, GET `portal/admin/comprobantes/?estatus=pendiente`, GET `portal/admin/comprobantes/<id>/` (+8 more)
 
 ### Community 224 - "Community 224"
-Cohesion: 0.15
-Nodes (12): useIncidentes(), FIELD_STYLE, IDLE_STYLE, ModalNuevoIncidente(), SEVERIDADES, TIPOS_PERMITIDOS, SkeletonIncidente(), SEVERIDAD_CONFIG (+4 more)
+Cohesion: 0.13
+Nodes (14): getRosterSeccion(), useAlumnosSeccion(), useDocenteConversaciones(), useDocenteIncidentes(), useDocenteMensajes(), useDocenteMisMaterias(), ChatMensajes(), getAsistencia() (+6 more)
 
 ### Community 225 - "Community 225"
 Cohesion: 0.18
@@ -1572,16 +1563,16 @@ Cohesion: 0.12
 Nodes (16): 1. Qué muestra la pantalla, 24 · Solvencia, 2. Paso a paso, 3. Campos del formulario, 4. Cómo se emite la solvencia, 5. Qué pasa después, 6. Errores frecuentes y qué hacer, 7. Advertencias (+8 more)
 
 ### Community 228 - "Community 228"
-Cohesion: 0.17
-Nodes (5): Lógica unificada de guardado: Generación de referencia para efectivo,         v, Deriva `pagado`/`fecha_pago` de `monto_pagado` vs `monto_usd` en cada         g, Deriva `pagado`/`fecha_pago` de `monto_pagado` vs `monto_usd`, igual         qu, Deriva `pagado`/`fecha_pago` de `monto_pagado` vs `monto_usd` en cada         g, Deriva `pagado`/`fecha_pago` de `monto_pagado` vs `monto_usd` en cada         g
+Cohesion: 0.15
+Nodes (12): useIncidentes(), FIELD_STYLE, IDLE_STYLE, ModalNuevoIncidente(), SEVERIDADES, TIPOS_PERMITIDOS, SkeletonIncidente(), SEVERIDAD_CONFIG (+4 more)
 
 ### Community 229 - "Community 229"
 Cohesion: 0.15
 Nodes (7): b(), D(), e(), i(), S(), u(), y()
 
 ### Community 230 - "Community 230"
-Cohesion: 0.11
-Nodes (7): AprobacionPagosTests, MontoYComprobanteTests, Aprobación/rechazo de pagos por aprobar, inmutabilidad del monto y validación de, AnulacionTests, BaseCxP, PagoEgresoTests, TableroYBandejaTests
+Cohesion: 0.24
+Nodes (4): AnulacionTests, BaseCxP, PagoEgresoTests, TableroYBandejaTests
 
 ### Community 231 - "Community 231"
 Cohesion: 0.20
@@ -1592,24 +1583,24 @@ Cohesion: 0.12
 Nodes (6): _calcular_bloques(), _ejecutar_algoritmo(), _intentar_recolocar(), Calcula la lista de bloques horarios disponibles en el día,     excluyendo los, Backtracking limitado (no un solver completo): cuando `materia` no logra     ub, Algoritmo de distribución de materias en la grilla horaria.     Cada materia se
 
 ### Community 233 - "Community 233"
-Cohesion: 0.06
-Nodes (37): buscarRepresentante(), crearInscripcion(), descargarComprobanteBlob(), fetchAlumnosPorRepresentante(), fetchConfiguracionInscripcion(), listarInscripciones(), subirFotoAlumno(), buildPayload() (+29 more)
+Cohesion: 0.05
+Nodes (44): buscarRepresentante(), crearInscripcion(), descargarComprobanteBlob(), fetchAlumnosPorRepresentante(), fetchConfiguracionInscripcion(), listarInscripciones(), subirFotoAlumno(), SmartDateInput() (+36 more)
 
 ### Community 234 - "Community 234"
 Cohesion: 0.20
 Nodes (9): getNotasPlan(), getPlanEvaluacion(), guardarNotasPlan(), guardarPlanEvaluacion(), useDocentePlanEvaluacion(), nuevoBloque(), nuevoId(), nuevoItem() (+1 more)
 
 ### Community 235 - "Community 235"
-Cohesion: 0.10
-Nodes (8): Una referencia ya usada en cobranza.Pago no se puede reutilizar en         cant, Caso inverso: una referencia ya usada en una RecargaTarjeta de         cantina, RecargarTarjetaCajeroViewTests, buscar_referencia_duplicada(), normalizar_referencia(), Punto único de verdad para "esta referencia bancaria ya fue usada en cualquier, Mayúsculas + colapsa espacios — mismo criterio que ya usaban     cobranza/seria, Busca `ref_normalizada` (ya normalizada por `normalizar_referencia`) en     los
+Cohesion: 0.15
+Nodes (3): Una referencia ya usada en cobranza.Pago no se puede reutilizar en         cant, Caso inverso: una referencia ya usada en una RecargaTarjeta de         cantina, RecargarTarjetaCajeroViewTests
 
 ### Community 236 - "Community 236"
 Cohesion: 0.17
 Nodes (13): sincronizar_tasa_con_blindaje(), _obtener_tasa_de_emergencia_db(), _obtener_tasa_por_pydolar(), _obtener_tasa_por_scraping_bcv(), _parse_decimal(), Convierte cualquier representación numérica a Decimal, normalizando comas., API 1: ve.dolarapi.com — JSON público.     Endpoint: GET /v1/dolares → busca fu, API 2: exchangerate.host como fallback real con endpoint distinto. (+5 more)
 
 ### Community 237 - "Community 237"
-Cohesion: 0.16
-Nodes (5): AlumnoSerializer, Cachea ConfiguracionSistema.objects.first() en la instancia del serializer, Usa el prefetch de AlumnoListView.get_queryset (to_attr=         '_cuota_solven, Indica si ya existe una CuotaSolvencia guardada para el período activo,, Muestra el estatus financiero EN VIVO cuando el queryset viene anotado
+Cohesion: 0.14
+Nodes (7): AlumnoSerializer, NormalizaFechaNacimientoMixin, Trata '' como ausencia de valor en fecha_nacimiento. El campo es opcional     a, Cachea ConfiguracionSistema.objects.first() en la instancia del serializer, Usa el prefetch de AlumnoListView.get_queryset (to_attr=         '_cuota_solven, Indica si ya existe una CuotaSolvencia guardada para el período activo,, Muestra el estatus financiero EN VIVO cuando el queryset viene anotado
 
 ### Community 238 - "Community 238"
 Cohesion: 0.29
@@ -1636,40 +1627,40 @@ Cohesion: 0.12
 Nodes (15): 1. Qué muestra la pantalla, 26 · Recibos de Pago (personal), 2. Paso a paso, 3. Campos del formulario, 4. Qué pasa después, 5. Errores frecuentes y qué hacer, 6. Advertencias, Agregar, renombrar o quitar una línea (+7 more)
 
 ### Community 244 - "Community 244"
-Cohesion: 0.05
-Nodes (44): actualizarPlantillaWhatsApp(), crearPlantillaWhatsApp(), descargarAdjuntoWhatsApp(), eliminarPlantillaWhatsApp(), listarPlantillasWhatsApp(), obtenerVariablesWhatsApp(), previsualizarCobroWhatsApp(), registrarEnvioManualCobroWhatsApp() (+36 more)
+Cohesion: 0.03
+Nodes (89): accionCicloInteligente(), accionConversacionInteligente(), actualizarCobranzaInteligente(), actualizarConfiguracionMetaBanco(), aplicarPagoRecargoConvenio(), cancelarConvenioInteligente(), crearConvenioInteligente(), crearMetaBanco() (+81 more)
 
 ### Community 246 - "Community 246"
-Cohesion: 0.20
-Nodes (6): crear_mensualidad(), PortalDashboardNPlusOneTest, PortalDashboardView hacía 2 queries de Mensualidad por cada alumno del     repre, El nº de queries con 3 alumnos debe ser el mismo que con 1 solo., La referencia que mande un cliente viejo se ignora en la subida: el         anti, Crea una mensualidad sin disparar la programación de notificaciones.
+Cohesion: 0.08
+Nodes (20): asegurar_revisiones(), expresion_esperado_efectivo(), Meta, Serializers del panel y los cierres de la Auditoría de Cantina — carril B2. For, Efectivo esperado en caja de un cierre, calculado en BD. Al cerrar se     guard, Los cierres anteriores a la Fase 0 no tienen `RevisionCierre` (el signal     so, periodos(), Panel ejecutivo — carril B2 (Fase 1). Contrato §2. (+12 more)
 
 ### Community 247 - "Community 247"
 Cohesion: 0.06
-Nodes (43): abrirCajaCantina(), buscarTarjetaActiva(), ACTIVE_STYLE, FIELD_STYLE, IDLE_STYLE, MetodoPagoFields(), camposMetodoVenta(), digitos() (+35 more)
+Nodes (44): abrirCajaCantina(), buscarTarjetaActiva(), getPlantillasVenta(), registrarVenta(), ACTIVE_STYLE, FIELD_STYLE, IDLE_STYLE, MetodoPagoFields() (+36 more)
 
 ### Community 248 - "Community 248"
 Cohesion: 0.05
 Nodes (36): 10. Checklist de validación (evitar errores de compilación/runtime), 1. Contexto y objetivo, 2. Actores y roles, 3. Alcance, 4. Reutilización explícita (no reinventar), 5.1 Ciclo de vida del código QR — generación, formato y asignación, 5.2 Modelos (`cantina/models.py`), 5.3 Mora de cantina (`cantina/mora_cantina.py`) (+28 more)
 
 ### Community 249 - "Community 249"
-Cohesion: 0.13
-Nodes (14): exportarVentasExcel(), getReporteVentas(), ProductosTable(), CantinaReportes(), FIELD_STYLE, haceNDiasISO(), hoyISO(), parseLocalDate() (+6 more)
+Cohesion: 0.09
+Nodes (20): anularVenta(), exportarVentasExcel(), getReporteVentas(), ETIQUETA_AREA, notificarAperturaCambiada(), ProductosTable(), CantinaReportes(), FIELD_STYLE (+12 more)
 
 ### Community 250 - "Community 250"
 Cohesion: 0.13
 Nodes (14): 1. Clonar y configurar entorno, 2. Variables de entorno, 3. Migraciones y datos iniciales, 4. Arrancar servicios (4 terminales), 5. Acceso, Activar portal para representantes, Cantina: lector móvil con cámara, Instalación y arranque en desarrollo (+6 more)
 
 ### Community 252 - "Community 252"
-Cohesion: 0.05
-Nodes (88): CargoCantina, CreditoRepresentanteCantina, Override del límite de crédito de un representante (D6)., Deuda generada por una venta cargada a la cuenta del representante (D4).     mo, EsCajeroOAdmin, Permisos de la app cantina.  Sigue exactamente el patrón ya usado en `authenti, Cajero de cantina, administrador o director., a_ves() (+80 more)
+Cohesion: 0.07
+Nodes (69): a_ves(), AbonoInputSerializer, agrupar_abonos(), anotar_saldos(), anotar_saldos_clientes(), AnularAbonoInputSerializer, ClienteInputSerializer, CreditoInputSerializer (+61 more)
 
 ### Community 253 - "Community 253"
 Cohesion: 0.14
 Nodes (6): filtrar_cuentas(), filtrar_por_situacion(), Replica en BD la clasificación de services.situacion (misma ventana configurable, _ventana_por_vencer(), FiltrosYErroresTests, _lista()
 
 ### Community 254 - "Community 254"
-Cohesion: 0.18
-Nodes (4): _crear_usuario(), PlantillasSemillaTests, `PrevisualizarView` concatena cuerpo + anexo en un solo         `html_renderizad, Carga real de `plantillas_semilla.json` + previsualización end-to-end.
+Cohesion: 0.40
+Nodes (3): _Pagina, Cursor vertical sobre el A4., Dibuja la tabla en el cursor; si no cabe, la parte entre páginas.
 
 ### Community 255 - "Community 255"
 Cohesion: 0.13
@@ -1680,8 +1671,8 @@ Cohesion: 0.13
 Nodes (15): 1. Cómo funciona, 20 · Cobranza (caja), 2. Paso 1 — Buscar y seleccionar la deuda, 3. Paso 2 — Registrar el pago, 4. Campos del formulario, 5. Qué pasa después, 6. Errores frecuentes y qué hacer, 7. Advertencias (+7 more)
 
 ### Community 257 - "Community 257"
-Cohesion: 0.05
-Nodes (51): django_utils_dateparse, RegistroNominaAdmin, actualizar_nominas_por_cambio_maestro(), ConceptoNomina, Empleado, ParametroLegalNomina, Redondeo comercial (0.005 siempre sube), no el ROUND_HALF_EVEN por defecto de De, Lógica según ley venezolana utilizando redondeo matemático seguro (.quantize). (+43 more)
+Cohesion: 0.06
+Nodes (47): django_utils_dateparse, RegistroNominaAdmin, actualizar_nominas_por_cambio_maestro(), ConceptoNomina, Empleado, ParametroLegalNomina, Redondeo comercial (0.005 siempre sube), no el ROUND_HALF_EVEN por defecto de De, Lógica según ley venezolana utilizando redondeo matemático seguro (.quantize). (+39 more)
 
 ### Community 258 - "Community 258"
 Cohesion: 0.20
@@ -1700,24 +1691,20 @@ Cohesion: 0.14
 Nodes (13): 1. Punto de partida (lo que ya existe), 2. Decisiones que necesito antes de arrancar, 3. Arquitectura propuesta, 4. Fases y reparto en paralelo, 5. Reglas para los carriles paralelos, 6. Riesgos, Backend (Django — subpaquete dentro de `cantina`), Fase 0 — Cimientos y contrato (1 sesión, secuencial) · ~1 día (+5 more)
 
 ### Community 262 - "Community 262"
-Cohesion: 0.03
-Nodes (42): MovimientoTarjeta, alumno', 'personal', 'otro' o None si está sin asignar., TarjetaPrepago, aplicar_movimiento_tarjeta(), GeneracionCodigoError, generar_codigo_tarjeta(), generar_serial_reposicion(), _nuevo_token() (+34 more)
+Cohesion: 0.06
+Nodes (99): AbonoCantinaAdmin, AdjuntoRevisionAdmin, AlertaCantinaAdmin, AperturaCajaCantinaAdmin, AplicacionAbonoCantinaAdmin, CargoCantinaAdmin, CategoriaProductoAdmin, CierreCajaCantinaAdmin (+91 more)
 
 ### Community 263 - "Community 263"
-Cohesion: 0.33
-Nodes (3): AsistenciaSincroniaPanelDocenteTests, Portal docente y panel escriben el mismo registro: un guardado hecho     sobre, Clientes que aún no envían la versión siguen funcionando.
+Cohesion: 0.14
+Nodes (3): AprobacionPagosTests, MontoYComprobanteTests, Aprobación/rechazo de pagos por aprobar, inmutabilidad del monto y validación de
 
 ### Community 264 - "Community 264"
-Cohesion: 0.09
-Nodes (51): checkColors(), checkElementAIPaletteDOM(), checkElementColors(), checkElementColorsDOM(), checkElementGlowDOM(), checkElementHoverContrast(), checkElementIconTile(), checkElementIconTileDOM() (+43 more)
+Cohesion: 0.08
+Nodes (57): checkBorders(), checkColors(), checkElementAIPaletteDOM(), checkElementBorders(), checkElementBordersDOM(), checkElementColors(), checkElementColorsDOM(), checkElementGlow() (+49 more)
 
 ### Community 265 - "Community 265"
 Cohesion: 0.04
 Nodes (44): Académico, Administración, Alumnos e inscripción, Anexos, Comunicación, Cómo usar este manual, Finanzas y cobranza, Manual de Usuario — Octopus (+36 more)
-
-### Community 266 - "Community 266"
-Cohesion: 0.38
-Nodes (9): buildStalenessDirective(), cachePath(), filterFreshFindings(), pruneCache(), readCache(), readJson(), stalenessCheckDisabled(), writeCache() (+1 more)
 
 ### Community 267 - "Community 267"
 Cohesion: 0.14
@@ -1747,13 +1734,17 @@ Nodes (28): 1. Contexto, 2.1 División del personal en tres secciones (Tabs), 2.
 Cohesion: 0.23
 Nodes (15): appendOriginToDirective(), buildTagBlock(), commentClose(), commentOpen(), detectLineEnding(), findCspMetaTags(), getAttr(), insertTag() (+7 more)
 
+### Community 274 - "Community 274"
+Cohesion: 0.11
+Nodes (20): applyPlaceholderSizingStyles(), createInsertPlaceholder(), cursorForInsertAxis(), detectInsertAxis(), detectInsertAxisFromStyle(), ensureInsertLine(), handleMouseMove(), hideHighlightTagTooltip() (+12 more)
+
 ### Community 275 - "Community 275"
-Cohesion: 0.03
-Nodes (58): PlanesEvaluacionAlumnoPortalView, GET — planes y calificaciones del propio representado, solo lectura., EsDirector, Permiso del módulo de Auditoría de Cantina.  Mismo patrón que cantina/permissi, Solo el rol Director (o superusuario)., no_implementado(), Base común de las vistas de Auditoría de Cantina., Respuesta de las vistas stub de la Fase 0 (ver CONTRATO_AUDITORIA_CANTINA.md). (+50 more)
+Cohesion: 0.07
+Nodes (23): cryptography_fernet, django_views, hashlib, Migration, Migration, Campo de modelo que cifra su contenido en reposo (base de datos / dumps / backup, _config(), generar_icono() (+15 more)
 
 ### Community 276 - "Community 276"
-Cohesion: 0.33
-Nodes (5): FIELD_STYLE, ModalNuevaCircular(), SkeletonCircular(), useCirculares(), Comunicacion()
+Cohesion: 0.15
+Nodes (7): createCircular(), getLecturasCircular(), FIELD_STYLE, ModalNuevaCircular(), SkeletonCircular(), useCirculares(), Comunicacion()
 
 ### Community 277 - "Community 277"
 Cohesion: 0.28
@@ -1764,8 +1755,8 @@ Cohesion: 0.26
 Nodes (7): generar_numero_constancia(), Replica el patrón de cobranza/solvencia.py::_generar_numero, con     prefijo por, _crear_usuario(), GenerarNumeroConstanciaTests, Caso raro documentado en el resolver: sin fila de         ConfiguracionFirmante, Hallazgo de deuda técnica resuelto: cuando nunca se configuró         Configurac, Prueba directa del resolver (sin pasar por EmitirView).
 
 ### Community 279 - "Community 279"
-Cohesion: 0.28
-Nodes (6): calcularAnosServicio(), EmpleadoForm(), errorStyle, inputStyle, labelStyle, parseISODate()
+Cohesion: 0.21
+Nodes (5): DiaLimitePagoGlobalTest, InscripcionGeneraDeudaTest, Valida el flujo completo de inscripción: bloqueo por cuota impaga y     que al, El día límite configurado en ConfiguracionSistema debe propagarse a los     alu, Cada guardado sincroniza, aunque el valor de config no cambie:         corrige
 
 ### Community 280 - "Community 280"
 Cohesion: 0.15
@@ -1779,13 +1770,17 @@ Nodes (13): 19 · Incidentes Disciplinarios, 1. Qué muestra la pantalla, 2. Pas
 Cohesion: 0.15
 Nodes (12): 1. Qué muestra la pantalla, 29 · Circulares, 2. Paso a paso, 3. Campos del formulario, 4. Qué pasa después, 5. Errores frecuentes y qué hacer, 6. Advertencias, Cómo llegar (+4 more)
 
+### Community 283 - "Community 283"
+Cohesion: 0.06
+Nodes (7): CantinaFase1ViewsTests, MoraCantinaTests, NotificacionesCantinaContenidoTests, Fase 6 -- SS5.3 de cantina.md: criterio de saldo negativo sostenido.     No usa, Cubre las vistas de Fase 1 (inventario) de cantina: productos,     búsqueda por, Fase 6 -- SS5.4 de cantina.md: contenido de `notificar_recarga_aprobada` /, _TarjetaFalsa
+
 ### Community 288 - "Community 288"
 Cohesion: 0.29
 Nodes (5): EncryptedTextField, _fernet(), _fernet_key_desde_secret_key(), TextField que persiste su valor cifrado en la base de datos.      Transparente p, Meta
 
 ### Community 289 - "Community 289"
-Cohesion: 0.36
-Nodes (3): AdminComprobantesTests, El panel ya no aprueba: se aprueba registrando el pago en caja., Regresión de la unicidad compuesta con banco_receptor=None: un         comproban
+Cohesion: 0.40
+Nodes (4): _get_config_colegio(), Devuelve la ruta local del ImageField si el archivo existe en disco, o None., Retorna nombre/RIF del colegio y las rutas de los banners personalizados     (e, _safe_image_path()
 
 ### Community 290 - "Community 290"
 Cohesion: 0.17
@@ -1795,9 +1790,9 @@ Nodes (11): Administrador, Cajero, Checklist de piloto por rol, Cobranza, Direct
 Cohesion: 0.17
 Nodes (11): Accessibility & Inclusion, Brand Commitments, Capabilities and Constraints, Evidence on Hand, Operating Context, Platform, Positioning, Product (+3 more)
 
-### Community 292 - "Community 292"
-Cohesion: 0.17
-Nodes (4): ExportarVentasExcelViewTests, Tests de Fase 7 de cantina: reportes de ventas — ReporteVentasView, ExportarVen, ReporteVentasTestsBase, ReporteVentasViewTests
+### Community 293 - "Community 293"
+Cohesion: 0.08
+Nodes (36): buildCollapsible(), buildColorModels(), buildDesignHeader(), buildRadiiModels(), buildTypographyModels(), cssSafe(), designEmptyMessage(), designPanelCss() (+28 more)
 
 ### Community 295 - "Community 295"
 Cohesion: 0.27
@@ -1815,17 +1810,21 @@ Nodes (12): 15 · Boletines de Calificaciones, 1. Qué muestra la pantalla, 2. P
 Cohesion: 0.17
 Nodes (12): 1. Qué muestra la pantalla, 21 · Dashboard de Cobranza, 2. Paso a paso, 3. Campos del formulario, 4. Qué pasa después, 5. Errores frecuentes y qué hacer, 6. Advertencias, Cobrar desde aquí (+4 more)
 
+### Community 300 - "Community 300"
+Cohesion: 0.29
+Nodes (8): coLocatedStylesheets(), expandScanTargets(), hasPathTraversal(), isInsideProject(), looksLikeProjectRoot(), normalizeScanTargets(), parseStaticStyleImports(), resolveCacheCwd()
+
 ### Community 302 - "Community 302"
-Cohesion: 0.25
-Nodes (3): PortalIDORTests, Un representante no debe acceder a datos de alumnos de otros representantes., Escalación de privilegios: el perfil por defecto ('cajero') que el         signa
+Cohesion: 0.16
+Nodes (11): buscarAlumnosPreinscripcion(), descargarPreinscripcionBlob(), descargarPreinscripcionMasivaBlob(), ReabrirCajaBoton(), SECCIONES_CAMPOS_PREINSCRIPCION, TODOS_LOS_CAMPOS_PREINSCRIPCION, usePreinscripcion(), ESTADO_LABELS (+3 more)
 
 ### Community 303 - "Community 303"
 Cohesion: 0.03
-Nodes (63): crear_alumno(), calcular_recargos_para_alumnos(), _esta_en_intervalo(), _fecha_local(), fecha_vencimiento(), _importe_unitario(), _intervalos_exoneracion(), _monto_cobrado() (+55 more)
+Nodes (37): crear_alumno(), Recalcula el estatus con el criterio canónico y lo persiste si cambió.     Usar, sincronizar_estatus_alumno(), calcular_recargos_para_alumnos(), _esta_en_intervalo(), _fecha_local(), fecha_vencimiento(), _importe_unitario() (+29 more)
 
 ### Community 304 - "Community 304"
 Cohesion: 0.04
-Nodes (87): CuotaSolvenciaAdmin, BancoInstitucional, CierreCaja, CuotaInscripcion, CuotaProyectoInversion, CuotaSolvencia, Configuración de recargo (o descuento — campo `tipo` reservado, sin     lógica, Cargo anual de solvencia por período escolar. El monto se define por     alumno (+79 more)
+Nodes (111): Meta, PagoFilter, Filtros avanzados para el modelo Pago.      Query params disponibles:       -, BancoInstitucional, CierreCaja, ClasificacionPagoManual, LineaRecargoPago, Mensualidad (+103 more)
 
 ### Community 305 - "Community 305"
 Cohesion: 0.33
@@ -1836,8 +1835,8 @@ Cohesion: 0.38
 Nodes (8): checker(), clearAcross(), hide(), reset(), show(), showClear(), showQuestion(), updateCounter()
 
 ### Community 307 - "Community 307"
-Cohesion: 0.29
-Nodes (8): coLocatedStylesheets(), expandScanTargets(), hasPathTraversal(), isInsideProject(), looksLikeProjectRoot(), normalizeScanTargets(), parseStaticStyleImports(), resolveCacheCwd()
+Cohesion: 0.20
+Nodes (11): checkTextOcclusionDOM(), clippedByInset(), clippedByRect(), elementDirectText(), expandBoxShorthand(), firstMetricLengthPx(), isLayeredElement(), isOpaqueDecoratedBox() (+3 more)
 
 ### Community 308 - "Community 308"
 Cohesion: 0.18
@@ -1849,7 +1848,7 @@ Nodes (8): GrupoAlumnos(), GRUPOS, plural(), porGenero(), ResumenGrado(), SIN_MA
 
 ### Community 312 - "Community 312"
 Cohesion: 0.11
-Nodes (29): rutaCierre(), RUTAS_AUDITORIA, KpiVenta(), textoVariacion(), tonoVariacion(), PanelAlertas(), SEVERIDADES, AREAS (+21 more)
+Nodes (30): RUTAS_AUDITORIA, KpiVenta(), textoVariacion(), tonoVariacion(), PanelAlertas(), SEVERIDADES, AREAS, PanelBajoInventario() (+22 more)
 
 ### Community 313 - "Community 313"
 Cohesion: 0.08
@@ -1857,7 +1856,7 @@ Nodes (23): 0. Por qué existe esta versión 2, 1. Estado real por módulo (audi
 
 ### Community 314 - "Community 314"
 Cohesion: 0.06
-Nodes (58): applyParamDefaults(), applyParamValue(), applyPlaceholderDimensions(), applySavedSessionMeta(), clampVariantIndex(), clearHandled(), closedClipPath(), completeParameterPublication() (+50 more)
+Nodes (59): applyParamDefaults(), applyParamValue(), applyPlaceholderDimensions(), applySavedSessionMeta(), clampVariantIndex(), clearHandled(), clearSession(), closedClipPath() (+51 more)
 
 ### Community 315 - "Community 315"
 Cohesion: 0.33
@@ -1872,20 +1871,24 @@ Cohesion: 0.31
 Nodes (7): C(), D(), E(), L(), M(), u(), x()
 
 ### Community 318 - "Community 318"
-Cohesion: 0.07
-Nodes (11): BaseCommand, Command, Command, Command, Command, Command, Command, Command (+3 more)
+Cohesion: 0.03
+Nodes (41): base64, BaseCommand, Command, Agrupa retroactivamente pagos históricos que se registraron con varios métodos d, Command, Borra por completo todos los Alumnos y Representantes de la base de datos, junto, Command, Backfill de first_name/last_name para usuarios existentes.  No inventa nombres: (+33 more)
 
 ### Community 319 - "Community 319"
-Cohesion: 0.40
-Nodes (3): _Pagina, Cursor vertical sobre el A4., Dibuja la tabla en el cursor; si no cabe, la parte entre páginas.
+Cohesion: 0.19
+Nodes (15): applyEditing(), buildLocatorForLeaf(), copyEditContainerContext(), copyEditLeafContext(), documentRefForElement(), extractContext(), forbiddenManualTextChars(), maybeShowFirstSaveToast() (+7 more)
+
+### Community 320 - "Community 320"
+Cohesion: 0.18
+Nodes (6): _crear_configuracion_sistema(), _png_1x1_bytes(), secretaria sin grupo ConstanciasFirmaDelegada: las 3 condiciones         viejas, director activo (puede_firmar_como_director=True vía rol) con         las 4 cond, Permiso delegado vía Group (sin campo nuevo en el modelo, ver         4A) -- sec, SalioFirmadaYAuditoriaTests
 
 ### Community 321 - "Community 321"
-Cohesion: 0.18
-Nodes (3): MoraCantinaTests, Fase 6 -- SS5.3 de cantina.md: criterio de saldo negativo sostenido.     No usa, _TarjetaFalsa
+Cohesion: 0.24
+Nodes (3): AvisoMoraRefTests, AvisoPagoConfirmadoRefTests, El pago confirmado usa la tasa con la que se cobró, no la de hoy:     el monto e
 
-### Community 322 - "Community 322"
-Cohesion: 0.14
-Nodes (8): CierreCajaCantinaGetTests, CierreCajaCantinaPostTests, CierreCajaCantinaTestsBase, CierreCajaDesgloseOrigenTests, CierreCajaDesgloseTestsBase, CierreCajaUltimoTests, Tests de Fase 5 de cantina: cierre de caja — CierreCajaCantinaView (§5.7/§8 FAS, Datos a tasa 100 para que las conversiones se lean a simple vista.
+### Community 323 - "Community 323"
+Cohesion: 0.20
+Nodes (6): estado_a_booleanos(), R' cuenta como presente (llegó tarde, pero asistió)., crear_representante_user_portal(), EstadoABooleanosTests, Helper local (mismo patrón que portal/tests.py::crear_representante_con_portal,, La lógica de mapeo estado -> (presente, justificada) es el contrato     que man
 
 ### Community 324 - "Community 324"
 Cohesion: 0.22
@@ -1894,6 +1897,10 @@ Nodes (8): Clases, Composición del contenido, Design — Portal de representant
 ### Community 325 - "Community 325"
 Cohesion: 0.07
 Nodes (42): COMPOSITION_GRAMMAR_PREFIXES, COMPOSITION_SURFACES, compositionContentHash(), readCompositionCatalog(), validateCompositionCatalog(), validateCompositionEntry(), approvedPoolRevision(), CONCEPT_BREADTHS (+34 more)
+
+### Community 326 - "Community 326"
+Cohesion: 0.20
+Nodes (8): _etiquetas_aperturas(), _etiquetas_cierres(), etiquetas_objetos(), _ids_enteros(), Meta, Serializers de bitácora, alertas y parámetros de la Auditoría de Cantina — carr, {(objeto_tipo, objeto_id): etiqueta legible} para una página de eventos:     un, nombre_usuario()
 
 ### Community 327 - "Community 327"
 Cohesion: 0.10
@@ -1923,6 +1930,10 @@ Nodes (7): Ambiente de Staging, Flujo de trabajo sugerido, Matriz de aislamiento
 Cohesion: 0.04
 Nodes (46): `abonos_parciales_requieren_usd` ya NO restringe abonos parciales de mensualidades VENCIDAS (decisión de negocio, 2026-09-17), `anular_pago` (cobranza/correcciones.py) no soporta pagos vinculados a Proyecto de Inversión, Cantina — contradicción de permisos entre `cantina.md` y la implementación real (cajero con acceso total, no solo POS), Cantina — Fase 8: contradicción encontrada y corregida (`PortalComprobantePagoView` no validaba referencia cruzada contra `cantina.RecargaTarjeta`), Cantina — notificaciones push usan el tipo `'factura'`, no existe un tipo `'cantina'` dedicado, Cantina — `PortalRecargarTarjetaView` no exige el formato de referencia de 6 dígitos que sí exige `RecargarTarjetaCajeroView`, Cargos Especiales Dinámicos (generalización de CuotaProyectoInversion) — alcance de PASO 1/2, `ClasificacionPagoManual` es un parche temporal — el camino real es que el desglose automático nunca falle (+38 more)
 
+### Community 335 - "Community 335"
+Cohesion: 0.08
+Nodes (17): PlantillaVenta, PlantillaVentaItem, Combo de venta rápida del POS (ej. 'Combo desayuno', 'Kit de útiles'):     prod, Permisos de la app cantina.  Sigue exactamente el patrón ya usado en `authenti, Meta, PlantillaVentaItemSerializer, PlantillaVentaSerializer, BancosCantinaYBuscarTarjetaTests (+9 more)
+
 ### Community 337 - "Community 337"
 Cohesion: 0.22
 Nodes (8): Configuración única en el servidor, Cómo se genera el respaldo, Notas, Respaldo externo diario: PostgreSQL + media en Google Drive, Restauración de emergencia (PostgreSQL), Restauración y prueba de restauración, Restaurar en un servidor nuevo o de emergencia, Verificación periódica (recomendado)
@@ -1936,8 +1947,8 @@ Cohesion: 0.12
 Nodes (16): 1. Google Cloud Console (una vez por proyecto/entidad), 2. Autorizar localmente (en una PC con navegador, NUNCA en el VPS), 3. Crear la carpeta de destino vía API (no a mano), 4. Subir `token.json` al VPS de esa entidad, 5. Completar el `.env` de ese VPS, 6. Limpieza local, 7. Probar, Automatización diaria con Celery (ya configurado en `srv1765770`) (+8 more)
 
 ### Community 341 - "Community 341"
-Cohesion: 0.09
-Nodes (50): allEntryIds(), argVal(), buildRepairBatch(), candidatesForEntry(), changedFilesSinceSnapshot(), clearAppliedEntries(), collectApplyOwnedFiles(), collectRollbackFiles() (+42 more)
+Cohesion: 0.05
+Nodes (89): allEntryIds(), argVal(), buildRepairBatch(), candidatesForEntry(), changedFilesSinceSnapshot(), clearAppliedEntries(), collectApplyOwnedFiles(), collectRollbackFiles() (+81 more)
 
 ### Community 342 - "Community 342"
 Cohesion: 0.25
@@ -1950,6 +1961,10 @@ Nodes (7): e(), i(), l(), n(), r(), s(), u()
 ### Community 346 - "Community 346"
 Cohesion: 0.29
 Nodes (6): Go / no-go, Lanzamiento controlado a producción, Preparación exclusiva del servidor, Reversión, Secuencia de publicación, Validación posterior
+
+### Community 348 - "Community 348"
+Cohesion: 0.29
+Nodes (11): _autor(), construir_conversacion(), _deuda(), _estado_whatsapp(), _eventos(), _mensajes(), Conversación de cobranza con un representante: una sola línea de tiempo con lo, Contesta al representante. modo='api' envía por el proveedor (solo dentro de (+3 more)
 
 ### Community 350 - "Community 350"
 Cohesion: 0.40
@@ -1976,12 +1991,12 @@ Cohesion: 0.67
 Nodes (3): Decisiones de diseño (no negociables, ya implementadas), Deuda técnica anotada, no corregida, FASE 3 — PORTAL DOCENTE + MENSAJERÍA BIDIRECCIONAL (2026-07-28)
 
 ### Community 356 - "Community 356"
-Cohesion: 0.08
-Nodes (45): createBrowserDetector(), confirm(), detectCli(), detectLocalFile(), dim(), fileUrlToLocalPath(), formatAdvisorySection(), formatFindings() (+37 more)
+Cohesion: 0.09
+Nodes (44): createBrowserDetector(), detectCli(), detectLocalFile(), dim(), fileUrlToLocalPath(), formatAdvisorySection(), formatFindings(), formatFindingsBody() (+36 more)
 
 ### Community 358 - "Community 358"
-Cohesion: 0.09
-Nodes (21): Única regla activa de tipo='descuento' (configuración global, sin     variación, Decide si `mensualidad` (impaga) tiene descuento evaluado en     `fecha_referenc, _regla_descuento_activa(), resolver_descuento(), ApiReglaRecargoPagoDescuentoTest, BecaYMontoPersonalizadoTest, _crear_alumno(), DescuentoPagoBase (+13 more)
+Cohesion: 0.14
+Nodes (11): Única regla activa de tipo='descuento' (configuración global, sin     variación, Decide si `mensualidad` (impaga) tiene descuento evaluado en     `fecha_referenc, _regla_descuento_activa(), resolver_descuento(), BecaYMontoPersonalizadoTest, _crear_alumno(), MesPropioDeLaMensualidadTest, El rango se evalúa contra el mes de LA MENSUALIDAD, no el mes     calendario en (+3 more)
 
 ### Community 359 - "Community 359"
 Cohesion: 0.06
@@ -1994,10 +2009,6 @@ Nodes (5): Contrato API — Cuentas por Pagar, Cuenta y flujo de egreso, Endpoin
 ### Community 361 - "Community 361"
 Cohesion: 0.10
 Nodes (48): _(), ae(), be(), bt(), Ct(), de(), dt(), _e() (+40 more)
-
-### Community 362 - "Community 362"
-Cohesion: 0.09
-Nodes (33): agentHasWorkInFlight(), agentStatusText(), attachSteerFocusDebug(), attachSteerFocusGuard(), barPaletteForTheme(), brandMarkSvg(), buildParamsPanel(), connectSSE() (+25 more)
 
 ### Community 363 - "Community 363"
 Cohesion: 0.33
@@ -2016,16 +2027,24 @@ Cohesion: 0.33
 Nodes (6): AUDITORÍA COMERCIAL — FUNCIONES VENDIDAS VS. ESTADO REAL (2026-08-27), AUDITORÍA RESPONSIVE 2026-08-28 — resultado, ESTÁNDAR RESPONSIVE — dónde vive la norma, Hallazgos por área, MÓDULO DOCENTE (2026-08-28) — solo anotado, no implementado, Propuesta priorizada (sin implementar — a la espera de tu aprobación)
 
 ### Community 368 - "Community 368"
-Cohesion: 0.33
-Nodes (4): AlumnoManager, AlumnoManagerCompleto, Manager por defecto — solo alumnos activos., Manager alternativo — todos incluyendo retirados.
+Cohesion: 0.19
+Nodes (8): AlumnoAdmin, RepresentanteAdmin, AlumnoManager, AlumnoManagerCompleto, Meta, Manager por defecto — solo alumnos activos., Manager alternativo — todos incluyendo retirados., Representante
 
 ### Community 369 - "Community 369"
-Cohesion: 0.50
-Nodes (4): asignar_formatos(), Migration, _norm(), unicodedata
+Cohesion: 0.11
+Nodes (18): _agrupar_por_fila(), ConciliadorBancario, _es_fila_encabezado(), _extraer_tabla_pagina(), extraer_tabla_pdf(), _extraer_tabla_por_palabras(), _norm(), Extrae filas de un estado de cuenta en PDF y las devuelve como     list[list[st (+10 more)
 
 ### Community 373 - "Community 373"
 Cohesion: 0.40
 Nodes (4): name, private, type, version
+
+### Community 374 - "Community 374"
+Cohesion: 0.20
+Nodes (7): EsDirector, Permiso del módulo de Auditoría de Cantina.  Mismo patrón que cantina/permissi, Solo el rol Director (o superusuario)., no_implementado(), Base común de las vistas de Auditoría de Cantina., Respuesta de las vistas stub de la Fase 0 (ver CONTRATO_AUDITORIA_CANTINA.md)., rest_framework_response
+
+### Community 375 - "Community 375"
+Cohesion: 0.38
+Nodes (3): DashboardConsolidadoNPlusOneTest, Antes: 8 queries extra por cada sede agregada (4 del loop + 4 del         serial, Dos problemas apilados en el mismo endpoint:     1) DashboardConsolidadoView rec
 
 ### Community 376 - "Community 376"
 Cohesion: 0.40
@@ -2048,24 +2067,16 @@ Cohesion: 0.40
 Nodes (5): Animation(), camelCase(), createFxNow(), propFilter(), Tween()
 
 ### Community 383 - "Community 383"
-Cohesion: 0.40
-Nodes (3): copiar_parentesco_a_alumnos(), Migration, Copia el parentesco compartido del Representante a cada uno de sus     alumnos,
+Cohesion: 0.08
+Nodes (12): copiar_config_a_perfil_cobranza(), Migration, Copia la config SMTP existente (usada hoy por cobranza/mora) al nuevo     perfi, cifrar_credenciales_existentes(), Migration, Re-guarda las credenciales existentes de ConfiguracionNotificaciones     a travé, copiar_parentesco_a_alumnos(), Migration (+4 more)
 
 ### Community 384 - "Community 384"
-Cohesion: 0.40
-Nodes (3): copiar_config_a_perfil_cobranza(), Migration, Copia la config SMTP existente (usada hoy por cobranza/mora) al nuevo     perfi
-
-### Community 385 - "Community 385"
-Cohesion: 0.40
-Nodes (3): cifrar_credenciales_existentes(), Migration, Re-guarda las credenciales existentes de ConfiguracionNotificaciones     a travé
-
-### Community 386 - "Community 386"
-Cohesion: 0.31
-Nodes (6): _columna_existe(), Command, _leer_filas_actuales(), Script de solo lectura para verificar el backfill de tipo_concepto (migraciones, [(id, monto_usd, monto_pagado, pagado), ...] vía SQL crudo, solo lectura., _resumen()
+Cohesion: 0.38
+Nodes (6): importar_docentes(), limpiar_cedula(), limpiar_texto(), Limpia cedulas (formato V-12.345.678)., Limpia y normaliza texto., Importa docentes desde Excel a la BD.
 
 ### Community 388 - "Community 388"
-Cohesion: 0.40
-Nodes (3): Migration, Hasta ahora todos los colegios en producción están afiliados a AVEC.     El text, seed_afiliacion_nombre()
+Cohesion: 0.22
+Nodes (8): leer_enlace_recibo(), nombre_archivo_recibo(), numero_recibo(), pago_principal(), id del pago del token, o None si es inválido o venció., Primer pago de la operación: su factura_id es el N° de recibo., FileResponse con el recibo de cobranza (motor único, recibo_cobranza.py)., _respuesta_recibo_pdf()
 
 ### Community 389 - "Community 389"
 Cohesion: 0.40
@@ -2105,7 +2116,7 @@ Nodes (7): borderColorsFromStyle(), borderWidthsFromStyle(), checkElementGptBord
 
 ### Community 408 - "Community 408"
 Cohesion: 0.07
-Nodes (55): isLiveServerPidReachable(), extensionCache, LIVE_TEMPLATE_EXTENSIONS, matchesTemplateExtension(), mergeExtensions(), normalizeExtensionEntries(), readLiveTemplateExtensions(), resolveLiveTemplateExtensions() (+47 more)
+Nodes (48): extensionCache, LIVE_TEMPLATE_EXTENSIONS, matchesTemplateExtension(), mergeExtensions(), normalizeExtensionEntries(), readLiveTemplateExtensions(), resolveLiveTemplateExtensions(), safeReadJson() (+40 more)
 
 ### Community 409 - "Community 409"
 Cohesion: 0.50
@@ -2139,6 +2150,10 @@ Nodes (4): DIAGNÓSTICO — CONTROL DE ESTUDIO: NOTAS, BOLETINES, ASISTENCIA, HO
 Cohesion: 0.50
 Nodes (3): __dirname, fixture, fixturePath
 
+### Community 422 - "Community 422"
+Cohesion: 0.33
+Nodes (3): rrhh.Empleado es la ficha maestra: su save() crea/actualiza el     nomina.Emplea, nomina.Empleado no tiene el tipo 'apoyo' (solo rrhh lo tiene) —         rrhh/mod, SincronizacionNominaTest
+
 ### Community 425 - "Community 425"
 Cohesion: 0.08
 Nodes (35): addOpToManualApplyChunk(), APPLY_EVENT_HARD_TIMEOUT_MS, APPLY_EVENT_SOFT_DEADLINE_MS, buildManualApplyAgentAction(), clearManualApplyTransaction(), collectManualApplyFiles(), compactManualApplyBatch(), compactManualApplyCandidates() (+27 more)
@@ -2147,13 +2162,13 @@ Nodes (35): addOpToManualApplyChunk(), APPLY_EVENT_HARD_TIMEOUT_MS, APPLY_EVENT_
 Cohesion: 0.25
 Nodes (7): 1. Identificar el dominio remitente real, 2. SPF (Sender Policy Framework), 3. DKIM (DomainKeys Identified Mail), 4. DMARC (Domain-based Message Authentication), 5. Verificar, Nota sobre multi-colegio, SPF, DKIM y DMARC — correos de cobranza
 
-### Community 430 - "Community 430"
-Cohesion: 0.20
-Nodes (11): checkTextOcclusionDOM(), clippedByInset(), clippedByRect(), elementDirectText(), expandBoxShorthand(), firstMetricLengthPx(), isLayeredElement(), isOpaqueDecoratedBox() (+3 more)
+### Community 432 - "Community 432"
+Cohesion: 0.40
+Nodes (3): backfill_monto_pagado(), Migration, Mensualidades ya marcadas pagado=True antes de que existiera el     acumulador
 
 ### Community 436 - "Community 436"
-Cohesion: 0.09
-Nodes (47): actionLabel(), applyConfigureBarChrome(), bindConfigureCountPillTooltip(), bindConfigureInlineControlHover(), buildConfigureActionControl(), buildConfigureCountControl(), buildConfigureRow(), buildConfigureSubmitButton() (+39 more)
+Cohesion: 0.06
+Nodes (68): actionLabel(), agentHasWorkInFlight(), agentStatusText(), applyConfigureBarChrome(), barPaletteForTheme(), bindConfigureCountPillTooltip(), bindConfigureInlineControlHover(), brandMarkSvg() (+60 more)
 
 ### Community 439 - "Community 439"
 Cohesion: 0.40
@@ -2169,11 +2184,7 @@ Nodes (3): Backend (`academico/`), Frontend, PLAN DE EVALUACIÓN — MATERIAS NU
 
 ### Community 462 - "Community 462"
 Cohesion: 0.12
-Nodes (39): resolveSourceTraits(), hasGeneratedHeader(), HEADER_MARKERS, isGeneratedFile(), isGitIgnored(), buildSvelteComponentCssAuthoring(), scaffoldSvelteComponentInsertSession(), shouldUseSvelteComponentInjection() (+31 more)
-
-### Community 465 - "Community 465"
-Cohesion: 0.10
-Nodes (39): applyMockWrites(), buildCopyEditBatchPrompt(), checkFrameworkSourceSyntax(), chooseCopyEditAgent(), COMMAND_AUTH_CACHE, commandAuthed(), commandExists(), compactBatchCandidates() (+31 more)
+Nodes (38): resolveSourceTraits(), hasGeneratedHeader(), HEADER_MARKERS, isGeneratedFile(), isGitIgnored(), buildSvelteComponentCssAuthoring(), shouldUseSvelteComponentInjection(), argVal() (+30 more)
 
 ### Community 476 - "Community 476"
 Cohesion: 0.22
@@ -2184,16 +2195,12 @@ Cohesion: 0.40
 Nodes (5): 🟠 ALTO — resueltos, AUDITORÍA NÓMINA/RRHH — BUGS FINANCIEROS Y HARDCODEO (2026-08-27), 🔴 CRÍTICO — resueltos, 🟡 MEDIO — resueltos, Pendiente — decisiones explícitas del usuario de NO implementar ahora
 
 ### Community 489 - "Community 489"
-Cohesion: 0.19
-Nodes (8): importar_docentes(), limpiar_cedula(), limpiar_texto(), Limpia cedulas (formato V-12.345.678)., Limpia y normaliza texto., Importa docentes desde Excel a la BD., openpyxl, traceback
+Cohesion: 0.05
+Nodes (22): AdjuntoRevision, AlertaCantina, EventoAuditoriaCantina, EventoAuditoriaQuerySet, _firma_coincide(), Meta, ParametroAuditoriaCantina, Modelos de la Auditoría de Cantina.  Pertenecen a la app `cantina` (app_label (+14 more)
 
 ### Community 531 - "Community 531"
 Cohesion: 0.03
-Nodes (77): fecha_vencimiento_mensualidad(), Fecha de vencimiento ÚNICA de una mensualidad, compartida por mora,     ciclos, configuracion_activa(), _cuotas_de_tipo(), depurar_mensualidades_fuera_de_periodo(), generar_cargos_especiales_pendientes(), generar_mensualidades(), meses_ano_escolar() (+69 more)
-
-### Community 536 - "Community 536"
-Cohesion: 0.07
-Nodes (15): Agrupa retroactivamente pagos históricos que se registraron con varios métodos d, Borra por completo todos los Alumnos y Representantes de la base de datos, junto, Backfill de first_name/last_name para usuarios existentes.  No inventa nombres:, Command, Management command para crear usuarios del portal de representantes en masa.  Us, Comando/cron para generar los cargos especiales pendientes del período escolar a, Comando de corrección/backfill de cuotas de inscripción.  Equivalente por consol, Comando de corrección/backfill de mensualidades.  Uso típico (data ya cargada (+7 more)
+Nodes (58): calcular_datos_administrativos_inscripcion(), configuracion_activa(), _cuotas_de_tipo(), depurar_mensualidades_fuera_de_periodo(), _es_vencida(), generar_cargos_especiales_pendientes(), generar_mensualidades(), mes_en_periodo_lectivo() (+50 more)
 
 ### Community 539 - "Community 539"
 Cohesion: 0.50
@@ -2217,15 +2224,15 @@ Nodes (20): AcademicoConfig, AppConfig, AuthenticationConfig, CantinaConfig, Cob
 
 ### Community 599 - "Community 599"
 Cohesion: 0.05
-Nodes (36): AdminLoginThrottle, _cookie_settings(), CookieTokenObtainPairView, CookieTokenRefreshView, Limita los intentos de login del staff a 5 por minuto por IP.     Login único p, Login: devuelve access en body y guarda refresh en cookie HttpOnly., Refresh: lee el refresh token desde la cookie HttpOnly, no del body., Meta (+28 more)
+Nodes (41): AdminLoginThrottle, _cookie_settings(), CookieTokenObtainPairView, CookieTokenRefreshView, Vistas JWT con refresh token en cookie HttpOnly. El access token se sigue devol, Limita los intentos de login del staff a 5 por minuto por IP.     Login único p, Login: devuelve access en body y guarda refresh en cookie HttpOnly., Refresh: lee el refresh token desde la cookie HttpOnly, no del body. (+33 more)
 
 ### Community 753 - "Community 753"
 Cohesion: 0.12
 Nodes (39): assessCoverage(), buildColor(), CANONICAL_SECTIONS, collectBullets(), collectColorValues(), collectParagraphs(), detectFormat(), extractColors() (+31 more)
 
 ### Community 757 - "Community 757"
-Cohesion: 0.09
-Nodes (36): buildHtmlPatternCorpora(), checkElementGlow(), checkElementHeroEyebrow(), checkGlow(), checkHoverContrast(), checkHtmlPatterns(), collectCssCustomProps(), collectMarqueeKeyframes() (+28 more)
+Cohesion: 0.13
+Nodes (28): buildHtmlPatternCorpora(), checkHtmlPatterns(), collectCssCustomProps(), collectMarqueeKeyframes(), collectPulseKeyframes(), colorToHex(), cssLengthToPx(), cssTextHasDarkRootBg() (+20 more)
 
 ### Community 761 - "Community 761"
 Cohesion: 0.12
@@ -2237,19 +2244,19 @@ Nodes (29): Apply at system scale, Audit before choosing, Choose a strategy, Con
 
 ### Community 764 - "Community 764"
 Cohesion: 0.11
-Nodes (26): CSS_NAMED_COLORS, applyStaticDeclaration(), buildBorderOverrideMap(), compareStaticPriority(), cssPropToCamel(), expandStaticBoxValues(), expandStaticDeclaration(), extractStaticColor() (+18 more)
+Nodes (25): CSS_NAMED_COLORS, applyStaticDeclaration(), buildBorderOverrideMap(), compareStaticPriority(), cssPropToCamel(), expandStaticBoxValues(), expandStaticDeclaration(), extractStaticColor() (+17 more)
 
 ### Community 765 - "Community 765"
-Cohesion: 0.11
-Nodes (34): analyzeVisualContrast(), analyzeVisualContrastCandidate(), checkColors(), checkElementAIPaletteDOM(), checkElementColors(), checkElementColorsDOM(), checkElementGlowDOM(), checkElementHoverContrast() (+26 more)
+Cohesion: 0.12
+Nodes (33): checkColors(), checkElementAIPaletteDOM(), checkElementColors(), checkElementColorsDOM(), checkElementGlow(), checkElementGlowDOM(), checkElementHoverContrast(), checkElementIconTile() (+25 more)
 
 ### Community 766 - "Community 766"
 Cohesion: 0.09
-Nodes (32): checkCreamPalette(), checkElementQuality(), checkElementQualityDOM(), checkQuality(), clamp01(), colorFunctionToRgb(), colorsNearlyMatch(), creamFromClassList() (+24 more)
+Nodes (30): checkElementOversizedH1(), checkElementOversizedH1DOM(), checkElementQuality(), checkElementQualityDOM(), checkOversizedH1(), checkQuality(), clamp01(), colorFunctionToRgb() (+22 more)
 
 ### Community 769 - "Community 769"
-Cohesion: 0.15
-Nodes (27): completionAckForAcceptResult(), completionTypeForAcceptResult(), PREVIEW_MODES_WITHOUT_SOURCE_MARKERS, augmentEventWithAcceptHandling(), buildAcceptScriptArgs(), buildPollReplyPayload(), completeAcceptHandling(), EVENT_TYPES_NEEDING_AGENT_REPLY (+19 more)
+Cohesion: 0.11
+Nodes (36): completionAckForAcceptResult(), completionTypeForAcceptResult(), PREVIEW_MODES_WITHOUT_SOURCE_MARKERS, acceptInstructions(), bootInstructions(), deferredWrapperInstructions(), generateInstructions(), insertScaffoldInstructions() (+28 more)
 
 ### Community 771 - "Community 771"
 Cohesion: 0.09
@@ -2257,23 +2264,23 @@ Nodes (3): Campo(), StaticDocument, StaticElement
 
 ### Community 773 - "Community 773"
 Cohesion: 0.08
-Nodes (31): AlertaAtenderModal(), avisarAlertasCambiadas(), AlertaFiltros(), ESTADOS, AlertaTab(), AlertaTarjeta(), AlertaTarjetaSkeleton(), destinoReferencia() (+23 more)
+Nodes (32): rutaCierre(), AlertaAtenderModal(), avisarAlertasCambiadas(), AlertaFiltros(), ESTADOS, AlertaTab(), AlertaTarjeta(), AlertaTarjetaSkeleton() (+24 more)
 
 ### Community 774 - "Community 774"
 Cohesion: 0.08
 Nodes (44): summarizeManualDiagnostics(), createManualEditRoutes(), sendJson(), summarizePendingManualEditBatch(), countByPage(), getBufferPath(), readBuffer(), readBufferInternal() (+36 more)
 
 ### Community 775 - "Community 775"
-Cohesion: 0.08
-Nodes (50): addManualContextText(), applyEditing(), buildLocatorForLeaf(), canRestoreManualEditElement(), clearStoredManualApplyState(), contextElementForManualEdit(), copyEditContainerContext(), copyEditLeafContext() (+42 more)
+Cohesion: 0.18
+Nodes (26): confirm(), clearStoredManualApplyState(), handleManualEditActivity(), hidePendingApplyDock(), manualApplyLoadingText(), manualApplyStateKey(), manualEditEventForCurrentPage(), numberOrNull() (+18 more)
 
 ### Community 776 - "Community 776"
 Cohesion: 0.08
 Nodes (25): Assess Adaptation Challenge, Breakpoints: Content-Driven, Content Adaptation, Desktop Adaptation (Mobile → Desktop), Detect Input Method, Not Just Screen Size, Email Adaptation (Web → Email), Implement Adaptations, Layout Adaptation Patterns (+17 more)
 
 ### Community 777 - "Community 777"
-Cohesion: 0.10
-Nodes (27): browserDesignSystemConfig(), browserFindingsFromMap(), checkBorders(), checkEdgeFlushCardsDOM(), checkElementBlinkingCursorDOM(), checkElementBorders(), checkElementBordersDOM(), checkElementPseudoStripeDOM() (+19 more)
+Cohesion: 0.11
+Nodes (27): browserDesignSystemConfig(), browserFindingsFromMap(), checkBorders(), checkCreamPalette(), checkEdgeFlushCardsDOM(), checkElementBlinkingCursorDOM(), checkElementBorders(), checkElementBordersDOM() (+19 more)
 
 ### Community 778 - "Community 778"
 Cohesion: 0.19
@@ -2284,8 +2291,8 @@ Cohesion: 0.08
 Nodes (23): Component translation rules, Narrative mapping, Pitfalls, Scan mode (approach C: auto-extract, then confirm descriptive language), Schema, Seed mode, Step 1: Find the design assets, Step 1: Route through new-work's workshop (+15 more)
 
 ### Community 780 - "Community 780"
-Cohesion: 0.11
-Nodes (27): abandonForeignSession(), acceptedDomAlreadyClean(), applyOriginalAttrsToSvelteAnchor(), checkpointPayload(), commitAcceptedSvelteComponentToDom(), componentModuleCandidates(), describeMountFailure(), detectDevServerBase() (+19 more)
+Cohesion: 0.12
+Nodes (25): acceptedDomAlreadyClean(), applyOriginalAttrsToSvelteAnchor(), commitAcceptedSvelteComponentToDom(), componentModuleCandidates(), cyclingCounterText(), cyclingShownVariant(), describeMountFailure(), detectDevServerBase() (+17 more)
 
 ### Community 781 - "Community 781"
 Cohesion: 0.09
@@ -2304,8 +2311,8 @@ Cohesion: 0.10
 Nodes (20): Animate complex properties, Assess What "Extraordinary" Means Here, For data-heavy interfaces, For functional UI, For performance-critical UI, For visual/marketing surfaces, Implement with Discipline, Interact with the device (+12 more)
 
 ### Community 788 - "Community 788"
-Cohesion: 0.13
-Nodes (18): checkElementHeroEyebrowDOM(), checkHeroEyebrow(), checkKickerAboveHeading(), checkKickerAboveHeadingDOM(), checkKickerAboveHeadingFromDoc(), checkNumberedSectionLabels(), checkNumberedSectionLabelsDOM(), checkNumberedSectionLabelsFromDoc() (+10 more)
+Cohesion: 0.12
+Nodes (20): checkElementHeroEyebrow(), checkElementHeroEyebrowDOM(), checkHeroEyebrow(), checkKickerAboveHeading(), checkKickerAboveHeadingDOM(), checkKickerAboveHeadingFromDoc(), checkNumberedSectionLabels(), checkNumberedSectionLabelsDOM() (+12 more)
 
 ### Community 789 - "Community 789"
 Cohesion: 0.12
@@ -2316,16 +2323,16 @@ Cohesion: 0.09
 Nodes (18): Before you finish, Scope is sovereign, The amplification, The skeleton test, Why it reads flat, Extract Flow, Step 1: Discover the Design System, Step 2: Identify Patterns (+10 more)
 
 ### Community 791 - "Community 791"
-Cohesion: 0.20
-Nodes (15): blendRgba(), clampByte(), firstCssUrl(), getLayerValue(), loadVisualContrastImage(), parseObjectPosition(), parsePositionPair(), parsePositionToken() (+7 more)
+Cohesion: 0.15
+Nodes (20): analyzeVisualContrastCandidate(), blendRgba(), checkHoverContrast(), clampByte(), contrastRatio(), firstCssUrl(), getLayerValue(), loadVisualContrastImage() (+12 more)
 
 ### Community 792 - "Community 792"
 Cohesion: 0.24
 Nodes (16): applySvelteKitLiveAdapter(), buildSvelteLiveRootComponent(), defaultSvelteLayout(), detectSvelteKitProject(), ensureSvelteLiveRootComponent(), escapeRegExp(), fileIncludes(), findSvelteKitAppHtml() (+8 more)
 
 ### Community 793 - "Community 793"
-Cohesion: 0.10
-Nodes (31): getCritiqueDir(), getSurfaceBriefDir(), listSurfaceBriefs(), normalizeSurfaceTarget(), resolveSurfaceBrief(), surfaceBriefPathForTarget(), writeSurfaceBrief(), kebab() (+23 more)
+Cohesion: 0.16
+Nodes (21): getCritiqueDir(), getSurfaceBriefDir(), listSurfaceBriefs(), normalizeSurfaceTarget(), resolveSurfaceBrief(), surfaceBriefPathForTarget(), writeSurfaceBrief(), kebab() (+13 more)
 
 ### Community 795 - "Community 795"
 Cohesion: 0.17
@@ -2350,10 +2357,6 @@ Nodes (12): crc32(), hash32(), hslToRgb(), out, palette(), pngChunk(), pngFake()
 ### Community 806 - "Community 806"
 Cohesion: 0.13
 Nodes (14): 1. Accessibility (A11y), 2. Performance, 3. Theming, 4. Responsive Design, 5. Implementation Integrity (CRITICAL), Audit Health Score, Detailed Findings by Severity, Diagnostic Scan (+6 more)
-
-### Community 807 - "Community 807"
-Cohesion: 0.40
-Nodes (3): backfill_monto_pagado(), Migration, Mensualidades ya marcadas pagado=True antes de que existiera el     acumulador
 
 ### Community 808 - "Community 808"
 Cohesion: 0.14
@@ -2416,8 +2419,8 @@ Cohesion: 0.24
 Nodes (7): args, buildWeights(), hashUnit(), pickSeed(), seed, SEEDS, weightedPick()
 
 ### Community 831 - "Community 831"
-Cohesion: 0.24
-Nodes (10): addBrowserFindings(), addVisualContrastFindings(), addVisualContrastResult(), clearOverlays(), detachOverlay(), disconnectLazyVisualContrastObserver(), scheduleLazyVisualContrast(), shouldRunVisualContrast() (+2 more)
+Cohesion: 0.20
+Nodes (12): addBrowserFindings(), addVisualContrastFindings(), addVisualContrastResult(), analyzeVisualContrast(), clearOverlays(), detachOverlay(), disconnectLazyVisualContrastObserver(), scheduleLazyVisualContrast() (+4 more)
 
 ### Community 833 - "Community 833"
 Cohesion: 0.20
@@ -2444,8 +2447,8 @@ Cohesion: 0.22
 Nodes (8): Cadence, Confirm and stop, Phase 1: Discovery interview, Phase 2: Resolve the design direction, Phase 3: Write the brief, Round 1: purpose, people, and outcome, Round 2: material, behavior, and boundaries, Shape
 
 ### Community 845 - "Community 845"
-Cohesion: 0.25
-Nodes (8): checkLayout(), checkPageLayout(), isCardLike(), isCardLikeDOM(), isCardLikeFromProps(), isRepeatedTextContainer(), parseRadiusToPx(), resolveBorderRadiusPx()
+Cohesion: 0.18
+Nodes (11): checkLayout(), checkPageLayout(), checkRepeatedContainerTextDOM(), checkRepeatedContainerTextFromDoc(), collectRepeatedContainerTextFindings(), isCardLike(), isCardLikeDOM(), isCardLikeFromProps() (+3 more)
 
 ### Community 846 - "Community 846"
 Cohesion: 0.25
@@ -2488,8 +2491,8 @@ Cohesion: 0.13
 Nodes (27): appendDesignSystemNote(), appendDesignSystemNoteOnce(), bumpEditCount(), clampGroupedToBudget(), clampLastLine(), clampToBudget(), commitFooterShown(), consumeSessionNoticeFlag() (+19 more)
 
 ### Community 862 - "Community 862"
-Cohesion: 0.10
-Nodes (21): _alumno_nombre(), aplicaciones_operacion(), _descripcion(), deudas_pendientes_alumno(), estado_deuda(), item_deuda(), Fuente de verdad para el desglose de deudas y abonos de cobranza.  Las cuotas, Guarda la aplicación exacta de un pago, una sola vez por deuda.      El caller (+13 more)
+Cohesion: 0.14
+Nodes (6): aplicaciones_operacion(), Aplicaciones del recibo/operación, incluso si se recibe un pago hermano., calcular_desglose_automatico(), Reconstruye las líneas reales (mensualidad/inscripción/solvencia/proyecto     d, El primer pago de la operación, con las relaciones M2M de         conceptos (me, Desglosa la operación línea por línea (una por mensualidad/cuota         realme
 
 ### Community 863 - "Community 863"
 Cohesion: 0.40
@@ -2507,29 +2510,25 @@ Nodes (4): Heuristics Scoring Guide, Issue Severity (P0–P3), Reference Materia
 Cohesion: 0.50
 Nodes (3): candidates, detectorPath, __dirname
 
-### Community 873 - "Community 873"
-Cohesion: 0.07
-Nodes (14): AdjuntoRevision, AlertaCantina, EventoAuditoriaCantina, EventoAuditoriaQuerySet, Estado de revisión de un `CierreCajaCantina`. Se crea en 'pendiente'     automá, Respaldo que el Director adjunta a una revisión. Nunca se borra: si se     corr, Reapertura de una caja ya cerrada. El cierre original NO se toca (sigue     sie, Se intentó modificar o borrar un registro de auditoría. (+6 more)
-
 ## Knowledge Gaps
-- **2811 isolated node(s):** `here`, `API_BASE`, `API_TIMEOUT_MS`, `localStates`, `PING_KINDS` (+2806 more)
+- **2813 isolated node(s):** `here`, `API_BASE`, `API_TIMEOUT_MS`, `localStates`, `PING_KINDS` (+2808 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **231 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **230 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `Req()` connect `Community 110` to `Community 279`?**
-  _High betweenness centrality (0.038) - this node is a cross-community bridge._
+- **Why does `Req()` connect `Community 110` to `Community 233`?**
+  _High betweenness centrality (0.037) - this node is a cross-community bridge._
 - **Why does `loadSvelteCompiler()` connect `Community 110` to `Community 778`?**
-  _High betweenness centrality (0.038) - this node is a cross-community bridge._
-- **Why does `StaticElement` connect `Community 771` to `Community 764`, `Community 62`?**
-  _High betweenness centrality (0.021) - this node is a cross-community bridge._
-- **Are the 735 inferred relationships involving `Decimal` (e.g. with `.aprobado()` and `.save()`) actually correct?**
-  _`Decimal` has 735 INFERRED edges - model-reasoned connections that need verification._
+  _High betweenness centrality (0.037) - this node is a cross-community bridge._
+- **Why does `Modal` connect `Community 34` to `Community 773`, `Community 14`, `Community 17`, `Community 19`, `Community 276`, `Community 20`, `Community 26`, `Community 157`, `Community 32`, `Community 161`, `Community 33`, `Community 37`, `Community 41`, `Community 44`, `Community 302`, `Community 46`, `Community 53`, `Community 57`, `Community 63`, `Community 64`, `Community 66`, `Community 204`, `Community 79`, `Community 84`, `Community 90`, `Community 224`, `Community 100`, `Community 228`, `Community 249`, `Community 233`, `Community 107`, `Community 108`, `Community 109`, `Community 244`, `Community 247`, `Community 120`, `Community 121`?**
+  _High betweenness centrality (0.023) - this node is a cross-community bridge._
+- **Are the 736 inferred relationships involving `Decimal` (e.g. with `.aprobado()` and `.save()`) actually correct?**
+  _`Decimal` has 736 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 209 inferred relationships involving `Mensualidad` (e.g. with `MensualidadFilter` and `Meta`) actually correct?**
   _`Mensualidad` has 209 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 189 inferred relationships involving `Pago` (e.g. with `ConciliadorBancario` and `PdfSinTablaError`) actually correct?**
   _`Pago` has 189 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `here`, `API_BASE`, `API_TIMEOUT_MS` to the rest of the system?**
-  _4189 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _4192 weakly-connected nodes found - possible documentation gaps or missing edges._

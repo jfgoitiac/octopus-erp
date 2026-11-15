@@ -3550,8 +3550,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cantina/admin.py": {
-    "mtime": 1792257342.5661957,
-    "ast_hash": "71e005166240b6e249956dbd96bf98b5",
+    "mtime": 1794706090.2297175,
+    "ast_hash": "ba97d9ab234c2a0ecd46792b8f7d6993",
     "semantic_hash": ""
   },
   "octopus-api/cantina/apps.py": {
@@ -3575,8 +3575,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cantina/models.py": {
-    "mtime": 1794326972.7471604,
-    "ast_hash": "6055a6b5fa73b1008393a6c18b6618dd",
+    "mtime": 1794706090.2267191,
+    "ast_hash": "8c8ac4677b7214e48050bb01b348f764",
     "semantic_hash": ""
   },
   "octopus-api/cantina/mora_cantina.py": {
@@ -3660,8 +3660,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cantina/tests_tarjetas.py": {
-    "mtime": 1794328060.5678084,
-    "ast_hash": "44a2433d66ad494b2fd15c4961ddf86a",
+    "mtime": 1794706191.9933774,
+    "ast_hash": "cffdd4398e43ed533fadb16217359597",
     "semantic_hash": ""
   },
   "octopus-api/cantina/tests_ventas.py": {
@@ -3680,8 +3680,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cantina/views.py": {
-    "mtime": 1794571085.015539,
-    "ast_hash": "5a5903636d28960177be4a7afb592fff",
+    "mtime": 1794706372.7894967,
+    "ast_hash": "0be8949a966a151c16dd99f091293ec2",
     "semantic_hash": ""
   },
   "octopus-api/cobranza/correcciones.py": {
@@ -3820,8 +3820,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/api/cantina.service.js": {
-    "mtime": 1794570730.3340173,
-    "ast_hash": "2d9937d7c3424800fa194cda56c529b4",
+    "mtime": 1794706090.2317216,
+    "ast_hash": "fa6cc17081764e7f1700f180664eb93a",
     "semantic_hash": ""
   },
   "octopus-frontend/src/cantina/api/cantinaApiClient.js": {
@@ -3850,8 +3850,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/cantina/pages/CantinaPOS.jsx": {
-    "mtime": 1794572694.4688659,
-    "ast_hash": "7834f2841878d4981e233c808e2c61d2",
+    "mtime": 1794705950.4294713,
+    "ast_hash": "200d06162744b4b4037bea341d7844a0",
     "semantic_hash": ""
   },
   "octopus-frontend/src/cantina/pages/CantinaReportes.jsx": {
@@ -3860,8 +3860,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/cantina/pages/CantinaTarjetas.jsx": {
-    "mtime": 1794327013.0577776,
-    "ast_hash": "47aacaa7582fe4c1518f700e58dac97f",
+    "mtime": 1794706372.7919567,
+    "ast_hash": "0da517ddaedafb9302a3d759e25ca150",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/inventario/AlertaStockBajo.jsx": {
@@ -3900,8 +3900,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/pos/CarritoVenta.jsx": {
-    "mtime": 1794572694.4708843,
-    "ast_hash": "8b055f7d5f3a9b82a8fe596508181612",
+    "mtime": 1794705950.425997,
+    "ast_hash": "0b236ea1ce03f4ca94910f7e6f7285d2",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/pos/ResumenCobro.jsx": {
@@ -3950,8 +3950,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/tarjetas/AsignarTarjetaModal.jsx": {
-    "mtime": 1793618898.3523135,
-    "ast_hash": "c0f3870aff139f7155267d4354b9602f",
+    "mtime": 1794706372.7909403,
+    "ast_hash": "48066c80e799be084de2a39f60ef5a97",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/tarjetas/GenerarLoteModal.jsx": {
@@ -3975,13 +3975,13 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/tarjetas/ReponerTarjetaModal.jsx": {
-    "mtime": 1794327006.7683344,
-    "ast_hash": "20f151b807f4de4357fbd4c345d42244",
+    "mtime": 1794706160.585946,
+    "ast_hash": "f5ea0d8d1bd129c719019f49795040c6",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/tarjetas/TarjetasTable.jsx": {
-    "mtime": 1793811564.9382854,
-    "ast_hash": "b8e023b4cac3ea2135503d6f3c712c80",
+    "mtime": 1794706372.7919567,
+    "ast_hash": "52b6a5906071ad48ce11934b91c838c0",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/nomina/GenerarNominaModal.jsx": {
@@ -4430,8 +4430,8 @@
     "semantic_hash": ""
   },
   "cantina.md": {
-    "mtime": 1790821505.9831922,
-    "ast_hash": "b30539668d9ae630453a2275deba5ba6",
+    "mtime": 1794706530.8635375,
+    "ast_hash": "e7cd8b4c43f9f9f9d4016233d72c025d",
     "semantic_hash": ""
   },
   "octopus-api/EMAIL_SPF_DKIM_DMARC.md": {
@@ -5355,8 +5355,8 @@
     "semantic_hash": ""
   },
   "docs/manual/33-cantina.md": {
-    "mtime": 1793677460.9963164,
-    "ast_hash": "b0e6e1ab1369cfcd9b5cedb0838cff01",
+    "mtime": 1794706372.7929635,
+    "ast_hash": "f6163d5adace28d2d888d17148622f95",
     "semantic_hash": ""
   },
   "docs/manual/35-multisede.md": {
@@ -7175,8 +7175,8 @@
     "semantic_hash": ""
   },
   "octopus-api/cantina/tests_auditoria_instrumentacion.py": {
-    "mtime": 1792257342.6124046,
-    "ast_hash": "8bf6295d1fcfc30c7262cd1c63010b20",
+    "mtime": 1794706047.6131244,
+    "ast_hash": "5b7665f2c2ef8ae4197a31b89c3f4e70",
     "semantic_hash": ""
   },
   "octopus-api/cantina/tests_auditoria_panel_cierres.py": {
@@ -9218,6 +9218,16 @@
   "octopus-frontend/src/cantina/tasaCantinaEvento.js": {
     "mtime": 1794570730.3340173,
     "ast_hash": "6b4fc47d3e1f0caa89af122ac43a1f0c",
+    "semantic_hash": ""
+  },
+  "octopus-api/cantina/migrations/0018_reasignacion_fisica_tarjeta.py": {
+    "mtime": 1794706160.585946,
+    "ast_hash": "583a198ee59506a5b39e9dc503e209e4",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/components/cantina/tarjetas/ReponerTarjetaModal.test.jsx": {
+    "mtime": 1794706388.2593915,
+    "ast_hash": "9274d9b81e53a08b896914254afbd7d2",
     "semantic_hash": ""
   }
 }
