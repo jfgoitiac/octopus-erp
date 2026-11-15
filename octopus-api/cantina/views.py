@@ -634,6 +634,7 @@ class AsignarTarjetaView(APIView):
                         'detail': f'{nombre_titular} ya tiene una tarjeta asignada ({tarjeta_existente.serial}). '
                                   'Si la tarjeta actual se extravió o dañó, use el flujo de reposición en vez de asignar una nueva.',
                         'tarjeta_existente_id': tarjeta_existente.id,
+                        'tarjeta_existente_serial': tarjeta_existente.serial,
                     },
                     status=status.HTTP_409_CONFLICT,
                 )
@@ -704,6 +705,7 @@ class AsignarYRecargarTarjetaView(APIView):
                         'detail': f'{nombre_titular} ya tiene una tarjeta asignada ({tarjeta_existente.serial}). '
                                   'Si la tarjeta actual se extravió o dañó, use el flujo de reposición en vez de asignar una nueva.',
                         'tarjeta_existente_id': tarjeta_existente.id,
+                        'tarjeta_existente_serial': tarjeta_existente.serial,
                     },
                     status=status.HTTP_409_CONFLICT,
                 )
@@ -736,51 +738,99 @@ class AsignarYRecargarTarjetaView(APIView):
 
 class ReponerTarjetaView(APIView):
     """
-    POST <tarjeta_id>/reponer/ {motivo}: reposición por extravío/daño.
-    Genera un nuevo `codigo` (mismo alumno, mismo saldo — nunca se pierde),
-    registra `HistorialCodigoTarjeta` con el código anterior, y actualiza
-    `TarjetaPrepago.codigo`, todo dentro de la misma transacción — el
-    código viejo deja de resolver a ninguna tarjeta apenas se confirma
-    (§5.1/§10 checklist de cantina.md).
+    POST <tarjeta_id>/reponer/ {motivo, tarjeta_reemplazo_id}: reemplaza la
+    tarjeta física por otra disponible del inventario. La fila asignada
+    conserva titular, saldo y relaciones; solo recibe el código y serial de
+    la tarjeta sin asignar. La credencial anterior queda en una fila retirada.
     """
     permission_classes = [permissions.IsAuthenticated, EsCajeroOAdmin]
 
     def post(self, request, tarjeta_id):
         motivo = request.data.get('motivo')
+        tarjeta_reemplazo_id = request.data.get('tarjeta_reemplazo_id')
         if motivo not in MOTIVOS_REPOSICION:
             return Response(
                 {'detail': f"El campo 'motivo' debe ser uno de: {', '.join(MOTIVOS_REPOSICION)}."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        if not tarjeta_reemplazo_id:
+            return Response(
+                {'detail': "Debe indicar 'tarjeta_reemplazo_id' con una tarjeta sin asignar."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            tarjeta_reemplazo_id = int(tarjeta_reemplazo_id)
+        except (TypeError, ValueError):
+            return Response(
+                {'detail': "'tarjeta_reemplazo_id' debe ser un identificador válido."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if str(tarjeta_reemplazo_id) == str(tarjeta_id):
+            return Response(
+                {'detail': 'La tarjeta de reemplazo debe ser distinta de la tarjeta actual.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         tarjeta = get_object_or_404(TarjetaPrepago, pk=tarjeta_id)
+        get_object_or_404(TarjetaPrepago, pk=tarjeta_reemplazo_id)
 
         with transaction.atomic():
-            tarjeta = TarjetaPrepago.objects.select_for_update().get(pk=tarjeta.pk)
+            # Orden estable de bloqueo para evitar deadlocks si dos operadores
+            # intentan consumir la misma tarjeta física al mismo tiempo.
+            bloqueadas = {
+                item.pk: item
+                for item in TarjetaPrepago.objects.select_for_update()
+                .filter(pk__in=[tarjeta.pk, tarjeta_reemplazo_id])
+                .order_by('pk')
+            }
+            tarjeta = bloqueadas[tarjeta.pk]
+            reemplazo = bloqueadas[tarjeta_reemplazo_id]
             if tarjeta.estado == 'sin_asignar' or not tarjeta.titular:
                 return Response(
                     {'detail': 'La tarjeta no está asignada; use la opción Asignar tarjeta.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+            if reemplazo.estado != 'sin_asignar' or reemplazo.titular:
+                return Response(
+                    {'detail': f'La tarjeta {reemplazo.serial} ya no está disponible para reasignar.'},
+                    status=status.HTTP_409_CONFLICT,
+                )
             codigo_anterior = tarjeta.codigo
             serial_anterior = tarjeta.serial
-            nuevo_codigo = generar_codigo_tarjeta()
-            nuevo_serial = generar_serial_reposicion(tarjeta.id)
+            codigo_nuevo = reemplazo.codigo
+            serial_nuevo = reemplazo.serial
+
+            # Libera primero las restricciones unique con credenciales
+            # temporales; ninguna de ellas sale de esta transacción.
+            reemplazo.codigo = generar_codigo_tarjeta()
+            reemplazo.serial = generar_serial_reposicion(reemplazo.id)
+            reemplazo.save(update_fields=['codigo', 'serial', 'actualizado_en'])
 
             HistorialCodigoTarjeta.objects.create(
                 tarjeta=tarjeta,
                 codigo_anterior=codigo_anterior,
                 serial_anterior=serial_anterior,
+                codigo_nuevo=codigo_nuevo,
+                serial_nuevo=serial_nuevo,
+                tarjeta_reemplazo=reemplazo,
                 motivo=motivo,
                 usuario=request.user,
             )
 
-            tarjeta.codigo = nuevo_codigo
-            tarjeta.serial = nuevo_serial
+            tarjeta.codigo = codigo_nuevo
+            tarjeta.serial = serial_nuevo
             tarjeta.estado = 'activa'
             tarjeta.save(update_fields=['codigo', 'serial', 'estado', 'actualizado_en'])
 
-        return Response(TarjetaPrepagoSerializer(tarjeta).data, status=status.HTTP_200_OK)
+            reemplazo.codigo = codigo_anterior
+            reemplazo.serial = serial_anterior
+            reemplazo.estado = 'retirada'
+            reemplazo.save(update_fields=['codigo', 'serial', 'estado', 'actualizado_en'])
+
+        return Response({
+            **TarjetaPrepagoSerializer(tarjeta).data,
+            'tarjeta_retirada_id': reemplazo.id,
+        }, status=status.HTTP_200_OK)
 
 
 # ─────────────────────────────────────────────
@@ -1907,11 +1957,18 @@ class RegistrarVentaView(APIView):
                         },
                     )
 
-                if tarjeta is not None:
+                if tarjeta is not None and total_usd > 0:
                     movimiento = aplicar_movimiento_tarjeta(
                         tarjeta, 'consumo', total_usd, venta=venta, usuario=request.user,
                     )
                     venta.saldo_tarjeta_despues = movimiento.saldo_despues
+                    venta.save(update_fields=['saldo_tarjeta_despues'])
+                elif tarjeta is not None:
+                    # Una cortesía total sigue siendo una venta válida con
+                    # tarjeta identificada, pero no es un consumo: no debe
+                    # crear un movimiento de saldo por $0 (algunas BD lo
+                    # rechazan mediante una restricción de monto positivo).
+                    venta.saldo_tarjeta_despues = tarjeta.saldo
                     venta.save(update_fields=['saldo_tarjeta_despues'])
 
                 if metodo_pago == 'credito_representante':

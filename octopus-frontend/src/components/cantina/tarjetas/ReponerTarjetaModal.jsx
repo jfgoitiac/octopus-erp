@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { toast } from 'react-toastify';
-import { Loader2, AlertTriangle, ShieldAlert } from 'lucide-react';
-import { buscarTarjetaParaReponer, reponerTarjeta } from '../../../api/cantina.service';
+import { Loader2, AlertTriangle, ArrowRight, ScanLine, ShieldAlert } from 'lucide-react';
+import {
+  buscarTarjetaParaReponer,
+  buscarTarjetaSinAsignar,
+  reponerTarjeta,
+} from '../../../api/cantina.service';
 import { Modal } from '../../ui/Modal';
 
 const FIELD_STYLE = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' };
@@ -22,6 +26,10 @@ export default function ReponerTarjetaModal({ tarjetaInicial, onClose, onRepuest
   const [entradaTarjeta, setEntradaTarjeta] = useState('');
   const [buscando, setBuscando] = useState(false);
   const [errorBusqueda, setErrorBusqueda] = useState('');
+  const [reemplazo, setReemplazo] = useState(null);
+  const [entradaReemplazo, setEntradaReemplazo] = useState('');
+  const [buscandoReemplazo, setBuscandoReemplazo] = useState(false);
+  const [errorReemplazo, setErrorReemplazo] = useState('');
 
   const [motivo, setMotivo] = useState('extravio');
   const [confirmado, setConfirmado] = useState(false);
@@ -49,22 +57,50 @@ export default function ReponerTarjetaModal({ tarjetaInicial, onClose, onRepuest
   };
 
   const handleConfirmar = async () => {
-    if (!tarjeta?.id) return;
+    if (!tarjeta?.id || !reemplazo?.id) {
+      toast.warning('Escanea primero una tarjeta nueva sin asignar.');
+      return;
+    }
     if (!confirmado) {
       toast.warning('Confirma que entiendes que el código físico anterior quedará inválido.');
       return;
     }
     setReponiendo(true);
     try {
-      const { data } = await reponerTarjeta(tarjeta.id, motivo);
+      const { data } = await reponerTarjeta(tarjeta.id, motivo, reemplazo.id);
       setResultado(data);
-      toast.success('Tarjeta repuesta. El QR y el serial anteriores quedaron invalidados.');
+      toast.success('Tarjeta reasignada. El QR anterior quedó retirado.');
       onRepuesta?.(data);
     } catch (err) {
       if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
       toast.error(err.response?.data?.detail || 'No se pudo reponer la tarjeta.');
     } finally {
       setReponiendo(false);
+    }
+  };
+
+  const handleBuscarReemplazo = async () => {
+    const valor = entradaReemplazo.trim();
+    if (!valor) {
+      toast.warning('Escanea el QR o escribe el serial de la tarjeta nueva.');
+      return;
+    }
+    setBuscandoReemplazo(true);
+    setErrorReemplazo('');
+    try {
+      const query = /^CANT-/i.test(valor) ? { codigo: valor } : { serial: valor };
+      const { data } = await buscarTarjetaSinAsignar(query);
+      if (data.id === tarjeta?.id) {
+        setErrorReemplazo('La tarjeta nueva debe ser distinta de la tarjeta anterior.');
+        return;
+      }
+      setReemplazo(data);
+      setConfirmado(false);
+    } catch (err) {
+      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
+      setErrorReemplazo(err.response?.data?.detail || 'No se encontró una tarjeta disponible con ese código/serial.');
+    } finally {
+      setBuscandoReemplazo(false);
     }
   };
 
@@ -87,7 +123,7 @@ export default function ReponerTarjetaModal({ tarjetaInicial, onClose, onRepuest
           className="w-full sm:w-auto px-4 text-white rounded-xl py-2.5 text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-2 min-h-[44px]"
           style={{ background: 'var(--amber-ink)' }}
         >
-          {reponiendo ? <><Loader2 size={14} className="animate-spin" /> Reponiendo...</> : 'Confirmar reposición'}
+          {reponiendo ? <><Loader2 size={14} className="animate-spin" /> Reasignando...</> : 'Confirmar reasignación'}
         </button>
       )}
     </>
@@ -100,7 +136,7 @@ export default function ReponerTarjetaModal({ tarjetaInicial, onClose, onRepuest
       titulo={(
         <>
           <ShieldAlert size={17} style={{ color: 'var(--amber-ink)' }} />
-          Reponer tarjeta extraviada/dañada
+          Reasignar tarjeta extraviada/dañada
         </>
       )}
       footer={footer}
@@ -109,21 +145,20 @@ export default function ReponerTarjetaModal({ tarjetaInicial, onClose, onRepuest
       {resultado ? (
         <div className="space-y-4 text-center">
           <div className="rounded-xl p-4" style={{ background: 'var(--teal-light)', color: 'var(--teal)' }}>
-            <p className="font-semibold">Reposición completada</p>
-            <p className="text-sm mt-1">El QR y el serial de la tarjeta anterior ya no pueden usarse.</p>
+            <p className="font-semibold">Reasignación completada</p>
+            <p className="text-sm mt-1">La tarjeta nueva ya está activa y la anterior quedó retirada.</p>
           </div>
           <div className="rounded-xl p-4 text-left" style={{ border: '0.5px solid var(--border-md)' }}>
-            <p className="text-xs uppercase tracking-widest" style={LABEL_STYLE}>Nuevo serial</p>
+            <p className="text-xs uppercase tracking-widest" style={LABEL_STYLE}>Tarjeta asignada</p>
             <p className="font-mono font-semibold mt-1 break-all" style={{ color: 'var(--jet)' }}>{resultado.serial}</p>
-            <p className="text-xs uppercase tracking-widest mt-3" style={LABEL_STYLE}>Nuevo código QR</p>
-            <p className="font-mono font-semibold mt-1 break-all" style={{ color: 'var(--jet)' }}>{resultado.codigo}</p>
+            <p className="text-sm mt-2" style={{ color: 'var(--ash)' }}>El saldo y todo el historial se conservaron.</p>
           </div>
           <button type="button" onClick={onClose} className="w-full px-4 py-2.5 rounded-xl text-sm font-medium text-white min-h-[44px]" style={{ background: 'var(--pb)' }}>Finalizar</button>
         </div>
       ) : !tarjeta ? (
         <div className="space-y-3">
           <label htmlFor="reponertarjetamodal-codigo-qr-o-serial-de-la-tar" className="block text-xs uppercase tracking-widest" style={LABEL_STYLE}>
-            Código QR o serial de la tarjeta a reponer
+            Tarjeta extraviada o dañada
           </label>
           <div className="flex gap-2">
             <input id="reponertarjetamodal-codigo-qr-o-serial-de-la-tar"
@@ -153,11 +188,47 @@ export default function ReponerTarjetaModal({ tarjetaInicial, onClose, onRepuest
       ) : (
         <div className="space-y-4">
           <p className="text-sm" style={{ color: 'var(--ash)' }}>
-            Tarjeta <strong style={{ color: 'var(--jet)' }}>{tarjeta.serial}</strong>
+            Tarjeta actual <strong style={{ color: 'var(--jet)' }}>{tarjeta.serial}</strong>
             {tarjeta.alumnoNombre || tarjeta.titular_nombre || tarjeta.alumno ? (
               <> — {tarjeta.alumnoNombre || tarjeta.titular_nombre || `${tarjeta.alumno?.nombre ?? ''} ${tarjeta.alumno?.apellido ?? ''}`.trim()}</>
             ) : null}
           </p>
+
+          <div>
+            <label htmlFor="reponertarjetamodal-tarjeta-nueva" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>
+              Tarjeta nueva sin asignar
+            </label>
+            {reemplazo ? (
+              <div className="flex flex-col gap-3 rounded-xl p-3 sm:flex-row sm:items-center sm:justify-between" style={{ background: 'var(--teal-light)', border: '0.5px solid color-mix(in srgb, var(--teal) 25%, white)' }}>
+                <div className="min-w-0">
+                  <p className="text-xs" style={{ color: 'var(--teal)' }}>Lista para entregar</p>
+                  <p className="font-mono font-semibold break-all" style={{ color: 'var(--jet)' }}>{reemplazo.serial}</p>
+                </div>
+                <button type="button" onClick={() => { setReemplazo(null); setEntradaReemplazo(''); setConfirmado(false); }} className="w-full sm:w-auto px-3 py-2 rounded-lg text-sm font-medium min-h-[44px]" style={IDLE_STYLE}>
+                  Cambiar
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <div className="relative flex-1 min-w-0">
+                  <ScanLine size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--ash)' }} />
+                  <input id="reponertarjetamodal-tarjeta-nueva" className="w-full pl-9 pr-3 py-2 rounded-lg outline-none min-h-[44px]" style={FIELD_STYLE} value={entradaReemplazo} onChange={e => { setEntradaReemplazo(e.target.value); setErrorReemplazo(''); }} onKeyDown={e => { if (e.key === 'Enter') handleBuscarReemplazo(); }} placeholder="Escanea QR o escribe serial" />
+                </div>
+                <button type="button" onClick={handleBuscarReemplazo} disabled={buscandoReemplazo} className="w-full sm:w-auto px-4 rounded-xl text-sm font-medium text-white disabled:opacity-50 min-h-[44px] flex items-center justify-center" style={{ background: 'var(--pb)' }}>
+                  {buscandoReemplazo ? <Loader2 size={14} className="animate-spin" /> : 'Buscar'}
+                </button>
+              </div>
+            )}
+            {errorReemplazo && <p className="text-sm flex items-start gap-1.5 mt-2" style={{ color: 'var(--red)' }}><AlertTriangle size={14} className="shrink-0 mt-0.5" /> <span>{errorReemplazo}</span></p>}
+          </div>
+
+          {reemplazo && (
+            <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-xl p-3" style={{ background: 'var(--porcelain)' }} aria-label={`Reasignar ${tarjeta.serial} a ${reemplazo.serial}`}>
+              <div className="min-w-0"><p className="text-xs" style={LABEL_STYLE}>Anterior</p><p className="font-mono text-sm font-semibold break-all">{tarjeta.serial}</p></div>
+              <ArrowRight size={18} aria-hidden="true" style={{ color: 'var(--pb)' }} />
+              <div className="min-w-0 text-right"><p className="text-xs" style={LABEL_STYLE}>Nueva</p><p className="font-mono text-sm font-semibold break-all">{reemplazo.serial}</p></div>
+            </div>
+          )}
 
           <div>
             <span id="reponer-motivo" className="block text-xs uppercase tracking-widest mb-1.5" style={LABEL_STYLE}>Motivo</span>
@@ -182,7 +253,7 @@ export default function ReponerTarjetaModal({ tarjetaInicial, onClose, onRepuest
           <div className="rounded-lg px-3 py-3 text-sm flex gap-2" style={{ background: 'var(--red-light)', border: '0.5px solid color-mix(in srgb, var(--red) 25%, white)', color: 'var(--red)' }}>
             <AlertTriangle size={16} className="shrink-0 mt-0.5" />
             <span>
-              El código físico (QR) anterior quedará <strong>permanentemente inválido</strong>. Si alguien lo escanea después, no resolverá a ninguna tarjeta activa. El saldo actual de la tarjeta se conserva.
+              La tarjeta anterior quedará <strong>permanentemente retirada</strong>. La nueva conservará el saldo, límite de crédito e historial del titular.
             </span>
           </div>
 
@@ -191,9 +262,10 @@ export default function ReponerTarjetaModal({ tarjetaInicial, onClose, onRepuest
               type="checkbox"
               checked={confirmado}
               onChange={e => setConfirmado(e.target.checked)}
+              disabled={!reemplazo}
               className="mt-0.5"
             />
-            Entiendo que el código anterior queda inválido y se generará uno nuevo.
+            Confirmo que entregaré la tarjeta {reemplazo?.serial || 'nueva'} y retiraré la anterior.
           </label>
         </div>
       )}

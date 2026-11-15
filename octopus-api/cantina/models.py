@@ -107,6 +107,7 @@ class TarjetaPrepago(models.Model):
         ('activa', 'Activa'),
         ('bloqueada', 'Bloqueada'),
         ('extraviada', 'Extraviada'),
+        ('retirada', 'Retirada'),
     )
     # OJO: null=True es obligatorio — una tarjeta se genera e imprime ANTES de
     # saber a qué alumno se le va a entregar (provisioning en lote). Si este
@@ -167,6 +168,12 @@ class HistorialCodigoTarjeta(models.Model):
     tarjeta = models.ForeignKey(TarjetaPrepago, on_delete=models.CASCADE, related_name='historial_codigos')
     codigo_anterior = models.CharField(max_length=50)
     serial_anterior = models.CharField(max_length=20, blank=True, default='')
+    codigo_nuevo = models.CharField(max_length=50, blank=True, default='')
+    serial_nuevo = models.CharField(max_length=20, blank=True, default='')
+    tarjeta_reemplazo = models.ForeignKey(
+        TarjetaPrepago, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='reposiciones_como_reemplazo',
+    )
     motivo = models.CharField(max_length=30, choices=(('extravio', 'Extravío'), ('dano', 'Tarjeta dañada')))
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL)
     creado_en = models.DateTimeField(auto_now_add=True)

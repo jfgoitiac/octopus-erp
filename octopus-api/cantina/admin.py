@@ -49,7 +49,7 @@ class TarjetaPrepagoAdmin(admin.ModelAdmin):
 
 @admin.register(HistorialCodigoTarjeta)
 class HistorialCodigoTarjetaAdmin(admin.ModelAdmin):
-    list_display = ('tarjeta', 'codigo_anterior', 'motivo', 'usuario', 'creado_en')
+    list_display = ('tarjeta', 'serial_anterior', 'serial_nuevo', 'tarjeta_reemplazo', 'motivo', 'usuario', 'creado_en')
     list_filter = ('motivo',)
 
 

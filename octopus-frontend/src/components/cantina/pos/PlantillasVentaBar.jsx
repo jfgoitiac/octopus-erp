@@ -1,11 +1,11 @@
-import { Zap, Settings2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Zap, Settings2 } from 'lucide-react';
 
 /**
  * Combos de venta rápida del POS: un clic carga al carrito los productos y
  * cantidades de la plantilla. El monto se muestra en bolívares (tasa vigente)
  * y, en pequeño, en USD.
  */
-export default function PlantillasVentaBar({ plantillas, tasa, onAplicar, onGestionar, disabled = false }) {
+export default function PlantillasVentaBar({ plantillas, tasa, onAplicar, onGestionar, disabled = false, abierto = true, onCambiarAbierto }) {
   return (
     <div className="rounded-2xl p-3" style={{ border: '0.5px solid var(--border-md)', background: '#fff' }}>
       <div className="flex items-center justify-between gap-2 mb-2">
@@ -20,9 +20,18 @@ export default function PlantillasVentaBar({ plantillas, tasa, onAplicar, onGest
         >
           <Settings2 size={14} /> Gestionar
         </button>
+        <button
+          type="button"
+          onClick={() => onCambiarAbierto?.(!abierto)}
+          className="flex min-h-11 min-w-11 items-center justify-center rounded-lg text-[var(--ash)]"
+          aria-expanded={abierto}
+          aria-label={abierto ? 'Contraer plantillas' : 'Expandir plantillas'}
+        >
+          {abierto ? <ChevronUp size={17} /> : <ChevronDown size={17} />}
+        </button>
       </div>
 
-      {plantillas.length === 0 ? (
+      {abierto && (plantillas.length === 0 ? (
         <p className="text-sm" style={{ color: 'var(--ash)' }}>
           Aún no hay plantillas. Crea una con "Gestionar" para cobrar combos con un clic.
         </p>
@@ -47,7 +56,7 @@ export default function PlantillasVentaBar({ plantillas, tasa, onAplicar, onGest
             );
           })}
         </div>
-      )}
+      ))}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useContext, useMemo } from 'react';
 import { toast } from 'react-toastify';
-import { ShoppingCart, Package, Wallet, Printer, ScanLine, Loader2, WifiOff } from 'lucide-react';
+import { ShoppingCart, Package, Wallet, Printer, ScanLine, Loader2, WifiOff, Maximize2, Minimize2, Grid3X3, RotateCcw } from 'lucide-react';
 import { precalentarRecibo, imprimirReciboCantina, getImprimirAuto, getAnchoPapel } from '../../utils/imprimirReciboCantina';
 import GrillaProductos from '../../components/cantina/pos/GrillaProductos';
 import ConfigImpresoraModal from '../../components/cantina/pos/ConfigImpresoraModal';
@@ -37,6 +37,7 @@ import { Modal } from '../../components/ui/Modal';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { guardarCachePos, leerCachePos, valorCachePos } from '../posCache';
 import { suscribirTasaCantinaCambiada } from '../tasaCantinaEvento';
+import { ANCHO_CARRITO_MAX, ANCHO_CARRITO_MIN, usePreferenciasLayoutPOS } from '../hooks/usePreferenciasLayoutPOS';
 
 // Origen de la venta (D2, CONTRATO_AUDITORIA_CANTINA.md §8): cada línea del
 // carrito recuerda por dónde entró ('escaner' = ScannerProducto; 'manual' =
@@ -95,6 +96,8 @@ function SkeletonGrid() {
 
 export default function CantinaPOS() {
   const { user } = useContext(AuthContext);
+  const usuarioPreferencias = user?.id ?? user?.username ?? user?.email;
+  const { preferencias: layout, actualizar: actualizarLayout, restablecer: restablecerLayout } = usePreferenciasLayoutPOS(usuarioPreferencias);
 
   const [catalogo, setCatalogo] = useState([]);
   const [loadingProductos, setLoadingProductos] = useState(true);
@@ -149,8 +152,28 @@ export default function CantinaPOS() {
   // un Modal que se abre desde la barra inferior, así COBRAR nunca queda lejos.
   const esLg = useMediaQuery('(min-width: 1024px)');
   const [carritoAbierto, setCarritoAbierto] = useState(false);
+  const arrastreRef = useRef(null);
 
   const abortRef = useRef(null);
+
+  const iniciarAjusteCarrito = (event) => {
+    if (!esLg) return;
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    arrastreRef.current = { x: event.clientX, ancho: layout.anchoCarrito };
+    document.body.style.userSelect = 'none';
+  };
+
+  const moverAjusteCarrito = (event) => {
+    if (!arrastreRef.current) return;
+    actualizarLayout({ anchoCarrito: arrastreRef.current.ancho + arrastreRef.current.x - event.clientX });
+  };
+
+  const terminarAjusteCarrito = () => {
+    arrastreRef.current = null;
+    document.body.style.userSelect = '';
+  };
+
+  useEffect(() => () => { document.body.style.userSelect = ''; }, []);
 
   useEffect(() => {
     const online = () => setEnLinea(true);
@@ -733,7 +756,7 @@ export default function CantinaPOS() {
             Cajero: {nombreUsuario(user)} · {format(new Date(), "d 'de' MMMM, HH:mm", { locale: es })}
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-2 w-full sm:w-auto sm:flex sm:flex-row">
+        <div className="grid grid-cols-2 gap-2 w-full sm:w-auto sm:flex sm:flex-row sm:flex-wrap sm:justify-end">
           <button
             type="button"
             onClick={() => setConfigurandoImpresora(true)}
@@ -750,10 +773,34 @@ export default function CantinaPOS() {
           >
             <Wallet size={16} /> Consultar saldo
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              const orden = ['compacta', 'normal', 'amplia'];
+              actualizarLayout({ densidadProductos: orden[(orden.indexOf(layout.densidadProductos) + 1) % orden.length] });
+            }}
+            className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl px-3 text-sm font-medium sm:w-auto"
+            style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)', background: '#fff' }}
+            title="Cambiar tamaño de los productos"
+          >
+            <Grid3X3 size={16} /> Botones: {layout.densidadProductos}
+          </button>
+          <button
+            type="button"
+            onClick={restablecerLayout}
+            className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl px-3 text-sm font-medium sm:w-auto"
+            style={{ border: '0.5px solid var(--border-md)', color: 'var(--ash)', background: '#fff' }}
+            title="Restablecer tamaños del POS"
+          >
+            <RotateCcw size={16} /> Restablecer
+          </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:flex-1 lg:min-h-0">
+      <div
+        className="grid grid-cols-1 gap-4 lg:flex-1 lg:min-h-0 lg:gap-0"
+        style={esLg ? { gridTemplateColumns: `minmax(0, 1fr) 14px ${layout.anchoCarrito}px` } : undefined}
+      >
         {/* Columna izquierda: escaneo + grid de productos */}
         <div className="lg:col-span-2 flex flex-col gap-3 lg:min-h-0">
           {esLg && lectorProducto}
@@ -783,6 +830,8 @@ export default function CantinaPOS() {
             onAplicar={aplicarPlantilla}
             onGestionar={() => setGestionandoPlantillas(true)}
             disabled={Boolean(ventaActual)}
+            abierto={layout.plantillasAbiertas}
+            onCambiarAbierto={plantillasAbiertas => actualizarLayout({ plantillasAbiertas })}
           />
           {gestionandoPlantillas && (
             <GestionPlantillasModal
@@ -816,13 +865,38 @@ export default function CantinaPOS() {
               ) : productos.length === 0 ? (
                 <p className="py-8 text-center text-sm" style={{ color: 'var(--ash)' }}>No hay productos activos cargados en inventario.</p>
               ) : (
-                <GrillaProductos productos={productos} onAgregar={agregarManual} />
+                <GrillaProductos productos={productos} onAgregar={agregarManual} densidad={layout.densidadProductos} />
               )}
             </div>
           </section>
         </div>
 
         {/* Columna derecha: carrito (desde lg; debajo vive en el Modal del pie) */}
+        {esLg && (
+          <div
+            role="separator"
+            aria-label="Ajustar ancho del carrito"
+            aria-orientation="vertical"
+            aria-valuemin={ANCHO_CARRITO_MIN}
+            aria-valuemax={ANCHO_CARRITO_MAX}
+            aria-valuenow={layout.anchoCarrito}
+            tabIndex={0}
+            onPointerDown={iniciarAjusteCarrito}
+            onPointerMove={moverAjusteCarrito}
+            onPointerUp={terminarAjusteCarrito}
+            onPointerCancel={terminarAjusteCarrito}
+            onDoubleClick={restablecerLayout}
+            onKeyDown={(event) => {
+              if (event.key === 'ArrowLeft') actualizarLayout({ anchoCarrito: layout.anchoCarrito + 16 });
+              if (event.key === 'ArrowRight') actualizarLayout({ anchoCarrito: layout.anchoCarrito - 16 });
+              if (event.key === 'Home') restablecerLayout();
+            }}
+            className="group flex cursor-col-resize touch-none items-center justify-center rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--pb)]"
+            title="Arrastra para ajustar · doble clic para restablecer"
+          >
+            <span className="h-20 w-1 rounded-full bg-[var(--border-md)] transition-colors group-hover:bg-[var(--pb)]" />
+          </div>
+        )}
         {esLg && (
           <div className="lg:min-h-0">
             {renderCarrito(false)}
@@ -853,6 +927,15 @@ export default function CantinaPOS() {
               <ShoppingCart size={16} />
               Carrito ({carrito.length})
             </button>
+            <button
+              type="button"
+              onClick={() => actualizarLayout({ carritoMovilCompleto: !layout.carritoMovilCompleto })}
+              className="flex min-h-[48px] min-w-[48px] shrink-0 items-center justify-center rounded-xl border border-[var(--border-md)] text-[var(--pb)]"
+              aria-label={layout.carritoMovilCompleto ? 'Usar carrito a media pantalla' : 'Usar carrito a pantalla completa'}
+              title={layout.carritoMovilCompleto ? 'Media pantalla' : 'Pantalla completa'}
+            >
+              {layout.carritoMovilCompleto ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
+            </button>
             {cobroDirecto && (
               <button
                 type="button"
@@ -869,7 +952,7 @@ export default function CantinaPOS() {
             open={carritoAbierto && !ventaActual}
             onClose={() => setCarritoAbierto(false)}
             size="lg"
-            bodyClassName="p-0"
+            bodyClassName={`min-h-0 overflow-hidden p-0 ${layout.carritoMovilCompleto ? '' : 'max-h-[56dvh]'}`}
             titulo={<><ShoppingCart size={17} /> Carrito · {carrito.length} línea{carrito.length !== 1 ? 's' : ''}</>}
           >
             {renderCarrito(true)}

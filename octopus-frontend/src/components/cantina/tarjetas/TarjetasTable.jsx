@@ -10,6 +10,7 @@ const ESTADO_LABELS = {
   activa: 'Activa',
   bloqueada: 'Bloqueada',
   extraviada: 'Extraviada',
+  retirada: 'Retirada',
 };
 
 const ESTADO_STYLE = {
@@ -17,6 +18,7 @@ const ESTADO_STYLE = {
   activa: { background: 'var(--pb-light)', color: 'var(--pb-mid)' },
   bloqueada: { background: 'var(--yellow-light)', color: 'var(--amber-ink)' },
   extraviada: { background: 'var(--red-light)', color: 'var(--red)' },
+  retirada: { background: 'var(--porcelain)', color: 'var(--ash)' },
 };
 
 function SkeletonFila() {
@@ -45,7 +47,7 @@ export default function TarjetasTable({ tarjetas, cargando, onAjustarCredito }) 
     const termino = busqueda.trim().toLocaleLowerCase('es');
     const resultado = (tarjetas || []).filter(t => {
       const coincideFiltro = filtro === 'todas'
-        || (filtro === 'asignadas' ? t.estado !== 'sin_asignar' : t.estado === filtro);
+        || (filtro === 'asignadas' ? !['sin_asignar', 'retirada'].includes(t.estado) : t.estado === filtro);
       if (!coincideFiltro) return false;
       if (!termino) return true;
       return [t.titular_nombre, t.serial, t.alumno_grado_seccion, TIPO_LABELS[t.titular_tipo]]
@@ -168,6 +170,7 @@ export default function TarjetasTable({ tarjetas, cargando, onAjustarCredito }) 
             <option value="activa">Activas</option>
             <option value="bloqueada">Bloqueadas</option>
             <option value="extraviada">Extraviadas</option>
+            <option value="retirada">Retiradas</option>
           </select>
 
           <label className="relative flex items-center">
@@ -240,15 +243,17 @@ export default function TarjetasTable({ tarjetas, cargando, onAjustarCredito }) 
                 </span>
               </td>
               <td className="px-4 py-3">
-                <button
-                  onClick={() => onAjustarCredito(t)}
-                  className="p-1.5 rounded-lg transition-colors"
-                  style={{ color: 'var(--pb)' }}
-                  title="Ajustar crédito"
-                  aria-label={`Ajustar crédito de ${t.titular_nombre || t.serial}`}
-                >
-                  <SlidersHorizontal size={15} />
-                </button>
+                {t.estado !== 'retirada' && t.titular_nombre ? (
+                  <button
+                    onClick={() => onAjustarCredito(t)}
+                    className="p-1.5 rounded-lg transition-colors"
+                    style={{ color: 'var(--pb)' }}
+                    title="Ajustar crédito"
+                    aria-label={`Ajustar crédito de ${t.titular_nombre}`}
+                  >
+                    <SlidersHorizontal size={15} />
+                  </button>
+                ) : <span style={{ color: 'var(--ash)' }}>—</span>}
               </td>
             </tr>
           ))}

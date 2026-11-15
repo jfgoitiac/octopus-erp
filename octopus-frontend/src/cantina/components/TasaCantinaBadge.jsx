@@ -117,10 +117,10 @@ const TasaCantinaBadge = () => {
 
   return (
     <>
-      <div className="shrink-0 px-1 lg:w-full lg:px-5 lg:pt-3">
-        <div className="flex min-h-11 items-center gap-2 rounded-xl bg-[var(--surface-sunken)] px-2.5 py-1.5 lg:flex-wrap">
+      <div className="w-full shrink-0 lg:px-4 lg:pt-3">
+        <div className="flex min-h-11 min-w-0 items-center gap-2 rounded-xl bg-[var(--surface-sunken)] px-3 py-2 lg:block lg:space-y-2.5">
           <BadgeDollarSign size={16} aria-hidden="true" className={`shrink-0 ${personalizada ? 'text-[var(--amber-ink)]' : 'text-[var(--pb)]'}`} />
-          <div className="min-w-0 flex-1 whitespace-nowrap lg:whitespace-normal">
+          <div className="min-w-0 flex-1 lg:mt-1">
             {tasa.sinTasa ? (
               <p className="text-xs font-semibold text-[var(--ash)]">Sin tasa registrada</p>
             ) : (
@@ -139,12 +139,12 @@ const TasaCantinaBadge = () => {
               aria-label={personalizada ? 'Desactivar tasa personalizada' : 'Activar tasa personalizada'}
               title={personalizada ? 'Desactivar tasa personalizada' : 'Activar tasa personalizada'}
               onClick={abrirModal}
-              className="flex min-h-11 shrink-0 items-center gap-2 rounded-lg px-1.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--pb)] lg:px-0"
+              className="flex min-h-11 shrink-0 items-center gap-2 rounded-lg px-1.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--pb)] lg:w-full lg:justify-between lg:px-0"
             >
               <span className="relative h-6 w-11 rounded-full border border-[var(--border-md)] transition-colors" style={{ background: personalizada ? 'var(--pb)' : 'var(--surface)' }} aria-hidden="true">
                 <span className={`absolute top-0.5 h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform ${personalizada ? 'translate-x-[20px]' : 'translate-x-0.5'}`} />
               </span>
-              <span className="hidden text-xs font-medium text-[var(--jet-mid)] lg:inline">Personalizada</span>
+              <span className="hidden text-xs font-medium text-[var(--jet-mid)] lg:inline">Usar tasa personalizada</span>
             </button>
           )}
         </div>

@@ -96,7 +96,9 @@ const CantinaLayout = () => {
           </div>
         )}
 
-        <TasaCantinaBadge />
+        <div className="hidden lg:block">
+          <TasaCantinaBadge />
+        </div>
 
         <nav className="flex flex-row gap-1 px-2 py-2 lg:flex-1 lg:flex-col lg:gap-0 lg:px-3 lg:py-4 lg:space-y-1 lg:w-full">
           {navItems.map(({ name, path, icon: Icon, disabled }) => (
@@ -149,6 +151,10 @@ const CantinaLayout = () => {
           </button>
         </div>
       </aside>
+
+      <div className="border-b border-[var(--border)] bg-[var(--surface)] px-3 py-2 lg:hidden">
+        <TasaCantinaBadge />
+      </div>
 
       {/* Contenido principal */}
       <main className="flex-1 min-w-0 px-3 py-4 sm:px-8 sm:py-8">

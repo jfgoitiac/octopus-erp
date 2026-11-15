@@ -41,8 +41,8 @@ const ACCIONES = [
   {
     key: 'reponer',
     icon: AlertTriangle,
-    titulo: 'Reponer tarjeta extraviada/dañada',
-    descripcion: 'Genera un nuevo código para una tarjeta activa, conservando el saldo. El código físico anterior queda inválido.',
+    titulo: 'Reasignar tarjeta extraviada/dañada',
+    descripcion: 'Vincula otra tarjeta física disponible y conserva el saldo e historial del titular.',
     color: 'var(--amber-ink)',
     bg: 'var(--yellow-light)',
   },
@@ -68,8 +68,9 @@ export default function CantinaTarjetas() {
   const resumenTarjetas = useMemo(() => {
     const total = tarjetas.length;
     const sinAsignar = tarjetas.filter(t => t.estado === 'sin_asignar').length;
-    const asignadas = total - sinAsignar;
-    return { total, asignadas, sinAsignar };
+    const asignadas = tarjetas.filter(t => t.estado !== 'sin_asignar' && t.estado !== 'retirada').length;
+    const retiradas = tarjetas.filter(t => t.estado === 'retirada').length;
+    return { total, asignadas, sinAsignar, retiradas };
   }, [tarjetas]);
 
   const cargarTarjetas = useCallback(() => {
@@ -124,7 +125,7 @@ export default function CantinaTarjetas() {
           Tarjetas de Cantina
         </h1>
         <p className="text-sm mt-0.5" style={{ color: 'var(--ash)' }}>
-          Provisioning, asignación, reposición y crédito de tarjetas prepago QR.
+          Provisioning, asignación, reasignación y crédito de tarjetas prepago QR.
         </p>
       </div>
 
@@ -178,11 +179,12 @@ export default function CantinaTarjetas() {
             style={{ background: '#fff', border: '0.5px solid var(--border-md)' }}
             aria-label="Resumen de tarjetas"
           >
-            <div className="grid grid-cols-3 gap-3 sm:gap-6 mb-3">
+            <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-4 mb-3">
               {[
                 { etiqueta: 'Total', valor: resumenTarjetas.total, color: 'var(--jet)' },
                 { etiqueta: 'Asignadas', valor: resumenTarjetas.asignadas, color: 'var(--pb)' },
                 { etiqueta: 'Sin asignar', valor: resumenTarjetas.sinAsignar, color: 'var(--amber-ink)' },
+                { etiqueta: 'Retiradas', valor: resumenTarjetas.retiradas, color: 'var(--ash)' },
               ].map(item => (
                 <div key={item.etiqueta} className="min-w-0">
                   <p className="text-[11px] sm:text-xs font-medium truncate" style={{ color: 'var(--ash)' }}>
@@ -211,6 +213,12 @@ export default function CantinaTarjetas() {
                   />
                   <div
                     style={{
+                      width: `${(resumenTarjetas.retiradas / resumenTarjetas.total) * 100}%`,
+                      background: 'var(--ash)',
+                    }}
+                  />
+                  <div
+                    style={{
                       width: `${(resumenTarjetas.sinAsignar / resumenTarjetas.total) * 100}%`,
                       background: 'var(--yellow)',
                     }}
@@ -221,6 +229,7 @@ export default function CantinaTarjetas() {
             <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2 text-[11px]" style={{ color: 'var(--ash)' }}>
               <span className="flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[var(--pb)]" /> Asignadas</span>
               <span className="flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[var(--yellow)]" /> Sin asignar</span>
+              <span className="flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-[var(--ash)]" /> Retiradas</span>
             </div>
           </div>
         </div>

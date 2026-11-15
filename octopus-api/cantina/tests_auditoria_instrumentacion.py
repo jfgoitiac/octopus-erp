@@ -27,6 +27,7 @@ from .models import (
     DetalleVentaCantina,
     EventoAuditoriaCantina,
     MovimientoInventario,
+    MovimientoTarjeta,
     ProductoCantina,
     TarjetaPrepago,
     VentaCantina,
@@ -340,6 +341,17 @@ class VentaAuditoriaTests(InstrumentacionTestsBase):
         self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.data)
         self.tarjeta.refresh_from_db()
         self.assertEqual(self.tarjeta.saldo, Decimal('1.00'))
+
+    def test_descuento_total_con_tarjeta_no_crea_movimiento_en_cero(self):
+        resp = self.vender(
+            metodo_pago='tarjeta_prepago', tarjeta_codigo=self.tarjeta.codigo,
+            descuento_usd='3.00', motivo_descuento='Cortesía', origen_alumno='escaner',
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.data)
+        self.tarjeta.refresh_from_db()
+        self.assertEqual(self.tarjeta.saldo, Decimal('10.00'))
+        self.assertEqual(resp.data['saldo_tarjeta_despues'], '10.00')
+        self.assertFalse(MovimientoTarjeta.objects.filter(venta_id=resp.data['id']).exists())
 
     def test_descuento_con_credito_carga_el_neto_al_representante(self):
         CreditoRepresentanteCantina.objects.create(representante=self.representante, limite_usd=Decimal('50.00'))

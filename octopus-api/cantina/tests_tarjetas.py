@@ -314,16 +314,22 @@ class CantinaFase2ViewsTests(TestCase):
         )
         codigo_viejo = tarjeta.codigo
         serial_viejo = tarjeta.serial
+        reemplazo = TarjetaPrepago.objects.create(
+            serial='L002-0001', codigo='CANT-NUEVAAAAAA', estado='sin_asignar',
+        )
+        codigo_nuevo = reemplazo.codigo
+        serial_nuevo = reemplazo.serial
 
         self.client.force_authenticate(user=self.admin_user)
         resp = self.client.post(
-            f'/api/cantina/tarjetas/{tarjeta.id}/reponer/', {'motivo': 'extravio'}, format='json',
+            f'/api/cantina/tarjetas/{tarjeta.id}/reponer/',
+            {'motivo': 'extravio', 'tarjeta_reemplazo_id': reemplazo.id}, format='json',
         )
         self.assertEqual(resp.status_code, status.HTTP_200_OK, resp.data)
 
         tarjeta.refresh_from_db()
-        self.assertNotEqual(tarjeta.codigo, codigo_viejo)
-        self.assertNotEqual(tarjeta.serial, serial_viejo)
+        self.assertEqual(tarjeta.codigo, codigo_nuevo)
+        self.assertEqual(tarjeta.serial, serial_nuevo)
         self.assertEqual(tarjeta.alumno_id, self.alumno.id)
         self.assertEqual(tarjeta.saldo, Decimal('12.50'))
 
@@ -331,18 +337,27 @@ class CantinaFase2ViewsTests(TestCase):
         self.assertIsNotNone(historial)
         self.assertEqual(historial.codigo_anterior, codigo_viejo)
         self.assertEqual(historial.serial_anterior, serial_viejo)
+        self.assertEqual(historial.codigo_nuevo, codigo_nuevo)
+        self.assertEqual(historial.serial_nuevo, serial_nuevo)
+        self.assertEqual(historial.tarjeta_reemplazo, reemplazo)
         self.assertEqual(historial.motivo, 'extravio')
         self.assertEqual(historial.usuario, self.admin_user)
 
-        # El código viejo ya no resuelve a ninguna tarjeta.
-        self.assertFalse(TarjetaPrepago.objects.filter(codigo=codigo_viejo).exists())
-        self.assertFalse(TarjetaPrepago.objects.filter(serial=serial_viejo).exists())
+        # La credencial anterior conserva auditoría física, pero está retirada
+        # y no puede resolverse como tarjeta activa en el POS.
+        reemplazo.refresh_from_db()
+        self.assertEqual(reemplazo.codigo, codigo_viejo)
+        self.assertEqual(reemplazo.serial, serial_viejo)
+        self.assertEqual(reemplazo.estado, 'retirada')
+        self.assertIsNone(reemplazo.titular)
 
     def test_reponer_tarjeta_sin_asignar_rechazado(self):
         tarjeta = TarjetaPrepago.objects.create(serial='L001-0010', codigo='CANT-NNNNNNNNNN')
+        reemplazo = TarjetaPrepago.objects.create(serial='L001-0011', codigo='CANT-PPPPPPPPPP')
         self.client.force_authenticate(user=self.admin_user)
         resp = self.client.post(
-            f'/api/cantina/tarjetas/{tarjeta.id}/reponer/', {'motivo': 'dano'}, format='json',
+            f'/api/cantina/tarjetas/{tarjeta.id}/reponer/',
+            {'motivo': 'dano', 'tarjeta_reemplazo_id': reemplazo.id}, format='json',
         )
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
         tarjeta.refresh_from_db()
@@ -356,6 +371,32 @@ class CantinaFase2ViewsTests(TestCase):
         )
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(HistorialCodigoTarjeta.objects.filter(tarjeta=tarjeta).count(), 0)
+
+    def test_reponer_exige_tarjeta_fisica_disponible(self):
+        tarjeta = TarjetaPrepago.objects.create(
+            serial='L001-0012', codigo='CANT-QQQQQQQQQQ',
+            alumno=self.alumno, estado='activa',
+        )
+        self.client.force_authenticate(user=self.admin_user)
+        resp = self.client.post(
+            f'/api/cantina/tarjetas/{tarjeta.id}/reponer/', {'motivo': 'dano'}, format='json',
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_reponer_rechaza_reemplazo_que_ya_fue_asignado(self):
+        tarjeta = TarjetaPrepago.objects.create(
+            serial='L001-0013', codigo='CANT-RRRRRRRRRR',
+            alumno=self.alumno, estado='activa',
+        )
+        reemplazo = TarjetaPrepago.objects.create(
+            serial='L001-0014', codigo='CANT-SSSSSSSSSS', estado='activa',
+        )
+        self.client.force_authenticate(user=self.admin_user)
+        resp = self.client.post(
+            f'/api/cantina/tarjetas/{tarjeta.id}/reponer/',
+            {'motivo': 'extravio', 'tarjeta_reemplazo_id': reemplazo.id}, format='json',
+        )
+        self.assertEqual(resp.status_code, status.HTTP_409_CONFLICT)
 
 
 class AsignarTarjetaClienteTests(TestCase):

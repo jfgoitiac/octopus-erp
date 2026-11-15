@@ -399,6 +399,7 @@ export default function AsignarTarjetaModal({ onClose, onAsignada, onSugerirRepo
                 onClick={() => {
                   onSugerirReponer?.({
                     id: conflicto.tarjeta_existente_id,
+                    serial: conflicto.tarjeta_existente_serial,
                     alumnoNombre: nombreTitular || '',
                   });
                   onClose();

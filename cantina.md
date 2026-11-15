@@ -125,7 +125,7 @@ El QR **nunca** codifica cédula, nombre, ID interno del alumno ni ningún dato 
 5. Si el alumno seleccionado **ya tiene** una tarjeta activa (viola el `OneToOneField`), el flujo no deja completar la asignación silenciosamente — muestra el conflicto y ofrece el flujo de "reposición" (§8.3) en vez de fallar con un error 500 genérico.
 
 **Reposición de tarjeta extraviada/dañada (con auditoría):**
-No se sobrescribe el `codigo` a ciegas. El endpoint de reposición: genera un nuevo `codigo` para la `TarjetaPrepago` existente (mismo `alumno`, mismo `saldo` — el saldo no se pierde), registra el cambio en `HistorialCodigoTarjeta` (código anterior, motivo, quién lo hizo, cuándo), y marca la tarjeta física vieja como inválida de forma permanente — si alguien intenta escanear el QR extraviado después, el `codigo` viejo ya no resuelve a ninguna tarjeta activa (el nuevo código es el único vigente en la fila).
+No se sobrescribe el `codigo` ni se imprime una credencial improvisada. El endpoint de reposición exige otra `TarjetaPrepago` del inventario en estado `sin_asignar`; la cuenta lógica existente conserva alumno, saldo, límite y relaciones, recibe el código/serial de la tarjeta física nueva y registra el cambio completo en `HistorialCodigoTarjeta`. La fila consumida recibe la credencial anterior y queda `retirada`, por lo que el QR extraviado o dañado ya no resuelve como tarjeta activa.
 
 ### 5.2 Modelos (`cantina/models.py`)
 
@@ -191,7 +191,8 @@ class TarjetaPrepago(models.Model):
 
 class HistorialCodigoTarjeta(models.Model):
     """Auditoría de reposición: cada vez que el `codigo` de una tarjeta se
-    regenera (extravío/daño), queda registro del código anterior invalidado."""
+    reasigna una credencial física (extravío/daño), quedan registrados los
+    códigos y seriales anterior/nuevo y la tarjeta de inventario consumida."""
     tarjeta = models.ForeignKey(TarjetaPrepago, on_delete=models.CASCADE, related_name='historial_codigos')
     codigo_anterior = models.CharField(max_length=50)
     motivo = models.CharField(max_length=30, choices=(('extravio', 'Extravío'), ('dano', 'Tarjeta dañada')))
@@ -500,7 +501,7 @@ Estilo `APIView` explícita por acción, igual que `cobranza/views.py`:
 | `BuscarTarjetaSinAsignarView` | GET `?codigo=` o `?serial=` | Ubica una tarjeta `sin_asignar` durante el proceso de asignación |
 | `BuscarRepresentantePorCedulaView` | GET `?cedula=` | Devuelve representante + lista de sus alumnos (mismo criterio que `BuscarAlumnoCobranzaView` de `cobranza`) |
 | `AsignarTarjetaView` | POST `<tarjeta_id>/asignar/` `{alumno_id}` | Vincula la tarjeta al alumno, `estado='activa'`; si el alumno ya tiene tarjeta activa, devuelve el conflicto explícito en vez de un error genérico |
-| `ReponerTarjetaView` | POST `<tarjeta_id>/reponer/` `{motivo}` | Regenera `codigo` (mismo alumno y saldo), registra `HistorialCodigoTarjeta`, invalida el código viejo |
+| `ReponerTarjetaView` | POST `<tarjeta_id>/reponer/` `{motivo, tarjeta_reemplazo_id}` | Consume una tarjeta `sin_asignar`, conserva la cuenta/saldo/historial y retira la credencial física anterior |
 | `BuscarTarjetaView` | GET `?codigo=` | Busca tarjeta activa por código escaneado (uso en el POS) |
 | `ProductoBuscarPorCodigoView` | GET `?codigo=` | Busca producto por código de barras (para el POS) |
 | `ProductosListCreateView` | GET / POST | Listado e inventario (admin) |
@@ -722,7 +723,7 @@ octopus-frontend/src/
 │   │   ├── RecargasPendientesList.jsx
 │   │   ├── GenerarLoteModal.jsx        # pide cantidad, dispara la descarga del .zip
 │   │   ├── AsignarTarjetaModal.jsx     # escanea/serial → cédula representante → seleccionar alumno
-│   │   └── ReponerTarjetaModal.jsx     # extravío/daño → nuevo código, mismo saldo
+│   │   └── ReponerTarjetaModal.jsx     # extravío/daño → escanear reemplazo físico, mismo saldo
 │   ├── cierre/
 │   │   └── ResumenCierreCaja.jsx
 │   └── reportes/
@@ -870,7 +871,7 @@ Este es el estado inicial de toda venta: el cajero carga productos y, si el pago
   1. Escanear QR o escribir `serial` → resuelve la tarjeta `sin_asignar`.
   2. Escribir cédula del representante → `BuscarRepresentantePorCedulaView` trae sus alumnos.
   3. Seleccionar alumno de la lista → confirmar. Si el alumno ya tiene tarjeta, se muestra el conflicto con opción directa de ir a "Reponer" en vez de fallar en seco.
-- Botón **"Reponer"** (por extravío/daño) en cada fila de tarjeta activa → `ReponerTarjetaModal.jsx`: pide motivo, muestra advertencia de que el código físico anterior queda inválido, genera el nuevo y ofrece descargar el nuevo PNG individual para reimprimir esa tarjeta puntual.
+- Botón **"Reasignar"** (por extravío/daño) → `ReponerTarjetaModal.jsx`: pide motivo, escanea otra tarjeta física `sin_asignar`, muestra origen y reemplazo y confirma que la anterior quedará retirada. No genera ni descarga otro QR.
 - Botón **"Recargar"** (cajero, efectivo) → `RecargaCajeroModal.jsx`: mismo formulario dinámico del §7.5 pero limitado a los métodos que sí puede cobrar un cajero en caja (efectivo USD, efectivo VES, y también transferencia/pago móvil/zelle si el representante paga presente frente al cajero mostrando el comprobante en el momento) — aprobación instantánea, no pasa por el estado `pendiente`.
 
 ### 7.4 Reportes con reimpresión (`CantinaReportes.jsx`)
@@ -997,7 +998,7 @@ El módulo se construye en fases pequeñas y verificables, cada una entregando a
 - [ ] `TarjetaPrepago.codigo` se genera **siempre** con `secrets.choice` sobre el alfabeto Base32 seguro (§5.1) — nunca secuencial, nunca derivado de la cédula/ID del alumno, con reintento explícito ante colisión de `unique=True`.
 - [ ] El payload que se codifica en la imagen QR (`qrcode.make(...)`) es exactamente `tarjeta.codigo` y nada más — ningún serializer debe filtrar nombre/cédula del alumno dentro del QR mismo.
 - [ ] `AsignarTarjetaView` maneja explícitamente el caso "el alumno ya tiene tarjeta activa" con un mensaje claro (no un `IntegrityError` de Django sin capturar) y ofrece el flujo de reposición.
-- [ ] `ReponerTarjetaView` corre dentro de `transaction.atomic()`: genera el nuevo código, escribe `HistorialCodigoTarjeta` y actualiza `TarjetaPrepago.codigo` en la misma transacción — nunca deja un estado a medias si falla a mitad de camino.
+- [ ] `ReponerTarjetaView` corre dentro de `transaction.atomic()`: bloquea la tarjeta asignada y el reemplazo `sin_asignar`, intercambia sus credenciales, escribe `HistorialCodigoTarjeta` y retira la anterior en la misma transacción — nunca deja un estado a medias si falla a mitad de camino.
 - [ ] `RegistrarVentaView` valida `tarjeta` obligatoria **solo** cuando `metodo_pago == 'tarjeta_prepago'` — una venta en efectivo con `alumno=None`/`tarjeta=None` debe pasar sin error.
 - [ ] `buscar_referencia_duplicada` (§5.9) se llama tanto desde `cantina` como desde el `cobranza/serializers.py` ya modificado — probar explícitamente el caso cruzado (referencia usada en cobranza, rechazada al intentar en cantina, y viceversa) antes de dar la fase por cerrada.
 - [ ] La modificación a `cobranza/serializers.py` no cambia el comportamiento de los duplicados que ya validaba (dentro de `Pago` y contra `portal.ComprobantePago`) — correr los tests existentes de `cobranza/tests.py` después del cambio, no solo los nuevos de cantina.

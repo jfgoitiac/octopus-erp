@@ -131,6 +131,18 @@ activos cargados en inventario."**.
 
 Si no hay ninguna cargada, dirá **"Sin tarjetas registradas"**.
 
+### Reasignar una tarjeta extraviada o dañada
+
+1. En **"Tarjetas"**, abre **"Reasignar tarjeta extraviada/dañada"**.
+2. Busca o escanea la tarjeta anterior.
+3. Escanea otra tarjeta física que aparezca como **"Sin asignar"**.
+4. Indica si la causa fue extravío o daño y confirma la tarjeta que entregarás.
+
+La tarjeta nueva conserva el saldo, el límite de crédito y todo el historial
+del titular. La tarjeta anterior queda **"Retirada"** y su QR deja de funcionar
+en el punto de venta. La operación no genera un código para imprimir: consume
+una tarjeta física ya creada en el inventario.
+
 ### Aprobar o rechazar una recarga del portal
 
 En **"Recargas pendientes de revisión"** — *"Solicitadas desde el portal del

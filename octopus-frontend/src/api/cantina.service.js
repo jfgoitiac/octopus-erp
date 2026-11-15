@@ -86,9 +86,14 @@ export const asignarTarjeta = (tarjetaId, titular, signal) =>
 export const asignarYRecargarTarjeta = (tarjetaId, payload, signal) =>
   cantinaApiClient.post(`tarjetas/${tarjetaId}/asignar-y-recargar/`, payload, { signal });
 
-// Reposición por extravío/daño — regenera el código, mismo alumno y saldo.
-export const reponerTarjeta = (tarjetaId, motivo, signal) =>
-  cantinaApiClient.post(`tarjetas/${tarjetaId}/reponer/`, { motivo }, { signal });
+// Reasignación por extravío/daño: consume una tarjeta física sin asignar y
+// conserva la cuenta, saldo e historial de la tarjeta original.
+export const reponerTarjeta = (tarjetaId, motivo, tarjetaReemplazoId, signal) =>
+  cantinaApiClient.post(
+    `tarjetas/${tarjetaId}/reponer/`,
+    { motivo, tarjeta_reemplazo_id: tarjetaReemplazoId },
+    { signal },
+  );
 
 // Ubica una tarjeta YA asignada (activa/bloqueada/extraviada) por código o
 // serial — usado por el flujo standalone de ReponerTarjetaModal (cuando no

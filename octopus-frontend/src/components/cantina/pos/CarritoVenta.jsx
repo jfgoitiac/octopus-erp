@@ -59,7 +59,7 @@ export default function CarritoVenta({
     // sticky para que el botón de confirmar nunca quede fuera de alcance.
     <div
       className={embebido
-        ? 'flex flex-col bg-[var(--surface)] overflow-hidden'
+        ? 'flex h-full min-h-0 flex-col bg-[var(--surface)] overflow-hidden'
         : 'flex flex-col lg:h-full rounded-2xl bg-[var(--surface)] overflow-hidden'}
       style={embebido ? undefined : { border: '0.5px solid var(--border-md)' }}
     >
