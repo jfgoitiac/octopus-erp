@@ -153,6 +153,7 @@ export default function CantinaPOS() {
   const esLg = useMediaQuery('(min-width: 1024px)');
   const [carritoAbierto, setCarritoAbierto] = useState(false);
   const arrastreRef = useRef(null);
+  const [anchoCarritoTemporal, setAnchoCarritoTemporal] = useState(null);
 
   const abortRef = useRef(null);
 
@@ -165,11 +166,20 @@ export default function CantinaPOS() {
 
   const moverAjusteCarrito = (event) => {
     if (!arrastreRef.current) return;
-    actualizarLayout({ anchoCarrito: arrastreRef.current.ancho + arrastreRef.current.x - event.clientX });
+    const siguiente = Math.min(
+      ANCHO_CARRITO_MAX,
+      Math.max(ANCHO_CARRITO_MIN, arrastreRef.current.ancho + arrastreRef.current.x - event.clientX),
+    );
+    arrastreRef.current.siguiente = siguiente;
+    setAnchoCarritoTemporal(siguiente);
   };
 
   const terminarAjusteCarrito = () => {
+    if (arrastreRef.current?.siguiente != null) {
+      actualizarLayout({ anchoCarrito: arrastreRef.current.siguiente });
+    }
     arrastreRef.current = null;
+    setAnchoCarritoTemporal(null);
     document.body.style.userSelect = '';
   };
 
@@ -799,10 +809,10 @@ export default function CantinaPOS() {
 
       <div
         className="grid grid-cols-1 gap-4 lg:flex-1 lg:min-h-0 lg:gap-0"
-        style={esLg ? { gridTemplateColumns: `minmax(0, 1fr) 14px ${layout.anchoCarrito}px` } : undefined}
+        style={esLg ? { gridTemplateColumns: `minmax(0, 1fr) 14px ${anchoCarritoTemporal ?? layout.anchoCarrito}px` } : undefined}
       >
         {/* Columna izquierda: escaneo + grid de productos */}
-        <div className="lg:col-span-2 flex flex-col gap-3 lg:min-h-0">
+        <div className="flex flex-col gap-3 lg:min-h-0">
           {esLg && lectorProducto}
           <div className="flex items-stretch gap-2">
             <div className="flex-1 min-w-0">
@@ -887,9 +897,9 @@ export default function CantinaPOS() {
             onPointerCancel={terminarAjusteCarrito}
             onDoubleClick={restablecerLayout}
             onKeyDown={(event) => {
-              if (event.key === 'ArrowLeft') actualizarLayout({ anchoCarrito: layout.anchoCarrito + 16 });
-              if (event.key === 'ArrowRight') actualizarLayout({ anchoCarrito: layout.anchoCarrito - 16 });
-              if (event.key === 'Home') restablecerLayout();
+              if (event.key === 'ArrowLeft') { event.preventDefault(); actualizarLayout({ anchoCarrito: layout.anchoCarrito + 16 }); }
+              if (event.key === 'ArrowRight') { event.preventDefault(); actualizarLayout({ anchoCarrito: layout.anchoCarrito - 16 }); }
+              if (event.key === 'Home') { event.preventDefault(); restablecerLayout(); }
             }}
             className="group flex cursor-col-resize touch-none items-center justify-center rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--pb)]"
             title="Arrastra para ajustar · doble clic para restablecer"
@@ -927,15 +937,6 @@ export default function CantinaPOS() {
               <ShoppingCart size={16} />
               Carrito ({carrito.length})
             </button>
-            <button
-              type="button"
-              onClick={() => actualizarLayout({ carritoMovilCompleto: !layout.carritoMovilCompleto })}
-              className="flex min-h-[48px] min-w-[48px] shrink-0 items-center justify-center rounded-xl border border-[var(--border-md)] text-[var(--pb)]"
-              aria-label={layout.carritoMovilCompleto ? 'Usar carrito a media pantalla' : 'Usar carrito a pantalla completa'}
-              title={layout.carritoMovilCompleto ? 'Media pantalla' : 'Pantalla completa'}
-            >
-              {layout.carritoMovilCompleto ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
-            </button>
             {cobroDirecto && (
               <button
                 type="button"
@@ -952,10 +953,23 @@ export default function CantinaPOS() {
             open={carritoAbierto && !ventaActual}
             onClose={() => setCarritoAbierto(false)}
             size="lg"
-            bodyClassName={`min-h-0 overflow-hidden p-0 ${layout.carritoMovilCompleto ? '' : 'max-h-[56dvh]'}`}
+            panelClassName={layout.carritoMovilCompleto ? 'h-[100dvh] sm:h-[90dvh]' : 'h-[70dvh] sm:h-[65dvh]'}
+            bodyClassName="min-h-0 overflow-hidden p-0"
             titulo={<><ShoppingCart size={17} /> Carrito · {carrito.length} línea{carrito.length !== 1 ? 's' : ''}</>}
           >
-            {renderCarrito(true)}
+            <div className="flex h-full min-h-0 flex-col">
+              <div className="flex shrink-0 justify-end border-b border-[var(--border)] bg-[var(--surface)] px-3 py-1.5">
+                <button
+                  type="button"
+                  onClick={() => actualizarLayout({ carritoMovilCompleto: !layout.carritoMovilCompleto })}
+                  className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-xs font-medium text-[var(--pb)]"
+                >
+                  {layout.carritoMovilCompleto ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                  {layout.carritoMovilCompleto ? 'Media pantalla' : 'Pantalla completa'}
+                </button>
+              </div>
+              <div className="min-h-0 flex-1">{renderCarrito(true)}</div>
+            </div>
           </Modal>
         </>
       )}

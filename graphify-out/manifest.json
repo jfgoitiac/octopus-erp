@@ -3830,8 +3830,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/cantina/components/CantinaLayout.jsx": {
-    "mtime": 1792257342.7568867,
-    "ast_hash": "d6444592e2bc6183d29ba178de71c767",
+    "mtime": 1794706787.72127,
+    "ast_hash": "f3ed11fc3b1a87980fa89edea206d598",
     "semantic_hash": ""
   },
   "octopus-frontend/src/cantina/pages/CantinaCierreCaja.jsx": {
@@ -3850,8 +3850,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/cantina/pages/CantinaPOS.jsx": {
-    "mtime": 1794705950.4294713,
-    "ast_hash": "200d06162744b4b4037bea341d7844a0",
+    "mtime": 1794707072.2638662,
+    "ast_hash": "cb969d7320d45666535c1c3d0c929ee6",
     "semantic_hash": ""
   },
   "octopus-frontend/src/cantina/pages/CantinaReportes.jsx": {
@@ -4535,8 +4535,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/ui/Modal.jsx": {
-    "mtime": 1793829413.108715,
-    "ast_hash": "22022d2ea6ee7d37b03054bb536d2be8",
+    "mtime": 1794707072.2638662,
+    "ast_hash": "203061159e45ebd7439be4bbb78ff73d",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/ui/TablaScroll.jsx": {
@@ -7585,8 +7585,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/cantina/components/TasaCantinaBadge.jsx": {
-    "mtime": 1794571085.017557,
-    "ast_hash": "4415d331012835d8d959ff3de543aea3",
+    "mtime": 1794706625.306607,
+    "ast_hash": "025e74d54d1f337006371297adfad95d",
     "semantic_hash": ""
   },
   "octopus-frontend/src/cantina/posCache.js": {
@@ -7630,13 +7630,13 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/pos/GrillaProductos.jsx": {
-    "mtime": 1794327537.033027,
-    "ast_hash": "98bae07211d826ec932a71aeb679f30e",
+    "mtime": 1794706625.3071134,
+    "ast_hash": "4ad00e4c5a78e8a9e80c0d1543fbbbb2",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/pos/PlantillasVentaBar.jsx": {
-    "mtime": 1793020663.910433,
-    "ast_hash": "4dbb6cb8abe28d736c3406cd855f17ff",
+    "mtime": 1794706625.3071134,
+    "ast_hash": "43c66e8877899af3e3a9e20102c91613",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/cantina/reportes/MorososCxcTable.jsx": {
@@ -9228,6 +9228,16 @@
   "octopus-frontend/src/components/cantina/tarjetas/ReponerTarjetaModal.test.jsx": {
     "mtime": 1794706388.2593915,
     "ast_hash": "9274d9b81e53a08b896914254afbd7d2",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/cantina/hooks/usePreferenciasLayoutPOS.js": {
+    "mtime": 1794706770.680244,
+    "ast_hash": "b6ce053e675ffa039d5407db4acebac7",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/cantina/hooks/usePreferenciasLayoutPOS.test.js": {
+    "mtime": 1794706837.5904026,
+    "ast_hash": "3c0ea3edd845269a98a39f16a6df7529",
     "semantic_hash": ""
   }
 }

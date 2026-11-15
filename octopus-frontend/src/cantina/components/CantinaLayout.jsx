@@ -78,7 +78,7 @@ const CantinaLayout = () => {
   return (
     <div className="min-h-dvh flex flex-col lg:flex-row" style={{ background: 'var(--porcelain)' }}>
       {/* Sidebar */}
-      <aside className="w-full lg:w-60 lg:shrink-0 bg-[var(--surface)] border-b lg:border-b-0 lg:border-r border-[var(--border)] flex flex-row items-center overflow-x-auto lg:overflow-visible lg:flex-col lg:items-stretch">
+      <aside className="w-full lg:w-60 lg:shrink-0 bg-[var(--surface)] border-b lg:border-b-0 lg:border-r border-[var(--border)] flex flex-row flex-wrap items-center lg:overflow-visible lg:flex-col lg:flex-nowrap lg:items-stretch">
         <div className="h-14 lg:h-16 shrink-0 flex items-center gap-2 px-3 lg:px-5 lg:border-b border-[var(--border)] lg:w-full">
           <ShoppingCart size={22} style={{ color: 'var(--pb)' }} />
           <span className="font-semibold text-[var(--jet)]">Cantina</span>
@@ -96,11 +96,11 @@ const CantinaLayout = () => {
           </div>
         )}
 
-        <div className="hidden lg:block">
+        <div className="order-3 w-full border-y border-[var(--border)] px-3 py-2 lg:order-none lg:border-0 lg:px-0 lg:py-0">
           <TasaCantinaBadge />
         </div>
 
-        <nav className="flex flex-row gap-1 px-2 py-2 lg:flex-1 lg:flex-col lg:gap-0 lg:px-3 lg:py-4 lg:space-y-1 lg:w-full">
+        <nav className="order-2 flex min-w-0 flex-1 flex-row gap-1 overflow-x-auto px-2 py-2 lg:order-none lg:w-full lg:flex-col lg:gap-0 lg:overflow-visible lg:px-3 lg:py-4 lg:space-y-1">
           {navItems.map(({ name, path, icon: Icon, disabled }) => (
             disabled ? (
               <div
@@ -133,7 +133,7 @@ const CantinaLayout = () => {
           ))}
         </nav>
 
-        <div className="shrink-0 px-2 py-2 lg:px-3 lg:py-4 lg:border-t border-[var(--border)] lg:w-full">
+        <div className="order-2 shrink-0 px-2 py-2 lg:order-none lg:px-3 lg:py-4 lg:border-t border-[var(--border)] lg:w-full">
           <div className="hidden lg:block px-3 py-2 mb-1">
             <p className="text-sm font-medium text-[var(--jet)] truncate">
               {nombreUsuario(user)}
@@ -151,10 +151,6 @@ const CantinaLayout = () => {
           </button>
         </div>
       </aside>
-
-      <div className="border-b border-[var(--border)] bg-[var(--surface)] px-3 py-2 lg:hidden">
-        <TasaCantinaBadge />
-      </div>
 
       {/* Contenido principal */}
       <main className="flex-1 min-w-0 px-3 py-4 sm:px-8 sm:py-8">

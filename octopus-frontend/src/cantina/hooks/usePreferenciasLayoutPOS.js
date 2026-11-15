@@ -37,11 +37,10 @@ function leer(usuario) {
 }
 
 export function usePreferenciasLayoutPOS(usuario) {
-  const [preferencias, setPreferencias] = useState(() => leer(usuario));
-
-  useEffect(() => {
-    setPreferencias(leer(usuario));
-  }, [usuario]);
+  const [preferenciasPorUsuario, setPreferenciasPorUsuario] = useState(() => (
+    usuario ? { [usuario]: leer(usuario) } : {}
+  ));
+  const preferencias = preferenciasPorUsuario[usuario] ?? leer(usuario);
 
   useEffect(() => {
     if (!usuario) return;
@@ -49,9 +48,16 @@ export function usePreferenciasLayoutPOS(usuario) {
   }, [preferencias, usuario]);
 
   const actualizar = useCallback((cambios) => {
-    setPreferencias(prev => normalizarPreferenciasPOS({ ...prev, ...cambios, version: VERSION }));
-  }, []);
-  const restablecer = useCallback(() => setPreferencias({ ...PREFERENCIAS_POS_DEFAULT }), []);
+    if (!usuario) return;
+    setPreferenciasPorUsuario(prev => ({
+      ...prev,
+      [usuario]: normalizarPreferenciasPOS({ ...(prev[usuario] ?? leer(usuario)), ...cambios, version: VERSION }),
+    }));
+  }, [usuario]);
+  const restablecer = useCallback(() => {
+    if (!usuario) return;
+    setPreferenciasPorUsuario(prev => ({ ...prev, [usuario]: { ...PREFERENCIAS_POS_DEFAULT } }));
+  }, [usuario]);
 
   return useMemo(() => ({ preferencias, actualizar, restablecer }), [preferencias, actualizar, restablecer]);
 }

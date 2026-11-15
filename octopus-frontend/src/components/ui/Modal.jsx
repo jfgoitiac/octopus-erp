@@ -11,7 +11,7 @@ const SIZE_CLASSES = {
 };
 
 export const Modal = forwardRef(function Modal(
-  { open, onClose, titulo, children, footer, size = 'md', className = 'z-50', bodyClassName = 'p-6' },
+  { open, onClose, titulo, children, footer, size = 'md', className = 'z-50', panelClassName = '', bodyClassName = 'p-6' },
   ref
 ) {
   const tituloId = useId();
@@ -64,7 +64,7 @@ export const Modal = forwardRef(function Modal(
         aria-modal="true"
         aria-labelledby={titulo ? tituloId : undefined}
         onClick={(e) => e.stopPropagation()}
-        className={`w-full ${sizeClass} max-h-[100dvh] sm:max-h-[90dvh] flex flex-col rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden`}
+        className={`w-full ${sizeClass} max-h-[100dvh] sm:max-h-[90dvh] flex flex-col rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden ${panelClassName}`}
         style={{ background: 'var(--porcelain)' }}
       >
         {titulo && (
