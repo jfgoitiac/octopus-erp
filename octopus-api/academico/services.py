@@ -50,6 +50,7 @@ def calcular_rendimiento_alumno(alumno):
             PlanEvaluacion.objects.filter(
                 lapso=lapso,
                 materia__grado_seccion=alumno.grado_seccion,
+                materia__sede_id=alumno.sede_id,
                 materia__activa=True,
             ).select_related('materia')
         )
@@ -117,7 +118,7 @@ def calcular_rendimiento_alumno(alumno):
     }
 
 
-def calcular_rendimiento_seccion(grado_seccion, lapso=None):
+def calcular_rendimiento_seccion(grado_seccion, lapso=None, materias_queryset=None):
     """% de aprobados por materia de una sección, para el mapa de calor del
     director. Si no se especifica lapso, usa el lapso activo del período
     vigente (o el más reciente si ninguno está marcado activo)."""
@@ -128,7 +129,9 @@ def calcular_rendimiento_seccion(grado_seccion, lapso=None):
             or Lapso.objects.filter(periodo_escolar=periodo).order_by('-nombre').first()
         )
 
-    materias = Materia.objects.filter(grado_seccion=grado_seccion, activa=True).order_by('nombre')
+    materias = (materias_queryset if materias_queryset is not None else Materia.objects).filter(
+        grado_seccion=grado_seccion, activa=True,
+    ).order_by('nombre')
     por_materia = []
     for materia in materias:
         notas = Nota.objects.filter(materia=materia, definitiva__isnull=False)
@@ -450,7 +453,12 @@ def calcular_plan_notas(materia, lapso):
         for n in NotaItemEvaluacion.objects.filter(item_id__in=item_ids)
     } if item_ids else {}
 
-    alumnos = Alumno.objects.filter(grado_seccion=materia.grado_seccion).order_by('apellido', 'nombre')
+    alumnos = Alumno.objects.filter(grado_seccion=materia.grado_seccion)
+    if materia.sede_id is not None:
+        alumnos = alumnos.filter(sede_id=materia.sede_id)
+    else:
+        alumnos = alumnos.filter(sede_id__isnull=True)
+    alumnos = alumnos.order_by('apellido', 'nombre')
 
     # Materias que aportan sus bloques a esta (mismo grado_seccion + lapso,
     # flag activo, numéricas). Solo aplica si `materia` también es numérica.
@@ -460,6 +468,7 @@ def calcular_plan_notas(materia, lapso):
     if materia.tipo_evaluacion == 'numerica':
         materias_aporte = list(Materia.objects.filter(
             grado_seccion=materia.grado_seccion,
+            sede_id=materia.sede_id,
             aporta_a_todas_las_materias=True,
             tipo_evaluacion='numerica',
         ).exclude(pk=materia.pk))

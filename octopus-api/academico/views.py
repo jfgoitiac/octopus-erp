@@ -63,6 +63,16 @@ from .serializers import (
     PlanEvaluacionInputSerializer,
     PlanEvaluacionSerializer,
 )
+from .permissions import (
+    IsAcademicoRead,
+    IsAdminOrAbove,
+    IsSecretariaOrAbove,
+    alumno_queryset_para,
+    filtrar_sedes_academicas,
+    materia_queryset_para,
+    rol_usuario,
+    sede_permitida,
+)
 from usuarios.models import crear_log
 
 
@@ -127,59 +137,42 @@ class DocenteCambiarContrasenaView(APIView):
 # ─────────────────────────────────────────────
 # PERMISOS PERSONALIZADOS
 # ─────────────────────────────────────────────
-class IsAdminOrAbove(permissions.BasePermission):
-    """Permite acceso a director, sistemas, administrador y coordinador académico."""
-
-    ROLES_PERMITIDOS = ['director', 'sistemas', 'administrador', 'coordinador']
-
-    def has_permission(self, request, view):
-        if not request.user or not request.user.is_authenticated:
-            return False
-        if request.user.is_superuser:
-            return True
-        try:
-            return (
-                request.user.perfil.esta_activo
-                and request.user.perfil.rol in self.ROLES_PERMITIDOS
-            )
-        except Exception:
-            return False
-
-
-class IsSecretariaOrAbove(permissions.BasePermission):
-    """Permite acceso a secretaria, director, sistemas, administrador y coordinador académico."""
-
-    ROLES_PERMITIDOS = ['director', 'sistemas', 'administrador', 'secretaria', 'coordinador']
-
-    def has_permission(self, request, view):
-        if not request.user or not request.user.is_authenticated:
-            return False
-        if request.user.is_superuser:
-            return True
-        try:
-            return (
-                request.user.perfil.esta_activo
-                and request.user.perfil.rol in self.ROLES_PERMITIDOS
-            )
-        except Exception:
-            return False
-
-
 def _get_rol(request):
     """Helper para obtener el rol del usuario autenticado."""
+    return rol_usuario(request.user)
+
+
+def _sede_id_autorizada(user, valor):
+    """Valida IDs de sede del cliente sin convertir entradas inválidas en 500."""
+    if valor in (None, ''):
+        return True
     try:
-        return request.user.perfil.rol
-    except Exception:
-        return None
+        return sede_permitida(user, int(valor))
+    except (TypeError, ValueError):
+        return False
 
 
-def _docente_tiene_seccion(user, grado_seccion):
+def _materia_operacion_para(request, materia_id):
+    """Resuelve materia manteniendo 403 de ownership docente y 404 cross-sede staff."""
+    try:
+        materia = Materia.objects.get(pk=materia_id)
+    except (TypeError, ValueError):
+        raise Materia.DoesNotExist from None
+    if _get_rol(request) != 'docente' and not sede_permitida(request.user, materia.sede_id):
+        raise Materia.DoesNotExist
+    return materia
+
+
+def _docente_tiene_seccion(user, grado_seccion, sede_id=None):
     """True si el usuario tiene una Materia activa asignada en esa sección."""
     if not grado_seccion:
         return False
-    return Materia.objects.filter(
+    qs = materia_queryset_para(user, Materia.objects).filter(
         docente=user, grado_seccion__iexact=grado_seccion, activa=True
-    ).exists()
+    )
+    if sede_id is not None:
+        qs = qs.filter(sede_id=sede_id)
+    return qs.exists()
 
 
 class IsDocenteAsignadoOrSecretariaOrAbove(permissions.BasePermission):
@@ -206,11 +199,13 @@ class IsDocenteAsignadoOrSecretariaOrAbove(permissions.BasePermission):
 # MATERIAS
 # ─────────────────────────────────────────────
 class MateriasView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAcademicoRead]
 
     def get(self, request):
         """Lista todas las materias. Filtro opcional por ?grado_seccion="""
-        qs = Materia.objects.select_related('docente').all()
+        qs = materia_queryset_para(
+            request.user, Materia.objects.select_related('docente', 'sede')
+        )
         grado = request.query_params.get('grado_seccion')
         if grado:
             qs = qs.filter(grado_seccion=grado)
@@ -226,6 +221,9 @@ class MateriasView(APIView):
             )
 
         datos = request.data.copy()
+        sede_id = datos.get('sede')
+        if not _sede_id_autorizada(request.user, sede_id):
+            return Response({'error': 'Sede no autorizada.'}, status=status.HTTP_403_FORBIDDEN)
 
         # Autogenerar código si no se proporcionó
         if not datos.get('codigo'):
@@ -248,17 +246,19 @@ class MateriasView(APIView):
 
 
 class MateriaDetailView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAcademicoRead]
 
-    def _get_materia(self, pk):
+    def _get_materia(self, request, pk):
         try:
-            return Materia.objects.select_related('docente').get(pk=pk)
+            return materia_queryset_para(
+                request.user, Materia.objects.select_related('docente', 'sede')
+            ).get(pk=pk)
         except Materia.DoesNotExist:
             return None
 
     def get(self, request, pk):
         """Detalle de una materia."""
-        materia = self._get_materia(pk)
+        materia = self._get_materia(request, pk)
         if not materia:
             return Response({'error': 'Materia no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
         return Response(MateriaSerializer(materia).data)
@@ -270,9 +270,12 @@ class MateriaDetailView(APIView):
                 {'error': 'No tienes permisos para editar materias.'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        materia = self._get_materia(pk)
+        materia = self._get_materia(request, pk)
         if not materia:
             return Response({'error': 'Materia no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
+        sede_id = request.data.get('sede')
+        if not _sede_id_autorizada(request.user, sede_id):
+            return Response({'error': 'Sede no autorizada.'}, status=status.HTTP_403_FORBIDDEN)
         serializer = MateriaSerializer(materia, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -286,7 +289,7 @@ class MateriaDetailView(APIView):
                 {'error': 'No tienes permisos para desactivar materias.'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        materia = self._get_materia(pk)
+        materia = self._get_materia(request, pk)
         if not materia:
             return Response({'error': 'Materia no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
         materia.activa = False
@@ -298,11 +301,17 @@ class MateriaDetailView(APIView):
 # DOCENTES
 # ─────────────────────────────────────────────
 class DocentesView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAcademicoRead]
 
     def get(self, request):
         """Lista docentes. Filtros opcionales: ?activo=true/false&search=&sede="""
-        qs = Docente.objects.select_related('user', 'user__perfil', 'sede').filter(user__is_active=True)
+        qs = filtrar_sedes_academicas(
+            request.user,
+            Docente.objects.select_related('user', 'user__perfil', 'sede').filter(user__is_active=True),
+            'sede',
+        )
+        if _get_rol(request) == 'docente' and not request.user.is_superuser:
+            qs = qs.filter(user=request.user)
 
         sede_id = request.query_params.get('sede')
         if sede_id:
@@ -327,6 +336,9 @@ class DocentesView(APIView):
                 {'error': 'No tienes permisos para crear docentes.'},
                 status=status.HTTP_403_FORBIDDEN
             )
+        sede_id = request.data.get('sede')
+        if not _sede_id_autorizada(request.user, sede_id):
+            return Response({'error': 'Sede no autorizada.'}, status=status.HTTP_403_FORBIDDEN)
         serializer = DocenteSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -335,17 +347,24 @@ class DocentesView(APIView):
 
 
 class DocenteDetailView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAcademicoRead]
 
-    def _get_docente(self, pk):
+    def _get_docente(self, request, pk):
         try:
-            return Docente.objects.select_related('user', 'user__perfil', 'sede').get(pk=pk)
+            qs = filtrar_sedes_academicas(
+                request.user,
+                Docente.objects.select_related('user', 'user__perfil', 'sede'),
+                'sede',
+            )
+            if _get_rol(request) == 'docente' and not request.user.is_superuser:
+                qs = qs.filter(user=request.user)
+            return qs.get(pk=pk)
         except Docente.DoesNotExist:
             return None
 
     def get(self, request, pk):
         """Detalle de un docente."""
-        docente = self._get_docente(pk)
+        docente = self._get_docente(request, pk)
         if not docente:
             return Response({'error': 'Docente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         return Response(DocenteSerializer(docente).data)
@@ -357,9 +376,12 @@ class DocenteDetailView(APIView):
                 {'error': 'No tienes permisos para editar docentes.'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        docente = self._get_docente(pk)
+        docente = self._get_docente(request, pk)
         if not docente:
             return Response({'error': 'Docente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        sede_id = request.data.get('sede')
+        if not _sede_id_autorizada(request.user, sede_id):
+            return Response({'error': 'Sede no autorizada.'}, status=status.HTTP_403_FORBIDDEN)
         serializer = DocenteSerializer(docente, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -373,7 +395,7 @@ class DocenteDetailView(APIView):
                 {'error': 'No tienes permisos para desactivar docentes.'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        docente = self._get_docente(pk)
+        docente = self._get_docente(request, pk)
         if not docente:
             return Response({'error': 'Docente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         docente.activo = False
@@ -382,7 +404,7 @@ class DocenteDetailView(APIView):
 
 
 class DocenteAsignarMateriasView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAcademicoRead]
 
     def post(self, request, pk):
         """
@@ -395,7 +417,9 @@ class DocenteAsignarMateriasView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
         try:
-            docente = Docente.objects.select_related('user').get(pk=pk)
+            docente = filtrar_sedes_academicas(
+                request.user, Docente.objects.select_related('user', 'sede'), 'sede'
+            ).get(pk=pk)
         except Docente.DoesNotExist:
             return Response({'error': 'Docente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -403,9 +427,20 @@ class DocenteAsignarMateriasView(APIView):
         if not isinstance(ids, list):
             return Response({'error': 'materias debe ser una lista de ids.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        materias = materia_queryset_para(request.user, Materia.objects).filter(id__in=ids)
+        if materias.count() != len(set(ids)):
+            return Response(
+                {'error': 'Una o más materias no existen o pertenecen a otra sede.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if any(m.sede_id != docente.sede_id for m in materias):
+            return Response({'error': 'Docente y materias deben pertenecer a la misma sede.'}, status=400)
+
         with transaction.atomic():
-            Materia.objects.filter(id__in=ids).update(docente=docente.user)
-            Materia.objects.filter(docente=docente.user).exclude(id__in=ids).update(docente=None)
+            materias.update(docente=docente.user)
+            materia_queryset_para(request.user, Materia.objects).filter(
+                docente=docente.user
+            ).exclude(id__in=ids).update(docente=None)
 
         crear_log(
             usuario=request.user,
@@ -421,7 +456,7 @@ class DocenteAsignarMateriasView(APIView):
 # LAPSOS
 # ─────────────────────────────────────────────
 class LapsosView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAcademicoRead]
 
     def get(self, request):
         """Lista lapsos. Filtros opcionales: ?periodo_escolar=&activo=true/false"""
@@ -453,7 +488,7 @@ class LapsosView(APIView):
 # NOTAS DE UN GRADO
 # ─────────────────────────────────────────────
 class NotasGradoView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAcademicoRead]
 
     def get(self, request):
         """
@@ -471,7 +506,7 @@ class NotasGradoView(APIView):
             )
 
         try:
-            materia = Materia.objects.get(pk=materia_id)
+            materia = _materia_operacion_para(request, materia_id)
         except Materia.DoesNotExist:
             return Response({'error': 'Materia no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -488,7 +523,11 @@ class NotasGradoView(APIView):
             return Response({'error': 'Lapso no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
         # Alumnos activos del grado
-        alumnos = Alumno.objects.filter(grado_seccion=materia.grado_seccion)
+        alumnos = alumno_queryset_para(request.user, Alumno.objects).filter(
+            grado_seccion=materia.grado_seccion
+        )
+        if materia.sede_id:
+            alumnos = alumnos.filter(sede_id=materia.sede_id)
 
         # Notas existentes — aplicar filtros adicionales vía query params
         # select_related evita 3 queries por nota (alumno, materia, lapso) que
@@ -542,7 +581,7 @@ class NotasGradoView(APIView):
         notas_data = datos['notas']
 
         try:
-            materia = Materia.objects.get(pk=materia_id)
+            materia = _materia_operacion_para(request, materia_id)
         except Materia.DoesNotExist:
             return Response({'error': 'Materia no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -567,7 +606,10 @@ class NotasGradoView(APIView):
         # Prefetch de todos los alumnos del payload en una sola query (antes:
         # 1 query por fila con Alumno.objects.get() dentro del loop).
         alumno_ids  = [item['alumno_id'] for item in notas_data]
-        alumnos_map = {a.id: a for a in Alumno.objects.filter(pk__in=alumno_ids)}
+        alumnos_qs = alumno_queryset_para(request.user, Alumno.objects).filter(pk__in=alumno_ids)
+        if materia.sede_id:
+            alumnos_qs = alumnos_qs.filter(sede_id=materia.sede_id)
+        alumnos_map = {a.id: a for a in alumnos_qs}
 
         guardadas = []
         errores   = []
@@ -581,6 +623,9 @@ class NotasGradoView(APIView):
                 alumno = alumnos_map.get(alumno_id)
                 if alumno is None:
                     errores.append({'alumno_id': alumno_id, 'error': 'Alumno no encontrado.'})
+                    continue
+                if alumno.grado_seccion != materia.grado_seccion:
+                    errores.append({'alumno_id': alumno_id, 'error': 'El alumno no pertenece a esta materia.'})
                     continue
 
                 nota, _ = Nota.objects.get_or_create(
@@ -613,7 +658,7 @@ class NotasGradoView(APIView):
 # ASISTENCIA
 # ─────────────────────────────────────────────
 class AsistenciaView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAcademicoRead]
 
     def get(self, request):
         """
@@ -640,10 +685,16 @@ class AsistenciaView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        alumnos = Alumno.objects.filter(grado_seccion=grado).order_by('apellido', 'nombre', 'id')
-        asistencias_qs = Asistencia.objects.filter(
-            alumno__grado_seccion=grado, fecha=fecha
+        alumnos = alumno_queryset_para(request.user, Alumno.objects).filter(
+            grado_seccion=grado
+        ).order_by('apellido', 'nombre', 'id')
+        asistencias_qs = filtrar_sedes_academicas(
+            request.user,
+            Asistencia.objects.filter(alumno__grado_seccion=grado, fecha=fecha),
+            'alumno__sede',
         ).select_related('alumno')
+        if _get_rol(request) == 'docente' and not request.user.is_superuser:
+            asistencias_qs = asistencias_qs.filter(alumno_id__in=alumnos.values('id'))
         # Aplicar filtros adicionales vía query params (presente, justificada, etc.)
         filterset = AsistenciaFilter(request.query_params, queryset=asistencias_qs)
         if filterset.is_valid():
@@ -710,7 +761,27 @@ class AsistenciaView(APIView):
         # Prefetch de todos los alumnos del payload en una sola query (antes:
         # 1 query por fila con Alumno.objects.get() dentro del loop).
         alumno_ids  = [item['alumno_id'] for item in registros]
-        alumnos_map = {a.id: a for a in Alumno.objects.filter(pk__in=alumno_ids)}
+        # El scope de sede se aplica antes de resolver IDs, pero la pertenencia
+        # a la sección se valida abajo para conservar el contrato
+        # ``alumnos_ajenos`` (la UI lo usa para explicar el rechazo atómico).
+        alumnos_scope = filtrar_sedes_academicas(request.user, Alumno.objects, 'sede')
+        if _get_rol(request) == 'docente' and not request.user.is_superuser:
+            sedes_docente = list(
+                Materia.objects.filter(docente=request.user, activa=True)
+                .exclude(sede_id=None)
+                .values_list('sede_id', flat=True)
+            )
+            if sedes_docente:
+                alumnos_scope = alumnos_scope.filter(sede_id__in=sedes_docente)
+        alumnos_map = {
+            a.id: a for a in alumnos_scope.filter(pk__in=alumno_ids)
+        }
+
+        if len(alumnos_map) != len(set(alumno_ids)):
+            return Response(
+                {'error': 'Uno o más alumnos no existen o no pertenecen a una sección autorizada.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         ajenos = [a for a in alumnos_map.values() if a.grado_seccion != grado]
         if ajenos:
@@ -784,7 +855,7 @@ class AsistenciaView(APIView):
 # RESUMEN DE ASISTENCIA POR ALUMNO / MES
 # ─────────────────────────────────────────────
 class ResumenAsistenciaView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAcademicoRead]
 
     def get(self, request):
         """
@@ -802,8 +873,18 @@ class ResumenAsistenciaView(APIView):
             )
 
         try:
-            alumno = Alumno.objects.get(pk=alumno_id)
+            # Resuelve primero dentro de las sedes visibles. La pertenencia a
+            # una sección concreta del docente se valida después para
+            # distinguir un ID inexistente (404) de un alumno no asignado (403).
+            alumno = filtrar_sedes_academicas(
+                request.user, Alumno.objects, 'sede'
+            ).get(pk=alumno_id)
         except Alumno.DoesNotExist:
+            return Response({'error': 'Alumno no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if _get_rol(request) == 'docente' and not _docente_tiene_seccion(
+            request.user, alumno.grado_seccion, alumno.sede_id
+        ):
             return Response({'error': 'Alumno no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
         try:
@@ -953,7 +1034,11 @@ class HorariosView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        horarios = HorarioClase.objects.filter(materia__activa=True).select_related('materia')
+        horarios = filtrar_sedes_academicas(
+            request.user,
+            HorarioClase.objects.filter(materia__activa=True).select_related('materia'),
+            'materia__sede',
+        )
         if grado:
             horarios = horarios.filter(materia__grado_seccion=grado)
         if docente_id:
@@ -980,8 +1065,15 @@ class HorariosView(APIView):
             )
         serializer = HorarioClaseSerializer(data=request.data)
         if serializer.is_valid():
+            materia = serializer.validated_data.get('materia')
+            bloque = serializer.validated_data.get('bloque')
+            if not sede_permitida(request.user, materia.sede_id):
+                return Response({'error': 'Materia no autorizada.'}, status=status.HTTP_403_FORBIDDEN)
+            if bloque and not sede_permitida(request.user, bloque.paquete.sede_id):
+                return Response({'error': 'Bloque no autorizado.'}, status=status.HTTP_403_FORBIDDEN)
+            if bloque and materia.sede_id != bloque.paquete.sede_id:
+                return Response({'error': 'Materia y bloque deben pertenecer a la misma sede.'}, status=400)
             with transaction.atomic():
-                materia = serializer.validated_data.get('materia')
                 otro, mismo_docente, misma_aula, mismo_grado = _buscar_choque_horario(
                     materia,
                     serializer.validated_data.get('dia_semana'),
@@ -1005,11 +1097,15 @@ class HorariosView(APIView):
 # HORARIO — DETALLE (PUT / DELETE)
 # ─────────────────────────────────────────────
 class HorarioDetailView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAcademicoRead]
 
-    def _get_horario(self, pk):
+    def _get_horario(self, request, pk):
         try:
-            return HorarioClase.objects.select_related('materia').get(pk=pk)
+            return filtrar_sedes_academicas(
+                request.user,
+                HorarioClase.objects.select_related('materia', 'bloque__paquete'),
+                'materia__sede',
+            ).get(pk=pk)
         except HorarioClase.DoesNotExist:
             return None
 
@@ -1020,11 +1116,19 @@ class HorarioDetailView(APIView):
                 {'error': 'No tienes permisos para editar horarios.'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        horario = self._get_horario(pk)
+        horario = self._get_horario(request, pk)
         if not horario:
             return Response({'error': 'Horario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         serializer = HorarioClaseSerializer(horario, data=request.data, partial=True)
         if serializer.is_valid():
+            nueva_materia = serializer.validated_data.get('materia', horario.materia)
+            nuevo_bloque = serializer.validated_data.get('bloque', horario.bloque)
+            if not sede_permitida(request.user, nueva_materia.sede_id):
+                return Response({'error': 'Materia no autorizada.'}, status=status.HTTP_403_FORBIDDEN)
+            if nuevo_bloque and not sede_permitida(request.user, nuevo_bloque.paquete.sede_id):
+                return Response({'error': 'Bloque no autorizado.'}, status=status.HTTP_403_FORBIDDEN)
+            if nuevo_bloque and nueva_materia.sede_id != nuevo_bloque.paquete.sede_id:
+                return Response({'error': 'Materia y bloque deben pertenecer a la misma sede.'}, status=400)
             with transaction.atomic():
                 datos = serializer.validated_data
                 materia = datos.get('materia', horario.materia)
@@ -1053,7 +1157,7 @@ class HorarioDetailView(APIView):
                 {'error': 'No tienes permisos para eliminar horarios.'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        horario = self._get_horario(pk)
+        horario = self._get_horario(request, pk)
         if not horario:
             return Response({'error': 'Horario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         horario.delete()
@@ -1062,7 +1166,7 @@ class HorarioDetailView(APIView):
 
 class HorarioIntercambiarView(APIView):
     """Intercambia dos clases de una misma jornada en una única transacción."""
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAcademicoRead]
 
     def post(self, request):
         if not IsAdminOrAbove().has_permission(request, self):
@@ -1073,7 +1177,11 @@ class HorarioIntercambiarView(APIView):
             return Response({'error': 'Selecciona dos clases distintas para intercambiar.'}, status=status.HTTP_400_BAD_REQUEST)
 
         with transaction.atomic():
-            clases = list(HorarioClase.objects.select_for_update().select_related('materia', 'bloque').filter(pk__in=[origen_id, destino_id]))
+            clases = list(filtrar_sedes_academicas(
+                request.user,
+                HorarioClase.objects.select_for_update().select_related('materia', 'bloque__paquete'),
+                'materia__sede',
+            ).filter(pk__in=[origen_id, destino_id]))
             if len(clases) != 2:
                 return Response({'error': 'Una de las clases ya no existe.'}, status=status.HTTP_404_NOT_FOUND)
             origen = next(clase for clase in clases if str(clase.pk) == str(origen_id))
@@ -1108,7 +1216,7 @@ class HorarioIntercambiarView(APIView):
 # BOLETÍN
 # ─────────────────────────────────────────────
 class BoletinView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAcademicoRead]
 
     def get(self, request):
         """
@@ -1125,7 +1233,9 @@ class BoletinView(APIView):
             )
 
         try:
-            alumno = Alumno.objects.select_related('representante').get(pk=alumno_id)
+            alumno = alumno_queryset_para(
+                request.user, Alumno.objects.select_related('representante', 'sede')
+            ).get(pk=alumno_id)
         except Alumno.DoesNotExist:
             return Response({'error': 'Alumno no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -1160,11 +1270,13 @@ class BoletinView(APIView):
         # Materias del grado del alumno con Plan de Evaluación en este lapso
         # (sistema nuevo de bloques/ítems) — no dejan fila en `Nota`, así que
         # sin este bloque quedarían completamente ausentes del boletín.
-        materias_con_plan = Materia.objects.filter(
+        materias_con_plan = materia_queryset_para(request.user, Materia.objects).filter(
             grado_seccion=alumno.grado_seccion,
             activa=True,
             planes_evaluacion__lapso=lapso,
         ).exclude(pk__in=materias_con_nota_ids).distinct()
+        if alumno.sede_id:
+            materias_con_plan = materias_con_plan.filter(sede_id=alumno.sede_id)
 
         for materia in materias_con_plan:
             _, alumnos_data = calcular_plan_notas(materia, lapso)
@@ -1729,12 +1841,16 @@ def _ejecutar_algoritmo_paquete(paquete, semilla=None):
 # PAQUETES DE HORARIO (rediseño 2026-09)
 # ─────────────────────────────────────────────
 class PaquetesHorarioView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAcademicoRead]
 
     def get(self, request):
         if not IsSecretariaOrAbove().has_permission(request, self):
             return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
-        qs = PaqueteHorario.objects.select_related('sede', 'creado_por').prefetch_related('grados').all()
+        qs = filtrar_sedes_academicas(
+            request.user,
+            PaqueteHorario.objects.select_related('sede', 'creado_por').prefetch_related('grados'),
+            'sede',
+        )
         sede = request.query_params.get('sede')
         periodo = request.query_params.get('periodo_escolar')
         estado = request.query_params.get('estado')
@@ -1749,6 +1865,8 @@ class PaquetesHorarioView(APIView):
     def post(self, request):
         if not IsAdminOrAbove().has_permission(request, self):
             return Response({'error': 'No tienes permisos para crear paquetes de horario.'}, status=status.HTTP_403_FORBIDDEN)
+        if not _sede_id_autorizada(request.user, request.data.get('sede')):
+            return Response({'error': 'Sede no autorizada.'}, status=status.HTTP_403_FORBIDDEN)
         serializer = PaqueteHorarioSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(creado_por=request.user)
@@ -1757,18 +1875,22 @@ class PaquetesHorarioView(APIView):
 
 
 class PaqueteHorarioDetailView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAcademicoRead]
 
-    def _get(self, pk):
+    def _get(self, request, pk):
         try:
-            return PaqueteHorario.objects.select_related('sede', 'creado_por').get(pk=pk)
+            return filtrar_sedes_academicas(
+                request.user,
+                PaqueteHorario.objects.select_related('sede', 'creado_por'),
+                'sede',
+            ).get(pk=pk)
         except PaqueteHorario.DoesNotExist:
             return None
 
     def get(self, request, pk):
         if not IsSecretariaOrAbove().has_permission(request, self):
             return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
-        paquete = self._get(pk)
+        paquete = self._get(request, pk)
         if not paquete:
             return Response({'error': 'Paquete no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         return Response(PaqueteHorarioSerializer(paquete).data)
@@ -1776,9 +1898,11 @@ class PaqueteHorarioDetailView(APIView):
     def put(self, request, pk):
         if not IsAdminOrAbove().has_permission(request, self):
             return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
-        paquete = self._get(pk)
+        paquete = self._get(request, pk)
         if not paquete:
             return Response({'error': 'Paquete no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        if not _sede_id_autorizada(request.user, request.data.get('sede')):
+            return Response({'error': 'Sede no autorizada.'}, status=status.HTTP_403_FORBIDDEN)
         serializer = PaqueteHorarioSerializer(paquete, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -1788,7 +1912,7 @@ class PaqueteHorarioDetailView(APIView):
     def delete(self, request, pk):
         if not IsAdminOrAbove().has_permission(request, self):
             return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
-        paquete = self._get(pk)
+        paquete = self._get(request, pk)
         if not paquete:
             return Response({'error': 'Paquete no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         paquete.delete()
@@ -1796,13 +1920,15 @@ class PaqueteHorarioDetailView(APIView):
 
 
 class PaqueteHorarioPublicarView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAcademicoRead]
 
     def post(self, request, pk):
         if not IsAdminOrAbove().has_permission(request, self):
             return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
         try:
-            paquete = PaqueteHorario.objects.get(pk=pk)
+            paquete = filtrar_sedes_academicas(
+                request.user, PaqueteHorario.objects, 'sede'
+            ).get(pk=pk)
         except PaqueteHorario.DoesNotExist:
             return Response({'error': 'Paquete no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -1817,13 +1943,13 @@ class PaqueteHorarioPublicarView(APIView):
 
 
 class PaqueteHorarioGradosView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAcademicoRead]
 
     def get(self, request, pk):
         if not IsSecretariaOrAbove().has_permission(request, self):
             return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
         try:
-            paquete = PaqueteHorario.objects.get(pk=pk)
+            paquete = filtrar_sedes_academicas(request.user, PaqueteHorario.objects, 'sede').get(pk=pk)
         except PaqueteHorario.DoesNotExist:
             return Response({'error': 'Paquete no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         return Response(PaqueteHorarioGradoSerializer(paquete.grados.all(), many=True).data)
@@ -1832,7 +1958,7 @@ class PaqueteHorarioGradosView(APIView):
         if not IsAdminOrAbove().has_permission(request, self):
             return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
         try:
-            paquete = PaqueteHorario.objects.get(pk=pk)
+            paquete = filtrar_sedes_academicas(request.user, PaqueteHorario.objects, 'sede').get(pk=pk)
         except PaqueteHorario.DoesNotExist:
             return Response({'error': 'Paquete no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -1869,13 +1995,15 @@ class PaqueteHorarioGradosView(APIView):
 
 
 class PaqueteHorarioGradoDetailView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAcademicoRead]
 
     def delete(self, request, pk, grado_pk):
         if not IsAdminOrAbove().has_permission(request, self):
             return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
         try:
-            pg = PaqueteHorarioGrado.objects.get(pk=grado_pk, paquete_id=pk)
+            pg = filtrar_sedes_academicas(
+                request.user, PaqueteHorarioGrado.objects, 'paquete__sede'
+            ).get(pk=grado_pk, paquete_id=pk)
         except PaqueteHorarioGrado.DoesNotExist:
             return Response({'error': 'Grado no encontrado en este paquete.'}, status=status.HTTP_404_NOT_FOUND)
         pg.delete()
@@ -1889,14 +2017,14 @@ class PaqueteHorarioBloquesView(APIView):
     {dia_semana, duracion_min, tipo}. hora_inicio se calcula automáticamente
     como el hora_fin del último bloque de ese día (o '07:00' si es el primero).
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAcademicoRead]
     HORA_INICIO_JORNADA_DEFAULT = '07:00'
 
     def get(self, request, pk):
         if not IsSecretariaOrAbove().has_permission(request, self):
             return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
         try:
-            paquete = PaqueteHorario.objects.get(pk=pk)
+            paquete = filtrar_sedes_academicas(request.user, PaqueteHorario.objects, 'sede').get(pk=pk)
         except PaqueteHorario.DoesNotExist:
             return Response({'error': 'Paquete no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         return Response(BloqueHorarioSerializer(paquete.bloques.all(), many=True).data)
@@ -1905,7 +2033,7 @@ class PaqueteHorarioBloquesView(APIView):
         if not IsAdminOrAbove().has_permission(request, self):
             return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
         try:
-            paquete = PaqueteHorario.objects.get(pk=pk)
+            paquete = filtrar_sedes_academicas(request.user, PaqueteHorario.objects, 'sede').get(pk=pk)
         except PaqueteHorario.DoesNotExist:
             return Response({'error': 'Paquete no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -1956,18 +2084,20 @@ class PaqueteHorarioBloqueDetailView(APIView):
     hora_fin y desplaza en cascada los bloques siguientes del mismo día.
     DELETE: elimina el bloque (no reordena ni desplaza los demás).
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAcademicoRead]
 
-    def _get_bloque(self, pk, bloque_pk):
+    def _get_bloque(self, request, pk, bloque_pk):
         try:
-            return BloqueHorario.objects.get(pk=bloque_pk, paquete_id=pk)
+            return filtrar_sedes_academicas(
+                request.user, BloqueHorario.objects, 'paquete__sede'
+            ).get(pk=bloque_pk, paquete_id=pk)
         except BloqueHorario.DoesNotExist:
             return None
 
     def put(self, request, pk, bloque_pk):
         if not IsAdminOrAbove().has_permission(request, self):
             return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
-        bloque = self._get_bloque(pk, bloque_pk)
+        bloque = self._get_bloque(request, pk, bloque_pk)
         if not bloque:
             return Response({'error': 'Bloque no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -2033,7 +2163,7 @@ class PaqueteHorarioBloqueDetailView(APIView):
     def delete(self, request, pk, bloque_pk):
         if not IsAdminOrAbove().has_permission(request, self):
             return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
-        bloque = self._get_bloque(pk, bloque_pk)
+        bloque = self._get_bloque(request, pk, bloque_pk)
         if not bloque:
             return Response({'error': 'Bloque no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         if bloque.clases.exists():
@@ -2049,13 +2179,13 @@ class PaqueteHorarioBloqueDetailView(APIView):
 # DISPONIBILIDAD DEL DOCENTE (rediseño 2026-09)
 # ─────────────────────────────────────────────
 class DocenteDisponibilidadView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAcademicoRead]
 
     def get(self, request, pk):
         if not IsSecretariaOrAbove().has_permission(request, self):
             return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
         try:
-            docente = Docente.objects.get(pk=pk)
+            docente = filtrar_sedes_academicas(request.user, Docente.objects, 'sede').get(pk=pk)
         except Docente.DoesNotExist:
             return Response({'error': 'Docente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         return Response(DisponibilidadDocenteSerializer(docente.disponibilidades.all(), many=True).data)
@@ -2064,7 +2194,7 @@ class DocenteDisponibilidadView(APIView):
         if not IsAdminOrAbove().has_permission(request, self):
             return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
         try:
-            docente = Docente.objects.get(pk=pk)
+            docente = filtrar_sedes_academicas(request.user, Docente.objects, 'sede').get(pk=pk)
         except Docente.DoesNotExist:
             return Response({'error': 'Docente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -2081,13 +2211,15 @@ class DocenteDisponibilidadView(APIView):
 
 
 class DocenteDisponibilidadDetailView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAcademicoRead]
 
     def delete(self, request, pk, disp_pk):
         if not IsAdminOrAbove().has_permission(request, self):
             return Response({'error': 'Sin permiso.'}, status=status.HTTP_403_FORBIDDEN)
         try:
-            disponibilidad = DisponibilidadDocente.objects.get(pk=disp_pk, docente_id=pk)
+            disponibilidad = filtrar_sedes_academicas(
+                request.user, DisponibilidadDocente.objects, 'docente__sede'
+            ).get(pk=disp_pk, docente_id=pk)
         except DisponibilidadDocente.DoesNotExist:
             return Response({'error': 'Franja no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
         disponibilidad.delete()
@@ -2119,7 +2251,9 @@ class GenerarHorarioView(APIView):
             return Response({'error': 'El campo paquete_id es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            paquete = PaqueteHorario.objects.get(pk=paquete_id)
+            paquete = filtrar_sedes_academicas(
+                request.user, PaqueteHorario.objects, 'sede'
+            ).get(pk=paquete_id)
         except PaqueteHorario.DoesNotExist:
             return Response({'error': 'Paquete no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -2280,7 +2414,7 @@ class HistorialNotaView(APIView):
     Retorna el historial completo de cambios de una nota específica.
     Solo accesible para director y sistemas.
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAcademicoRead]
 
     def get(self, request, nota_id):
         # Solo director y sistemas pueden consultar el historial de auditoría
@@ -2289,7 +2423,9 @@ class HistorialNotaView(APIView):
             return Response({'error': 'Sin permiso. Se requiere rol director o sistemas.'}, status=403)
 
         try:
-            nota = Nota.objects.get(id=nota_id)
+            nota = filtrar_sedes_academicas(
+                request.user, Nota.objects, 'materia__sede'
+            ).get(id=nota_id)
         except Nota.DoesNotExist:
             return Response({'error': 'Nota no encontrada.'}, status=404)
 
@@ -2313,7 +2449,7 @@ class HistorialNotaView(APIView):
 # ─────────────────────────────────────────────
 class LapsoDetailView(APIView):
     """GET, PUT, DELETE para un lapso específico."""
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAcademicoRead]
 
     def _verificar_rol(self, request):
         if request.user.is_superuser:
@@ -2363,14 +2499,18 @@ class IncidentesListCreateView(APIView):
     los de las secciones donde tiene una materia activa asignada.
     POST: crea un incidente (multipart si incluye adjunto).
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAcademicoRead]
 
     def _grado_seccion_objetivo(self, request):
         return request.data.get('grado_seccion') or request.query_params.get('grado_seccion')
 
     def get(self, request):
         rol = _get_rol(request)
-        qs = IncidenteDisciplinario.objects.select_related('alumno', 'registrado_por').all()
+        qs = filtrar_sedes_academicas(
+            request.user,
+            IncidenteDisciplinario.objects.select_related('alumno', 'registrado_por'),
+            'alumno__sede',
+        )
 
         if not (request.user.is_superuser or IsSecretariaOrAbove().has_permission(request, self)):
             if rol != 'docente':
@@ -2390,12 +2530,18 @@ class IncidentesListCreateView(APIView):
         """Roles permitidos: docente (solo alumnos de su sección), secretaria+."""
         alumno_id = request.data.get('alumno_id')
         try:
-            alumno = Alumno.objects.get(pk=alumno_id)
+            # Aplica sede antes del lookup; la sección se comprueba aparte
+            # para responder 403 cuando el alumno existe pero no está asignado.
+            alumno = filtrar_sedes_academicas(
+                request.user, Alumno.objects, 'sede'
+            ).get(pk=alumno_id)
         except (Alumno.DoesNotExist, TypeError, ValueError):
             return Response({'error': 'Alumno no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
         if not IsSecretariaOrAbove().has_permission(request, self):
-            if _get_rol(request) != 'docente' or not _docente_tiene_seccion(request.user, alumno.grado_seccion):
+            if _get_rol(request) != 'docente' or not _docente_tiene_seccion(
+                request.user, alumno.grado_seccion, alumno.sede_id
+            ):
                 return Response(
                     {'error': 'No tienes permisos para registrar incidentes de este alumno.'},
                     status=status.HTTP_403_FORBIDDEN
@@ -2410,11 +2556,15 @@ class IncidentesListCreateView(APIView):
 
 class IncidenteDetailView(APIView):
     """GET de un incidente puntual. Mismo scoping que la lista."""
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAcademicoRead]
 
     def get(self, request, pk):
         try:
-            incidente = IncidenteDisciplinario.objects.select_related('alumno', 'registrado_por').get(pk=pk)
+            incidente = filtrar_sedes_academicas(
+                request.user,
+                IncidenteDisciplinario.objects.select_related('alumno', 'registrado_por'),
+                'alumno__sede',
+            ).get(pk=pk)
         except IncidenteDisciplinario.DoesNotExist:
             return Response({'error': 'Incidente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -2738,14 +2888,18 @@ class MaterialEstudioListCreateView(APIView):
     POST (multipart): crea material nuevo. Roles permitidos: docente dueño de la
     materia (Materia.docente = request.user), o secretaria+.
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAcademicoRead]
 
     def get(self, request):
-        qs = MaterialEstudio.objects.select_related('materia', 'publicado_por').all()
+        qs = filtrar_sedes_academicas(
+            request.user,
+            MaterialEstudio.objects.select_related('materia', 'publicado_por'),
+            'materia__sede',
+        )
         materia_id = request.query_params.get('materia_id')
         if materia_id:
             try:
-                materia = Materia.objects.get(pk=materia_id)
+                materia = materia_queryset_para(request.user, Materia.objects).get(pk=materia_id)
             except (Materia.DoesNotExist, TypeError, ValueError):
                 return Response({'error': 'Materia no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -2771,7 +2925,7 @@ class MaterialEstudioListCreateView(APIView):
     def post(self, request):
         materia_id = request.data.get('materia_id')
         try:
-            materia = Materia.objects.get(pk=materia_id)
+            materia = _materia_operacion_para(request, materia_id)
         except (Materia.DoesNotExist, TypeError, ValueError):
             return Response({'error': 'Materia no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -2791,16 +2945,20 @@ class MaterialEstudioListCreateView(APIView):
 
 class MaterialEstudioDetailView(APIView):
     """GET de un material puntual. DELETE: docente dueño de la materia o secretaria+."""
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAcademicoRead]
 
-    def _get_material(self, pk):
+    def _get_material(self, request, pk):
         try:
-            return MaterialEstudio.objects.select_related('materia', 'publicado_por').get(pk=pk)
+            return filtrar_sedes_academicas(
+                request.user,
+                MaterialEstudio.objects.select_related('materia', 'publicado_por'),
+                'materia__sede',
+            ).get(pk=pk)
         except MaterialEstudio.DoesNotExist:
             return None
 
     def get(self, request, pk):
-        material = self._get_material(pk)
+        material = self._get_material(request, pk)
         if not material:
             return Response({'error': 'Material no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -2814,7 +2972,7 @@ class MaterialEstudioDetailView(APIView):
         return Response(MaterialEstudioSerializer(material).data)
 
     def delete(self, request, pk):
-        material = self._get_material(pk)
+        material = self._get_material(request, pk)
         if not material:
             return Response({'error': 'Material no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -2839,7 +2997,9 @@ class RendimientoAlumnoView(APIView):
 
     def get(self, request, alumno_id):
         try:
-            alumno = Alumno.objects.get(pk=alumno_id)
+            alumno = alumno_queryset_para(
+                request.user, Alumno.objects
+            ).get(pk=alumno_id)
         except Alumno.DoesNotExist:
             return Response({'error': 'Alumno no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         return Response(calcular_rendimiento_alumno(alumno))
@@ -2858,7 +3018,17 @@ class RendimientoSeccionView(APIView):
                 lapso = Lapso.objects.get(pk=lapso_id)
             except Lapso.DoesNotExist:
                 return Response({'error': 'Lapso no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
-        return Response(calcular_rendimiento_seccion(grado_seccion, lapso=lapso))
+        materias = filtrar_sedes_academicas(
+            request.user, Materia.objects, 'sede'
+        )
+        sede_id = request.query_params.get('sede')
+        if sede_id:
+            if not _sede_id_autorizada(request.user, sede_id):
+                return Response({'error': 'Sede no autorizada.'}, status=status.HTTP_404_NOT_FOUND)
+            materias = materias.filter(sede_id=sede_id)
+        return Response(calcular_rendimiento_seccion(
+            grado_seccion, lapso=lapso, materias_queryset=materias,
+        ))
 
 
 class AlertasRendimientoView(APIView):
@@ -2867,7 +3037,9 @@ class AlertasRendimientoView(APIView):
     permission_classes = [permissions.IsAuthenticated, IsAdminOrAbove]
 
     def get(self, request):
-        alertas = AlertaRendimiento.objects.filter(activa=True).select_related(
+        alertas = filtrar_sedes_academicas(
+            request.user, AlertaRendimiento.objects.filter(activa=True), 'alumno__sede'
+        ).select_related(
             'alumno', 'materia', 'lapso'
         ).order_by('alumno__grado_seccion', 'alumno__apellido')
 
@@ -2972,7 +3144,7 @@ class PlanEvaluacionView(APIView):
     secretaria+ sin restricciones, o docente dueño de la materia
     (Materia.docente_id == request.user.id).
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAcademicoRead]
 
     def _resolver_materia_lapso(self, request):
         """Retorna (materia, lapso, error_response). error_response es None
@@ -2985,7 +3157,7 @@ class PlanEvaluacionView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         try:
-            materia = Materia.objects.get(pk=materia_id)
+            materia = _materia_operacion_para(request, materia_id)
         except Materia.DoesNotExist:
             return None, None, Response({'error': 'Materia no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
         try:
@@ -3114,7 +3286,7 @@ class PlanEvaluacionNotasView(APIView):
 
     Permiso: igual que PlanEvaluacionView (secretaria+ o docente dueño).
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAcademicoRead]
 
     def get(self, request):
         materia_id = request.query_params.get('materia_id')
@@ -3126,7 +3298,7 @@ class PlanEvaluacionNotasView(APIView):
             )
 
         try:
-            materia = Materia.objects.get(pk=materia_id)
+            materia = _materia_operacion_para(request, materia_id)
         except Materia.DoesNotExist:
             return Response({'error': 'Materia no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
         try:
@@ -3172,7 +3344,7 @@ class PlanEvaluacionNotasView(APIView):
         notas_data = datos['notas']
 
         try:
-            materia = Materia.objects.get(pk=materia_id)
+            materia = _materia_operacion_para(request, materia_id)
         except Materia.DoesNotExist:
             return Response({'error': 'Materia no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -3201,7 +3373,10 @@ class PlanEvaluacionNotasView(APIView):
                 'bloque__plan'
             )
         }
-        alumnos_map = {a.id: a for a in Alumno.objects.filter(pk__in=alumno_ids)}
+        alumnos_qs = alumno_queryset_para(request.user, Alumno.objects).filter(pk__in=alumno_ids)
+        if materia.sede_id:
+            alumnos_qs = alumnos_qs.filter(sede_id=materia.sede_id)
+        alumnos_map = {a.id: a for a in alumnos_qs}
 
         guardadas = []
         errores   = []

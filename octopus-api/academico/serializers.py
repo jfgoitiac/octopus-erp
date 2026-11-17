@@ -27,7 +27,7 @@ class MateriaSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'nombre', 'codigo', 'grado_seccion', 'docente_id', 'docente_username',
             'docente_nombre',
-            'activa', 'horas_academicas',
+            'activa', 'horas_academicas', 'sede',
             # Plan de Evaluación (sistema nuevo) — editables solo por admin/control de estudios
             'tipo_evaluacion', 'aporta_a_todas_las_materias', 'cuenta_para_promedio',
         ]
