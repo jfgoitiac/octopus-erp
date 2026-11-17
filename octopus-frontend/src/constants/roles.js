@@ -76,12 +76,9 @@ export const getRolStyle = (rol) => {
 
 // Grupos semánticos — usar estos en las rutas, no strings sueltos
 //
-// 'sistemas' NO participa de estos grupos: quedó restringido a los 4
-// módulos de administración del sistema (Sistemas, Configuración, Sitio
-// Institucional, Notificaciones — ver la sección 'Sistema' de Sidebar.jsx
-// y las rutas explícitas en App.jsx). Antes estaba mezclado en casi todos
-// los grupos y terminaba viendo alumnos, pagos, nómina, etc. — tanto en el
-// menú como al navegar directo a la ruta.
+// 'sistemas' no participa de los grupos operativos generales. Su inclusión
+// explícita en capacidades académicas refleja el contrato del backend para
+// administración técnica y gestión de lapsos.
 export const ROLE_GROUPS = {
   // Solo administración central
   ADMIN_CENTRAL: [ROLES.DIRECTOR, ROLES.ADMINISTRADOR],
@@ -128,9 +125,37 @@ export const ROLE_GROUPS = {
   // que no ve montos adeudados (coincide con authentication/views.py::EsPersonalCobranza).
   MORA: [ROLES.DIRECTOR, ROLES.ADMINISTRADOR, ROLES.CAJERO, ROLES.COBRANZA],
 
-  // Roles que consultan Boletines/Horarios/Materias/Docentes sin poder
-  // modificarlos (el backend ya rechaza sus escrituras con IsAdminOrAbove).
-  ACADEMICO_SOLO_LECTURA: [ROLES.SECRETARIA],
+  // Capacidades del módulo académico. Estas listas son la única fuente de
+  // verdad del router, el menú y los controles de las páginas; la autoridad
+  // final sigue siendo el backend y su scoping por sede.
+  ACADEMICO_LECTURA: [
+    ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.ADMINISTRADOR,
+    ROLES.SECRETARIA, ROLES.DIRECTIVO_RED, ROLES.COORDINADOR,
+  ],
+
+  // Crear/editar materias, docentes y horarios.
+  ACADEMICO_GESTION: [
+    ROLES.DIRECTOR, ROLES.DIRECTIVO_RED, ROLES.SISTEMAS,
+    ROLES.ADMINISTRADOR, ROLES.COORDINADOR,
+  ],
+
+  // Captura operativa de notas y asistencia desde el panel. Los docentes
+  // conservan su portal separado y nunca entran a estas rutas administrativas.
+  ACADEMICO_REGISTRO: [
+    ROLES.DIRECTOR, ROLES.SISTEMAS, ROLES.ADMINISTRADOR,
+    ROLES.SECRETARIA, ROLES.DIRECTIVO_RED, ROLES.COORDINADOR,
+  ],
+
+  // Reportes de rendimiento agregados: comparten la capacidad administrativa
+  // del backend y no están disponibles para secretaría.
+  ACADEMICO_ANALITICA: [
+    ROLES.DIRECTOR, ROLES.DIRECTIVO_RED, ROLES.SISTEMAS,
+    ROLES.ADMINISTRADOR, ROLES.COORDINADOR,
+  ],
+
+  // El contrato actual del backend reserva el ciclo de vida de lapsos a
+  // dirección y sistemas.
+  LAPSOS_GESTION: [ROLES.DIRECTOR, ROLES.SISTEMAS],
 
   // Docente: solo banco de estudiantes, representantes e inscripciones
   DOCENTE: [ROLES.DOCENTE],

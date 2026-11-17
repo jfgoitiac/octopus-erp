@@ -2,6 +2,7 @@ import { useContext, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { AuthContext } from '../context/AuthContext';
+import { ROLE_GROUPS } from '../constants/roles';
 import { useSede } from '../context/SedeContext';
 import { useConfiguracion } from '../hooks/useConfiguracion';
 import { useSidebarPrefs } from '../hooks/useSidebarPrefs';
@@ -79,14 +80,14 @@ const navSections = [
   {
     label: 'Académico',
     items: [
-      { name: 'Notas',      path: '/notas',      icon: BookOpen,      roles: ['director', 'secretaria', 'coordinador'] },
-      { name: 'Boletines',  path: '/boletin',    icon: FileText,      roles: ['director', 'secretaria', 'coordinador'] },
-      { name: 'Asistencia', path: '/asistencia', icon: CalendarCheck, roles: ['director', 'secretaria', 'coordinador'] },
-      { name: 'Incidentes', path: '/incidentes', icon: ShieldAlert,   roles: ['director', 'secretaria', 'coordinador'] },
-      { name: 'Horarios',   path: '/horarios',   icon: Clock,         roles: ['director', 'secretaria', 'coordinador'] },
-      { name: 'Materias',   path: '/materias',   icon: BookOpen,       roles: ['director', 'secretaria', 'coordinador'] },
-      { name: 'Docentes',   path: '/docentes',   icon: BadgeCheck,     roles: ['director', 'secretaria', 'coordinador'] },
-      { name: 'Rendimiento', path: '/rendimiento', icon: BarChart3,   roles: ['director', 'administrador', 'coordinador'] },
+      { name: 'Notas',      path: '/notas',      icon: BookOpen,      roles: ROLE_GROUPS.ACADEMICO_LECTURA },
+      { name: 'Boletines',  path: '/boletin',    icon: FileText,      roles: ROLE_GROUPS.ACADEMICO_LECTURA },
+      { name: 'Asistencia', path: '/asistencia', icon: CalendarCheck, roles: ROLE_GROUPS.ACADEMICO_LECTURA },
+      { name: 'Incidentes', path: '/incidentes', icon: ShieldAlert,   roles: ROLE_GROUPS.ACADEMICO_LECTURA },
+      { name: 'Horarios',   path: '/horarios',   icon: Clock,         roles: ROLE_GROUPS.ACADEMICO_LECTURA },
+      { name: 'Materias',   path: '/materias',   icon: BookOpen,      roles: ROLE_GROUPS.ACADEMICO_LECTURA },
+      { name: 'Docentes',   path: '/docentes',   icon: BadgeCheck,    roles: ROLE_GROUPS.ACADEMICO_LECTURA },
+      { name: 'Rendimiento', path: '/rendimiento', icon: BarChart3,   roles: ROLE_GROUPS.ACADEMICO_ANALITICA },
     ],
   },
   {

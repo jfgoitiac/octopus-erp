@@ -1,6 +1,7 @@
 import { useContext, useMemo } from 'react';
 import { GraduationCap, Save, Plus, Pencil, Loader2, AlertTriangle } from 'lucide-react';
 import { AuthContext } from '../context/AuthContext';
+import { ROLE_GROUPS } from '../constants/roles';
 import GradoSelect from '../components/GradoSelect';
 import { useNotas } from '../hooks/useNotas';
 import { useLapsos } from '../hooks/useLapsos';
@@ -19,7 +20,9 @@ const INPUT_STYLE = {
 
 const Notas = () => {
   const { user } = useContext(AuthContext);
-  const esAdmin = useMemo(() => ['director', 'sistemas'].includes(user?.rol), [user?.rol]);
+  const rol = (user?.rol || '').toLowerCase().trim();
+  const puedeGestionarLapsos = useMemo(() => ROLE_GROUPS.LAPSOS_GESTION.includes(rol), [rol]);
+  const puedeRegistrarNotas = useMemo(() => ROLE_GROUPS.ACADEMICO_REGISTRO.includes(rol), [rol]);
   const esDocente = useMemo(() => user?.rol === 'docente', [user?.rol]);
 
   const {
@@ -126,7 +129,7 @@ const Notas = () => {
               ))}
             </select>
 
-            {esAdmin && (
+            {puedeGestionarLapsos && (
               <button
                 onClick={abrirModalCrear}
                 title="Crear nuevo lapso"
@@ -138,7 +141,7 @@ const Notas = () => {
               </button>
             )}
 
-            {esAdmin && lapsoId && (
+            {puedeGestionarLapsos && lapsoId && (
               <button
                 onClick={() => abrirModalEditar(lapsoId)}
                 title="Editar lapso seleccionado"
@@ -171,7 +174,7 @@ const Notas = () => {
         <TablaNotas
           notas={notas}
           loading={loading}
-          lapsoActivo={!lapsoSeleccionado || lapsoSeleccionado.activo}
+          lapsoActivo={puedeRegistrarNotas && (!lapsoSeleccionado || lapsoSeleccionado.activo)}
           onNotaChange={handleNotaChange}
         />
       )}
@@ -231,7 +234,7 @@ const Notas = () => {
       )}
 
       {/* Botón guardar sticky — solo mobile, visible cuando hay cambios */}
-      {dirty && notas.length > 0 && (
+      {puedeRegistrarNotas && dirty && notas.length > 0 && (
         <div
           className="fixed bottom-0 left-0 right-0 p-4 sm:hidden z-40"
           style={{ background: 'var(--porcelain)', borderTop: '1px solid var(--border-md)' }}

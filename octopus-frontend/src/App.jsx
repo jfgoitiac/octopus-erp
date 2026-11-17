@@ -476,47 +476,47 @@ function App() {
 
               {/* Módulo Académico */}
               <Route path="notas" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SECRETARIA, ROLES.COORDINADOR]}>
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.ACADEMICO_LECTURA}>
                   <Notas />
                 </ProtectedRoute>
               } />
               <Route path="boletin" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SECRETARIA, ROLES.COORDINADOR]}>
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.ACADEMICO_LECTURA}>
                   <Boletin />
                 </ProtectedRoute>
               } />
               <Route path="asistencia" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SECRETARIA, ROLES.COORDINADOR]}>
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.ACADEMICO_LECTURA}>
                   <Asistencia />
                 </ProtectedRoute>
               } />
               <Route path="horarios" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SECRETARIA, ROLES.COORDINADOR]}>
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.ACADEMICO_LECTURA}>
                   <Horarios />
                 </ProtectedRoute>
               } />
               <Route path="horarios/paquetes" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.COORDINADOR]}>
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.ACADEMICO_GESTION}>
                   <PaquetesHorario />
                 </ProtectedRoute>
               } />
               <Route path="materias" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SECRETARIA, ROLES.COORDINADOR]}>
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.ACADEMICO_LECTURA}>
                   <Materias />
                 </ProtectedRoute>
               } />
               <Route path="docentes" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SECRETARIA, ROLES.COORDINADOR]}>
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.ACADEMICO_LECTURA}>
                   <Docentes />
                 </ProtectedRoute>
               } />
               <Route path="incidentes" element={
-                <ProtectedRoute allowedRoles={[ROLES.DIRECTOR, ROLES.SECRETARIA, ROLES.COORDINADOR]}>
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.ACADEMICO_LECTURA}>
                   <Incidentes />
                 </ProtectedRoute>
               } />
               <Route path="rendimiento" element={
-                <ProtectedRoute allowedRoles={[...ROLE_GROUPS.ADMIN_CENTRAL, ROLES.COORDINADOR]}>
+                <ProtectedRoute allowedRoles={ROLE_GROUPS.ACADEMICO_ANALITICA}>
                   <Rendimiento />
                 </ProtectedRoute>
               } />

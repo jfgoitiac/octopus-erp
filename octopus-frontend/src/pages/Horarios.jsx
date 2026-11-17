@@ -22,10 +22,10 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { getHorariosDocente, getHorarios, getMaterias, listarDocentes } from '../api/academico.service';
 
 const Horarios = () => {
-  // Solo lectura (secretaria): ve la grilla y puede imprimirla, pero no edita
-  // clases, bloques ni genera horarios (el backend ya rechaza esas escrituras).
+  // Quien no tenga capacidad de gestión ve la grilla y puede imprimirla, pero
+  // no edita clases, bloques ni genera horarios.
   const { user } = useContext(AuthContext);
-  const soloLectura = ROLE_GROUPS.ACADEMICO_SOLO_LECTURA.includes((user?.rol || '').toLowerCase().trim());
+  const soloLectura = !ROLE_GROUPS.ACADEMICO_GESTION.includes((user?.rol || '').toLowerCase().trim());
   const [searchParams, setSearchParams] = useSearchParams();
   const paqueteId = searchParams.get('paquete') || '';
 

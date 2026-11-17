@@ -14,7 +14,7 @@ import { coincideBusqueda } from '../utils/busqueda';
 
 const Docentes = () => {
   const { user } = useContext(AuthContext);
-  const soloLectura = ROLE_GROUPS.ACADEMICO_SOLO_LECTURA.includes((user?.rol || '').toLowerCase().trim());
+  const soloLectura = !ROLE_GROUPS.ACADEMICO_GESTION.includes((user?.rol || '').toLowerCase().trim());
   const { docentes, loading, saving, crear, actualizar, eliminar, asignarMaterias } = useDocentesAdmin();
   const [filtro, setFiltro] = useState('');
   const [modal, setModal] = useState(null);
