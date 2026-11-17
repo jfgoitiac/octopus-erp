@@ -91,17 +91,11 @@ export function useBoletin() {
     }
   }, [alumnoSeleccionado, lapsoId]);
 
-  // Calculado una sola vez; usado tanto en la UI como pasado a generarBoletinPDF.
-  // Excluye materias con cuenta_para_promedio === false (ej. materias que el
-  // colegio no quiere que afecten el promedio general del boletín) y las
-  // literales (definitiva_letra, sin equivalente numérico).
+  // El promedio es parte del contrato académico y nunca se recalcula en el
+  // navegador. Se conserva el alias `promedioGeneral` para los consumidores.
   const promedioGeneral = useMemo(() => {
-    if (!boletin?.materias?.length) return null;
-    const vals = boletin.materias
-      .filter(m => m.cuenta_para_promedio !== false)
-      .map(m => parseFloat(m.definitiva))
-      .filter(v => !isNaN(v));
-    return vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2) : null;
+    const valor = boletin?.promedio_general ?? boletin?.resumen?.promedio_general;
+    return valor == null ? null : String(valor);
   }, [boletin]);
 
   return {

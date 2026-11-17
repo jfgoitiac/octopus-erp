@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { getLapsos, getNotasGrado } from '../api/academico.service';
+import { extraerCalificaciones, normalizarCalificacion } from '../../utils/calificaciones';
 
 /**
  * Progreso de carga de notas por materia para el lapso activo.
@@ -42,9 +43,14 @@ export function useDocenteProgresoNotas(materias) {
       const resultados = await Promise.all(
         materias.map(async (m) => {
           const res = await getNotasGrado(m.id, activo.id, controller.signal);
-          const notas = res.data || [];
-          const cargadas = notas.filter(n => n.definitiva !== null).length;
-          return { materiaId: m.id, nombre: m.nombre, cargadas, total: notas.length };
+          const payload = res.data;
+          const notas = extraerCalificaciones(payload).map(normalizarCalificacion);
+          const progresoApi = payload?.progreso;
+          const cargadas = progresoApi?.evaluados
+            ?? notas.filter(n => ['completo', 'cerrado'].includes(n.estado)).length;
+          const total = progresoApi?.esperados ?? notas.length;
+          const porcentaje = progresoApi?.porcentaje ?? (total > 0 ? Math.round((cargadas / total) * 100) : 0);
+          return { materiaId: m.id, nombre: m.nombre, cargadas, total, porcentaje };
         })
       );
       if (controller.signal.aborted) return;

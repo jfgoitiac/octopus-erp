@@ -18,7 +18,7 @@ const WidgetProgresoNotas = ({ progreso, lapsoActivo, className = '' }) => (
     ) : (
       <div className="divide-y divide-[var(--border)]">
         {progreso.map(p => {
-          const pct = p.total > 0 ? Math.round((p.cargadas / p.total) * 100) : 0;
+          const pct = p.porcentaje ?? (p.total > 0 ? Math.round((p.cargadas / p.total) * 100) : 0);
           const completo = pct === 100;
           return (
             <Link

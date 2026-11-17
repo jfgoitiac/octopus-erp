@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { getMaterias, getMisMaterias, getNotasGrado, saveNotas } from '../api/academico.service';
-import { calcDefinitiva } from '../utils/notas.utils';
+import { extraerCalificaciones, normalizarCalificacion } from '../utils/calificaciones';
 
 export function useNotas(esDocente = false) {
   const [grado, setGrado] = useState('');
@@ -52,7 +52,7 @@ export function useNotas(esDocente = false) {
     getNotasGrado(materiaId, lapsoId, controller.signal)
       .then(res => {
         if (controller.signal.aborted) return;
-        setNotas(res.data || []);
+        setNotas(extraerCalificaciones(res.data).map(normalizarCalificacion));
       })
       .catch(err => {
         if (err.code === 'ERR_CANCELED' || controller.signal.aborted) return;
@@ -119,9 +119,20 @@ export function useNotas(esDocente = false) {
     setDirty(true);
     setNotas(prev => prev.map(n => {
       if (n.alumno_id !== alumnoId) return n;
-      const updated = { ...n, [campo]: valor };
-      updated.definitiva = calcDefinitiva(updated);
-      updated.aprobado = updated.definitiva !== '' ? parseFloat(updated.definitiva) >= 10 : null;
+      // La definitiva y la aprobación son reglas del dominio. Al editar solo
+      // invalidamos el resultado anterior hasta recibir el recálculo del API.
+      const updated = {
+        ...n,
+        [campo]: valor,
+        estado: 'en_progreso',
+        definitiva: null,
+        definitiva_literal: null,
+        definitiva_letra: null,
+        aprobado: null,
+        valor_provisional: null,
+        valor_literal_provisional: null,
+        pendiente_recalculo: true,
+      };
       return updated;
     }));
   }, []);
@@ -131,6 +142,8 @@ export function useNotas(esDocente = false) {
     setSaving(true);
     try {
       await saveNotas(materiaId, lapsoId, notas);
+      const actualizadas = await getNotasGrado(materiaId, lapsoId);
+      setNotas(extraerCalificaciones(actualizadas.data).map(normalizarCalificacion));
       toast.success('Notas guardadas correctamente.');
       setDirty(false);
     } catch (err) {

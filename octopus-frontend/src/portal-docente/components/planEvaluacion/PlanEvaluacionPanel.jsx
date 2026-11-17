@@ -33,15 +33,10 @@ const nuevoBloque = () => ({
 
 const esTemporal = (id) => typeof id === 'string' && id.startsWith('tmp-');
 
-// Recalcula el total de un bloque numérico según su modo (suma o promedio),
-// usando solo feedback en cliente — el total definitivo lo confirma el backend.
-function calcTotalBloque(items, valores, modo) {
-  const vals = items
-    .map(it => parseFloat(valores[it.id]))
-    .filter(v => !isNaN(v));
-  if (!vals.length) return null;
-  if (modo === 'promedio') return vals.reduce((a, b) => a + b, 0) / vals.length;
-  return vals.reduce((a, b) => a + b, 0);
+export function obtenerTotalCanonicoVisible(fila) {
+  if (fila.pendiente || fila.total_canonico == null) return null;
+  const total = Number(fila.total_canonico);
+  return Number.isFinite(total) ? total.toFixed(2) : null;
 }
 
 export default function PlanEvaluacionPanel({ materiaId, lapsoId, tipoEvaluacion, lapsoActivo }) {
@@ -143,6 +138,10 @@ export default function PlanEvaluacionPanel({ materiaId, lapsoId, tipoEvaluacion
     setNotasLocal(alumnos.map(al => ({
       alumno_id: al.alumno_id,
       alumno_nombre: al.alumno_nombre,
+      // La autoridad del total es el motor canónico del backend. No se deriva
+      // de las celdas porque también intervienen pesos y aportes externos.
+      total_canonico: al.resultado?.valor_provisional ?? al.total ?? null,
+      pendiente: false,
       valores: (al.bloques || []).reduce((acc, b) => {
         (b.notas_items || []).forEach(ni => {
           acc[ni.item_id] = esLiteral ? (ni.valor_letra ?? '') : (ni.valor_numerico ?? '');
@@ -158,7 +157,7 @@ export default function PlanEvaluacionPanel({ materiaId, lapsoId, tipoEvaluacion
     setDirtyNotas(true);
     setNotasLocal(prev => prev.map(al => (al.alumno_id !== alumnoId
       ? al
-      : { ...al, valores: { ...al.valores, [itemId]: valor } })));
+      : { ...al, pendiente: true, valores: { ...al.valores, [itemId]: valor } })));
     setCeldasConError(prev => {
       if (!prev.has(`${alumnoId}-${itemId}`)) return prev;
       const next = new Set(prev);
@@ -166,23 +165,6 @@ export default function PlanEvaluacionPanel({ materiaId, lapsoId, tipoEvaluacion
       return next;
     });
   }, []);
-
-  const totalesPorAlumno = useMemo(() => {
-    if (esLiteral) return {};
-    const out = {};
-    notasLocal.forEach(al => {
-      let totalMateria = 0;
-      let algunTotal = false;
-      const porBloque = {};
-      bloquesPlan.forEach(b => {
-        const t = calcTotalBloque(b.items || [], al.valores, b.modo);
-        porBloque[b.id] = t;
-        if (t !== null) { totalMateria += t; algunTotal = true; }
-      });
-      out[al.alumno_id] = { porBloque, totalMateria: algunTotal ? totalMateria : null };
-    });
-    return out;
-  }, [notasLocal, bloquesPlan, esLiteral]);
 
   const handleGuardarNotas = async () => {
     const notas = [];
@@ -297,7 +279,6 @@ export default function PlanEvaluacionPanel({ materiaId, lapsoId, tipoEvaluacion
             loading={loadingNotas}
             esLiteral={esLiteral}
             lapsoActivo={lapsoActivo}
-            totalesPorAlumno={totalesPorAlumno}
             celdasConError={celdasConError}
             onValorChange={handleValorChange}
           />
@@ -477,7 +458,7 @@ function BuilderPlan({
 }
 
 // ── Tabla de carga de notas por alumno ──────────────────────────────────────
-function TablaNotasPlan({ bloques, notasLocal, loading, esLiteral, lapsoActivo, totalesPorAlumno, celdasConError, onValorChange }) {
+function TablaNotasPlan({ bloques, notasLocal, loading, esLiteral, lapsoActivo, celdasConError, onValorChange }) {
   const items = bloques.flatMap(b => (b.items || []).map(it => ({ ...it, bloqueId: b.id, modo: b.modo })));
 
   if (loading) {
@@ -554,9 +535,9 @@ function TablaNotasPlan({ bloques, notasLocal, loading, esLiteral, lapsoActivo, 
                 })}
                 {!esLiteral && (
                   <td className="px-3 py-2 text-sm font-bold text-[var(--jet-mid)]">
-                    {totalesPorAlumno[al.alumno_id]?.totalMateria != null
-                      ? totalesPorAlumno[al.alumno_id].totalMateria.toFixed(2)
-                      : '—'}
+                    {al.pendiente
+                      ? <span className="text-xs font-medium text-amber-700">Sin guardar</span>
+                      : obtenerTotalCanonicoVisible(al) ?? '—'}
                   </td>
                 )}
               </tr>

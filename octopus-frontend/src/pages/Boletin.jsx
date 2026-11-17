@@ -6,8 +6,7 @@ import { mostrarCedula } from '../utils/cedulaEscolar';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Card } from '../components/ui/Card';
 import { Tabla } from '../components/ui/Tabla';
-
-const NOTA_MINIMA = 10;
+import { esResultadoProvisional, etiquetaEstadoCalificacion, normalizarCalificacion, valorVisibleCalificacion } from '../utils/calificaciones';
 
 const BOLETIN_COLUMNAS = [
   { key: 'materia', label: 'Materia' },
@@ -250,8 +249,12 @@ const Boletin = () => {
           {/* Tabla de materias */}
           <Tabla columnas={BOLETIN_COLUMNAS}>
             {[
-              ...(boletin.materias || []).map(m => (
-                <tr key={m.materia_nombre}>
+              ...(boletin.materias || []).map((materia) => {
+                const m = normalizarCalificacion(materia);
+                const valorVisible = valorVisibleCalificacion(m);
+                const provisional = esResultadoProvisional(m);
+                return (
+                <tr key={m.materia_id ?? m.materia_nombre}>
                   <td className="px-4 py-3 text-sm font-medium" style={{ color: 'var(--jet)' }}>
                     {m.materia_nombre}
                   </td>
@@ -262,17 +265,12 @@ const Boletin = () => {
                   ))}
                   <td className="px-4 py-3 text-center">
                     <span
-                      className="text-sm font-bold"
-                      style={{
-                        color: m.definitiva_letra
-                          ? 'var(--jet)'
-                          : m.definitiva != null
-                          ? (parseFloat(m.definitiva) >= NOTA_MINIMA ? '#16a34a' : 'var(--red)')
-                          : 'var(--ash)',
-                      }}
+                      className="block text-sm font-bold"
+                      style={{ color: m.aprobado === true ? '#16a34a' : m.aprobado === false ? 'var(--red)' : 'var(--ash)' }}
                     >
-                      {m.definitiva_letra ?? m.definitiva ?? '—'}
+                      {valorVisible ?? '—'}
                     </span>
+                    {provisional && <span className="block text-[10px] font-medium text-amber-700">Provisional</span>}
                   </td>
                   <td className="px-4 py-3 text-center">
                     {m.aprobado === true && (
@@ -282,12 +280,13 @@ const Boletin = () => {
                       <span className="text-xs font-bold" style={{ color: 'var(--red)' }} aria-label="Reprobado">Reprobado</span>
                     )}
                     {m.aprobado == null && (
-                      <span className="text-xs" style={{ color: 'var(--ash)' }}>—</span>
+                      <span className="text-xs" style={{ color: 'var(--ash)' }}>{etiquetaEstadoCalificacion(m.estado)}</span>
                     )}
                   </td>
                 </tr>
-              )),
-              ...(promedioGeneral ? [(
+                );
+              }),
+              ...(promedioGeneral != null ? [(
                 <tr key="promedio-general" style={{ background: 'var(--pb-light)' }}>
                   <td className="px-4 py-3 text-sm font-bold" style={{ color: 'var(--pb)' }}>
                     Promedio General

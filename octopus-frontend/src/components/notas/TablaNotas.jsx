@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { CheckCircle, XCircle, Copy } from 'lucide-react';
+import { etiquetaEstadoCalificacion, esResultadoProvisional, normalizarCalificacion, valorVisibleCalificacion } from '../../utils/calificaciones';
 
 const CAMPOS_EVAL = ['evaluacion_1', 'evaluacion_2', 'evaluacion_3', 'evaluacion_4'];
 const CABECERAS   = ['Alumno', 'Eval 1', 'Eval 2', 'Eval 3', 'Eval 4', 'Definitiva', 'Aprobado'];
@@ -64,6 +65,9 @@ export function TablaNotas({ notas, loading, lapsoActivo, onNotaChange }) {
           <span className="font-medium" style={{ color: 'var(--red)' }}>
             {notas.filter(n => n.aprobado === false).length} reprobados
           </span>
+          <span className="font-medium" style={{ color: '#b45309' }}>
+            {notas.filter(n => n.aprobado == null && n.estado === 'en_progreso').length} en progreso
+          </span>
           {!lapsoActivo && (
             <span className="font-medium" style={{ color: '#b45309' }}>
               Lapso cerrado — solo lectura
@@ -116,7 +120,11 @@ export function TablaNotas({ notas, loading, lapsoActivo, onNotaChange }) {
                     </td>
                   </tr>
                 )
-                : notas.map((nota, fila) => (
+                : notas.map((filaNota, fila) => {
+                  const nota = normalizarCalificacion(filaNota);
+                  const valorVisible = valorVisibleCalificacion(nota);
+                  const provisional = esResultadoProvisional(nota);
+                  return (
                   <tr
                     key={nota.alumno_id}
                     style={{ borderBottom: '0.5px solid var(--border)', background: 'var(--porcelain)' }}
@@ -151,16 +159,14 @@ export function TablaNotas({ notas, loading, lapsoActivo, onNotaChange }) {
                     ))}
 
                     <td className="px-4 py-3">
-                      <span
-                        className="text-sm font-bold"
-                        style={{
-                          color: nota.definitiva !== '' && nota.definitiva !== undefined
-                            ? (parseFloat(nota.definitiva) >= 10 ? '#16a34a' : 'var(--red)')
-                            : 'var(--ash)',
-                        }}
-                      >
-                        {nota.definitiva !== '' && nota.definitiva !== undefined ? nota.definitiva : '—'}
+                      <span className="block text-sm font-bold" style={{ color: nota.aprobado === true ? '#16a34a' : nota.aprobado === false ? 'var(--red)' : 'var(--ash)' }}>
+                        {valorVisible ?? '—'}
                       </span>
+                      {(provisional || nota.pendiente_recalculo) && (
+                        <span className="block text-[10px] font-medium" style={{ color: '#b45309' }}>
+                          {nota.pendiente_recalculo ? 'Sin guardar' : 'Provisional'}
+                        </span>
+                      )}
                     </td>
 
                     <td className="px-4 py-3">
@@ -175,11 +181,12 @@ export function TablaNotas({ notas, loading, lapsoActivo, onNotaChange }) {
                         </span>
                       )}
                       {(nota.aprobado === null || nota.aprobado === undefined) && (
-                        <span className="text-xs" style={{ color: 'var(--ash)' }}>—</span>
+                        <span className="text-xs" style={{ color: 'var(--ash)' }}>{etiquetaEstadoCalificacion(nota.estado)}</span>
                       )}
                     </td>
                   </tr>
-                ))
+                  );
+                })
             }
           </tbody>
         </table>

@@ -14,7 +14,7 @@ import { useDocenteComparacionMateria } from '../hooks/useDocenteComparacionMate
 import { useAsistenciaClase } from '../hooks/useAsistenciaClase';
 import { useBorradorAsistencia } from '../hooks/useBorradorAsistencia';
 import { enviarPendientes, usePendienteEnvio } from '../utils/colaAsistencia';
-import { calcDefinitiva } from '../../utils/notas.utils';
+import { extraerCalificaciones, normalizarCalificacion } from '../../utils/calificaciones';
 import { TablaNotas } from '../../components/notas/TablaNotas';
 import FilaAlumno from '../../components/asistencia/FilaAlumno';
 import SkeletonFila from '../../components/asistencia/SkeletonFila';
@@ -119,7 +119,7 @@ const DocenteMateriaDetalle = () => {
     getNotasGrado(materiaId, lapsoId, controller.signal)
       .then(res => {
         if (controller.signal.aborted) return;
-        setNotas(res.data || []);
+        setNotas(extraerCalificaciones(res.data).map(normalizarCalificacion));
       })
       .catch(err => {
         if (err.code === 'ERR_CANCELED' || controller.signal.aborted) return;
@@ -143,9 +143,18 @@ const DocenteMateriaDetalle = () => {
     setDirtyNotas(true);
     setNotas(prev => prev.map(n => {
       if (n.alumno_id !== alumnoId) return n;
-      const updated = { ...n, [campo]: valor };
-      updated.definitiva = calcDefinitiva(updated);
-      updated.aprobado = updated.definitiva !== '' ? parseFloat(updated.definitiva) >= 10 : null;
+      const updated = {
+        ...n,
+        [campo]: valor,
+        estado: 'en_progreso',
+        definitiva: null,
+        definitiva_literal: null,
+        definitiva_letra: null,
+        aprobado: null,
+        valor_provisional: null,
+        valor_literal_provisional: null,
+        pendiente_recalculo: true,
+      };
       return updated;
     }));
   }, []);
@@ -154,6 +163,8 @@ const DocenteMateriaDetalle = () => {
     setSavingNotas(true);
     try {
       await saveNotas(materiaId, lapsoId, notas);
+      const actualizadas = await getNotasGrado(materiaId, lapsoId);
+      setNotas(extraerCalificaciones(actualizadas.data).map(normalizarCalificacion));
       toast.success('Notas guardadas correctamente.');
       setDirtyNotas(false);
     } catch (err) {

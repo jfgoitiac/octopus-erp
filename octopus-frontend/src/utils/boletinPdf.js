@@ -3,16 +3,9 @@ import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { mostrarCedula } from './cedulaEscolar';
+import { esResultadoProvisional, normalizarCalificacion, valorVisibleCalificacion } from './calificaciones';
 
 const BRAND = '#003366';
-
-function calcularPromedio(materias) {
-  const vals = materias
-    .filter(m => m.cuenta_para_promedio !== false)
-    .map(m => parseFloat(m.definitiva))
-    .filter(v => !isNaN(v));
-  return vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2) : null;
-}
 
 export function generarBoletinPDF(boletin) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
@@ -86,18 +79,22 @@ export function generarBoletinPDF(boletin) {
   }
 
   // ── Tabla de materias ──
-  const promedio = calcularPromedio(boletin.materias || []);
-  const materiaRows = (boletin.materias || []).map(m => [
-    m.materia_nombre,
-    m.evaluacion_1 ?? '—',
-    m.evaluacion_2 ?? '—',
-    m.evaluacion_3 ?? '—',
-    m.evaluacion_4 ?? '—',
-    m.definitiva_letra ?? m.definitiva ?? '—',
-    m.aprobado === true ? 'Aprobado' : m.aprobado === false ? 'Reprobado' : '—',
-  ]);
+  const promedio = boletin.promedio_general ?? boletin.resumen?.promedio_general ?? null;
+  const materiaRows = (boletin.materias || []).map((materia) => {
+    const m = normalizarCalificacion(materia);
+    const valor = valorVisibleCalificacion(m);
+    return [
+      m.materia_nombre,
+      m.evaluacion_1 ?? '—',
+      m.evaluacion_2 ?? '—',
+      m.evaluacion_3 ?? '—',
+      m.evaluacion_4 ?? '—',
+      valor == null ? '—' : `${valor}${esResultadoProvisional(m) ? ' (provisional)' : ''}`,
+      m.aprobado === true ? 'Aprobado' : m.aprobado === false ? 'Reprobado' : 'Pendiente',
+    ];
+  });
 
-  if (promedio) {
+  if (promedio != null) {
     materiaRows.push([
       { content: 'Promedio General', styles: { fontStyle: 'bold' } },
       '', '', '', '',
