@@ -4550,3 +4550,20 @@ tasa). Deuda nueva (solo anotada):
    endpoint de tasa, mientras el backend mantiene la validación autoritativa.
    Si otras pantallas necesitan este permiso en el futuro, conviene definir un
    contrato común de capacidades en vez de seguir agregando claims al token.
+
+## Fase 0 de Control de Estudios: seguridad por sede (2026-11-16)
+
+1. **`Lapso` no pertenece a una sede**: el modelo conserva
+   `periodo_escolar` como texto global. En Fase 0 se restringieron sus
+   endpoints por capacidad, pero el aislamiento estructural requiere la
+   normalización de periodo/sede prevista para la Fase 3.
+2. **Relaciones académicas con `sede=NULL`**: existen campos nullable por
+   compatibilidad con datos legados (`Materia`, `Alumno` y otros). En
+   instalaciones multi-sede el nuevo scope es fail-closed; antes de hacer los
+   campos obligatorios se necesita un reporte y reconciliación de filas
+   ambiguas, también dentro de la Fase 3.
+3. **`PermisoSede` no enumera `coordinador`**: el perfil global sí admite ese
+   rol, pero las opciones del permiso por sede no. Django puede conservar el
+   valor existente a nivel de base de datos, aunque formularios y validaciones
+   de modelo no lo representan correctamente. Resolverlo exige una migración
+   de esquema/datos y queda fuera de Fase 0.
