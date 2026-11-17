@@ -55,8 +55,8 @@
     "semantic_hash": ""
   },
   "octopus-api/academico/serializers.py": {
-    "mtime": 1791489373.4628713,
-    "ast_hash": "ca57334e9383b7b8213449c5c9ccec80",
+    "mtime": 1794840764.9449542,
+    "ast_hash": "9c9abb919c2ad50b75459597453c18ee",
     "semantic_hash": ""
   },
   "octopus-api/academico/urls.py": {
@@ -65,8 +65,8 @@
     "semantic_hash": ""
   },
   "octopus-api/academico/views.py": {
-    "mtime": 1791549409.088553,
-    "ast_hash": "63341ed1561c8dd092907598743b5bd8",
+    "mtime": 1794884834.281319,
+    "ast_hash": "428ea86b73ba42fb5e302625b6dd8f90",
     "semantic_hash": ""
   },
   "octopus-api/authentication/__init__.py": {
@@ -1340,8 +1340,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/App.jsx": {
-    "mtime": 1793304416.182294,
-    "ast_hash": "e7576c805fe3955b58f0647bcb65439e",
+    "mtime": 1794839614.041046,
+    "ast_hash": "89c7dfb3d04269726e2ad9b4807a0d00",
     "semantic_hash": ""
   },
   "octopus-frontend/src/api/academico.service.js": {
@@ -1425,8 +1425,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/Sidebar.jsx": {
-    "mtime": 1793304416.182294,
-    "ast_hash": "92d645f21341237d3ad4d7dd72983b77",
+    "mtime": 1794839614.0430574,
+    "ast_hash": "2767111be153c4441950748011a61d21",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/alumnos/ModalAjustarMensualidades.jsx": {
@@ -1700,8 +1700,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/constants/roles.js": {
-    "mtime": 1792257371.6964319,
-    "ast_hash": "214601252643a0b6cf0b4e737ab946fd",
+    "mtime": 1794839629.4516222,
+    "ast_hash": "10fb1b2c1f3a8cf9d56cd6e579b91f0f",
     "semantic_hash": ""
   },
   "octopus-frontend/src/constants/styles.js": {
@@ -1965,8 +1965,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/Horarios.jsx": {
-    "mtime": 1791483974.0103352,
-    "ast_hash": "54b101fd1fade648f4b7eb21202503c4",
+    "mtime": 1794839629.4555888,
+    "ast_hash": "09eb1772bce76786864c8fbe38ceadcc",
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/Inscripciones.jsx": {
@@ -2005,8 +2005,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/Notas.jsx": {
-    "mtime": 1787986255.768068,
-    "ast_hash": "330a34a3338d5e7e2e3139f66781e75c",
+    "mtime": 1794839598.0249116,
+    "ast_hash": "7268797507f55a5477f451388406d54c",
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/Pagos.jsx": {
@@ -2546,8 +2546,8 @@
     "semantic_hash": ""
   },
   "NOTAS_TECNICAS.md": {
-    "mtime": 1794570690.6637156,
-    "ast_hash": "96580862d89b920c076308140e0b86e2",
+    "mtime": 1794885162.715162,
+    "ast_hash": "810674b549b4576733c5190f091e444d",
     "semantic_hash": ""
   },
   "PRD_EXPANSION.md": {
@@ -2711,8 +2711,8 @@
     "semantic_hash": ""
   },
   "octopus-api/academico/services.py": {
-    "mtime": 1791422972.0386744,
-    "ast_hash": "6c5c295512b5272dfd8773659331997c",
+    "mtime": 1794840770.9247663,
+    "ast_hash": "3a90f13e07c56cebfa51c98f645aa03a",
     "semantic_hash": ""
   },
   "octopus-api/academico/tasks.py": {
@@ -4090,8 +4090,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/Materias.jsx": {
-    "mtime": 1791483719.9224265,
-    "ast_hash": "acae3f5106a220edc2416c88c77dd983",
+    "mtime": 1794839598.0249116,
+    "ast_hash": "43dc9e6e79938419d298ccc002a5604b",
     "semantic_hash": ""
   },
   "octopus-frontend/src/portal-docente/api/academico.service.js": {
@@ -4510,8 +4510,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/Docentes.jsx": {
-    "mtime": 1791483766.1734157,
-    "ast_hash": "046bb4cbf8a24856383408c9843b4f72",
+    "mtime": 1794839598.0249116,
+    "ast_hash": "a0563edb919f6a9df9897521b4221338",
     "semantic_hash": ""
   },
   "octopus-api/usuarios/management/__init__.py": {
@@ -8176,7 +8176,7 @@
     "semantic_hash": ""
   },
   "octopus-frontend/test-results/.last-run.json": {
-    "mtime": 1794425717.6310966,
+    "mtime": 1794885242.0180616,
     "ast_hash": "f196824657d8858bc7fa44eecbba38b1",
     "semantic_hash": ""
   },
@@ -9238,6 +9238,21 @@
   "octopus-frontend/src/cantina/hooks/usePreferenciasLayoutPOS.test.js": {
     "mtime": 1794706837.5904026,
     "ast_hash": "3c0ea3edd845269a98a39f16a6df7529",
+    "semantic_hash": ""
+  },
+  "octopus-api/academico/permissions.py": {
+    "mtime": 1794840764.938475,
+    "ast_hash": "4ccad231f5331ac62770fa5bc523a363",
+    "semantic_hash": ""
+  },
+  "octopus-api/academico/test_permissions.py": {
+    "mtime": 1794839690.9253669,
+    "ast_hash": "356a773155c73d82d3468b943b8ed820",
+    "semantic_hash": ""
+  },
+  "MASTER_PLAN_REPARACION_CONTROL_ESTUDIOS.md": {
+    "mtime": 1794839076.358121,
+    "ast_hash": "a2b21168c9fcc4f71e1c3e0a1b2bbae5",
     "semantic_hash": ""
   }
 }
