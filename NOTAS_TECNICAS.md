@@ -4567,3 +4567,23 @@ tasa). Deuda nueva (solo anotada):
    valor existente a nivel de base de datos, aunque formularios y validaciones
    de modelo no lo representan correctamente. Resolverlo exige una migración
    de esquema/datos y queda fuera de Fase 0.
+
+## Fase 1 de Control de Estudios: motor canónico (2026-11-17)
+
+1. **La compatibilidad legacy sigue siendo un adaptador, no una conversión
+   destructiva**: `Nota` se conserva y queda detrás de
+   `academico.calificaciones`. Los pares donde ya coexistían ambas fuentes se
+   dejan sin autoridad hasta ejecutar `reconciliar_calificaciones`; esto evita
+   escoger silenciosamente datos potencialmente contradictorios.
+2. **La agregación canónica puede producir N+1 en reportes amplios**:
+   `calcular_calificaciones_seccion` prioriza hoy un contrato único y correcto,
+   pero calcula alumno por alumno. Conviene perfilar con matrículas reales y
+   preparar una variante por lote antes de aumentar el volumen de reportes.
+3. **Permanece el calculador histórico de detalle de planes**:
+   `services.calcular_plan_notas` todavía arma bloques para la UI docente; el
+   endpoint reemplaza su total por el resultado canónico. Debe eliminarse esa
+   segunda suma cuando el contrato de desglose canónico cubra toda la edición.
+4. **Los aportes globales dependen del presupuesto configurado**: ahora solo
+   participan planes cuyo motor activo es `plan` y la API impide superar 20,
+   pero los datos históricos importados deben revisarse con
+   `auditar_calificaciones` antes de habilitarlos.
