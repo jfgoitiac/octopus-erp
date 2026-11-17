@@ -174,6 +174,74 @@ class Nota(models.Model):
         )
 
 
+class ConfiguracionCalificacion(models.Model):
+    """Autoridad explícita del motor usado por una materia en un lapso.
+
+    ``motor`` permanece nullable durante la reconciliación: representa pares
+    sin fuente activada o con coexistencia que requiere decisión humana. La
+    migración inicial nunca elimina ni modifica calificaciones existentes.
+    """
+
+    MOTOR_CHOICES = (('legacy', 'Legacy (Evaluaciones 1–4)'), ('plan', 'Plan de evaluación'))
+
+    materia = models.ForeignKey(
+        Materia, on_delete=models.CASCADE, related_name='configuraciones_calificacion'
+    )
+    lapso = models.ForeignKey(
+        Lapso, on_delete=models.CASCADE, related_name='configuraciones_calificacion'
+    )
+    motor = models.CharField(max_length=10, choices=MOTOR_CHOICES, null=True, blank=True)
+    evaluaciones_esperadas = models.PositiveSmallIntegerField(default=4)
+    origen = models.CharField(max_length=20, default='manual')
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=('materia', 'lapso'), name='academico_config_calificacion_unica'
+            ),
+            models.CheckConstraint(
+                condition=models.Q(evaluaciones_esperadas__gte=1),
+                name='academico_evaluaciones_esperadas_positivas',
+            ),
+        ]
+        verbose_name = 'Configuración de calificación'
+        verbose_name_plural = 'Configuraciones de calificación'
+
+    def __str__(self):
+        return f'{self.materia} / {self.lapso}: {self.motor or "sin resolver"}'
+
+
+class ObservacionCalificacion(models.Model):
+    """Observación canónica preservada durante la transición legacy."""
+
+    alumno = models.ForeignKey(
+        'secretaria.Alumno', on_delete=models.CASCADE,
+        related_name='observaciones_calificacion',
+    )
+    materia = models.ForeignKey(
+        Materia, on_delete=models.CASCADE, related_name='observaciones_calificacion'
+    )
+    lapso = models.ForeignKey(
+        Lapso, on_delete=models.CASCADE, related_name='observaciones_calificacion'
+    )
+    texto = models.TextField(blank=True)
+    origen = models.CharField(max_length=20, default='manual')
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=('alumno', 'materia', 'lapso'),
+                name='academico_observacion_calificacion_unica',
+            ),
+        ]
+        verbose_name = 'Observación de calificación'
+        verbose_name_plural = 'Observaciones de calificación'
+
+
 # ─────────────────────────────────────────────
 # PLAN DE EVALUACIÓN (sistema nuevo, opcional por materia+lapso)
 # ─────────────────────────────────────────────
@@ -283,6 +351,19 @@ class NotaItemEvaluacion(models.Model):
 
     class Meta:
         unique_together = ('item', 'alumno')
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    (models.Q(valor_numerico__isnull=False) & models.Q(valor_letra__isnull=True))
+                    | (models.Q(valor_numerico__isnull=True) & models.Q(valor_letra__isnull=False))
+                ),
+                name='academico_nota_item_un_solo_valor',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(valor_numerico__isnull=True) | models.Q(valor_numerico__gte=0),
+                name='academico_nota_item_numerica_no_negativa',
+            ),
+        ]
         verbose_name = 'Nota de Ítem de Evaluación'
         verbose_name_plural = 'Notas de Ítems de Evaluación'
 
