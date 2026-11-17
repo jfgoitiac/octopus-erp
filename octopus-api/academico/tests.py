@@ -24,7 +24,8 @@ from django.db import IntegrityError, transaction
 
 from .models import (
     AlertaRendimiento, Asistencia, BloqueEvaluacion, Docente, HorarioClase, IncidenteDisciplinario,
-    ItemEvaluacion, Lapso, Materia, MaterialEstudio, Nota, NotaItemEvaluacion, PlanEvaluacion,
+    ConfiguracionCalificacion, ItemEvaluacion, Lapso, Materia, MaterialEstudio, Nota,
+    NotaItemEvaluacion, PlanEvaluacion,
 )
 from .serializers import estado_a_booleanos
 from .services import (
@@ -373,6 +374,18 @@ class NotasDocenteScopingTests(TestCase):
         self.assertEqual(resp.status_code, 409)
         self.assertEqual(Nota.objects.count(), 0)
 
+    def test_bulk_legacy_es_atomico_si_una_fila_es_invalida(self):
+        resp = self.client.post('/api/academico/notas/', {
+            'materia_id': self.materia_propia.id,
+            'lapso_id': self.lapso.id,
+            'notas': [
+                {'alumno_id': self.alumno.id, 'evaluacion_1': '18.00'},
+                {'alumno_id': 999999, 'evaluacion_1': '15.00'},
+            ],
+        }, format='json')
+        self.assertEqual(resp.status_code, 400, resp.content)
+        self.assertEqual(Nota.objects.count(), 0)
+
 
 class DocenteMisMateriasTests(TestCase):
     def setUp(self):
@@ -456,14 +469,24 @@ class RendimientoAlumnoCalculoTests(TestCase):
         self.assertEqual(resultado['alumno']['id'], self.alumno.id)
         # El lapso existe en el período aunque no tenga notas cargadas todavía
         self.assertEqual(len(resultado['por_lapso']), 1)
-        self.assertEqual(resultado['por_lapso'][0]['por_materia'], [])
+        self.assertEqual(len(resultado['por_lapso'][0]['por_materia']), 1)
+        self.assertEqual(
+            resultado['por_lapso'][0]['por_materia'][0]['resultado']['estado'],
+            'sin_configuracion',
+        )
         self.assertIsNone(resultado['por_lapso'][0]['promedio_general'])
         self.assertFalse(resultado['en_riesgo'])
 
     def test_promedio_general_y_bandera_en_riesgo(self):
+        self.lapso.activo = False
+        self.lapso.save(update_fields=['activo'])
+        ConfiguracionCalificacion.objects.create(
+            materia=self.materia, lapso=self.lapso, motor='legacy'
+        )
         Nota.objects.create(
             alumno=self.alumno, materia=self.materia, lapso=self.lapso,
-            evaluacion_1=Decimal('8.00'),
+            evaluacion_1=Decimal('8.00'), evaluacion_2=Decimal('8.00'),
+            evaluacion_3=Decimal('8.00'), evaluacion_4=Decimal('8.00'),
         )
         resultado = calcular_rendimiento_alumno(self.alumno)
         self.assertEqual(resultado['por_lapso'][0]['promedio_general'], 8.0)
@@ -478,7 +501,12 @@ class RendimientoAlumnoCalculoTests(TestCase):
         self.assertEqual(resultado['asistencia']['porcentaje'], 50.0)
 
     def test_rendimiento_incluye_notas_del_plan_de_evaluacion(self):
+        self.lapso.activo = False
+        self.lapso.save(update_fields=['activo'])
         plan = PlanEvaluacion.objects.create(materia=self.materia, lapso=self.lapso)
+        ConfiguracionCalificacion.objects.create(
+            materia=self.materia, lapso=self.lapso, motor='plan'
+        )
         bloque = BloqueEvaluacion.objects.create(plan=plan, nombre='Contenido', modo='puntos', total_puntos=20)
         item = ItemEvaluacion.objects.create(bloque=bloque, nombre='Prueba', valor_maximo=20)
         NotaItemEvaluacion.objects.create(item=item, alumno=self.alumno, valor_numerico=Decimal('16.00'))
@@ -497,12 +525,19 @@ class RendimientoSeccionCalculoTests(TestCase):
         )
         lapso = Lapso.objects.create(
             nombre='1er Lapso', periodo_escolar='2025-2026',
-            fecha_inicio=date(2025, 9, 1), fecha_fin=date(2025, 12, 15), activo=True,
+            fecha_inicio=date(2025, 9, 1), fecha_fin=date(2025, 12, 15), activo=False,
         )
         alumno1 = crear_alumno('E84000011', grado_seccion='2do Grado A')
         alumno2 = crear_alumno('E84000012', grado_seccion='2do Grado A')
-        Nota.objects.create(alumno=alumno1, materia=materia, lapso=lapso, evaluacion_1=Decimal('15.00'))
-        Nota.objects.create(alumno=alumno2, materia=materia, lapso=lapso, evaluacion_1=Decimal('5.00'))
+        ConfiguracionCalificacion.objects.create(materia=materia, lapso=lapso, motor='legacy')
+        Nota.objects.create(
+            alumno=alumno1, materia=materia, lapso=lapso,
+            evaluacion_1=15, evaluacion_2=15, evaluacion_3=15, evaluacion_4=15,
+        )
+        Nota.objects.create(
+            alumno=alumno2, materia=materia, lapso=lapso,
+            evaluacion_1=5, evaluacion_2=5, evaluacion_3=5, evaluacion_4=5,
+        )
 
         resultado = calcular_rendimiento_seccion('2do Grado A', lapso=lapso)
         fila = resultado['por_materia'][0]
@@ -560,6 +595,7 @@ class RendimientoPortalAislamientoTests(TestCase):
             fecha_inicio=date(2025, 9, 1), fecha_fin=date(2025, 12, 15), activo=True,
         )
         plan = PlanEvaluacion.objects.create(materia=materia, lapso=lapso)
+        ConfiguracionCalificacion.objects.create(materia=materia, lapso=lapso, motor='plan')
         bloque = BloqueEvaluacion.objects.create(plan=plan, nombre='Contenido')
         item = ItemEvaluacion.objects.create(bloque=bloque, nombre='Exposición')
         NotaItemEvaluacion.objects.create(item=item, alumno=self.alumno_propio, valor_numerico=Decimal('14.00'))
@@ -572,6 +608,26 @@ class RendimientoPortalAislamientoTests(TestCase):
         otro = self.client.get(f'/api/portal/academico/planes-evaluacion/alumno/{self.alumno_ajeno.id}/')
         self.assertEqual(otro.status_code, 404)
 
+    def test_representante_no_ve_plan_sombra_ni_sus_notas(self):
+        materia = Materia.objects.create(nombre='Geografía', grado_seccion='4to Grado A', activa=True)
+        lapso = Lapso.objects.create(
+            nombre='1er Lapso', periodo_escolar='2026-2027',
+            fecha_inicio=date(2026, 9, 1), fecha_fin=date(2026, 12, 15), activo=True,
+        )
+        plan = PlanEvaluacion.objects.create(materia=materia, lapso=lapso)
+        ConfiguracionCalificacion.objects.create(materia=materia, lapso=lapso, motor='legacy')
+        bloque = BloqueEvaluacion.objects.create(plan=plan, nombre='Plan no activo')
+        item = ItemEvaluacion.objects.create(bloque=bloque, nombre='Nota reservada')
+        NotaItemEvaluacion.objects.create(item=item, alumno=self.alumno_propio, valor_numerico=Decimal('19.00'))
+
+        self.client.force_authenticate(user=self.rep_user)
+        resp = self.client.get(f'/api/portal/academico/planes-evaluacion/alumno/{self.alumno_propio.id}/')
+
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.data['planes'], [])
+        self.assertNotIn('Nota reservada', resp.content.decode('utf-8'))
+        self.assertNotIn('19.00', resp.content.decode('utf-8'))
+
 
 class GenerarAlertasRendimientoTests(TestCase):
     def setUp(self):
@@ -581,13 +637,18 @@ class GenerarAlertasRendimientoTests(TestCase):
         )
         self.lapso = Lapso.objects.create(
             nombre='1er Lapso', periodo_escolar='2025-2026',
-            fecha_inicio=date(2025, 9, 1), fecha_fin=date(2025, 12, 15), activo=True,
+            fecha_inicio=date(2025, 9, 1), fecha_fin=date(2025, 12, 15), activo=False,
+        )
+        ConfiguracionCalificacion.objects.create(
+            materia=self.materia, lapso=self.lapso, motor='legacy',
+            evaluaciones_esperadas=4,
         )
 
     def test_crea_alerta_si_promedio_bajo_umbral(self):
         Nota.objects.create(
             alumno=self.alumno, materia=self.materia, lapso=self.lapso,
-            evaluacion_1=Decimal('7.00'),
+            evaluacion_1=Decimal('7.00'), evaluacion_2=Decimal('7.00'),
+            evaluacion_3=Decimal('7.00'), evaluacion_4=Decimal('7.00'),
         )
         generar_alertas_rendimiento()
         self.assertEqual(AlertaRendimiento.objects.filter(activa=True).count(), 1)
@@ -595,13 +656,17 @@ class GenerarAlertasRendimientoTests(TestCase):
     def test_resuelve_alerta_si_promedio_sube_por_encima_del_umbral(self):
         nota = Nota.objects.create(
             alumno=self.alumno, materia=self.materia, lapso=self.lapso,
-            evaluacion_1=Decimal('7.00'),
+            evaluacion_1=Decimal('7.00'), evaluacion_2=Decimal('7.00'),
+            evaluacion_3=Decimal('7.00'), evaluacion_4=Decimal('7.00'),
         )
         generar_alertas_rendimiento()
         alerta = AlertaRendimiento.objects.get()
         self.assertTrue(alerta.activa)
 
         nota.evaluacion_1 = Decimal('18.00')
+        nota.evaluacion_2 = Decimal('18.00')
+        nota.evaluacion_3 = Decimal('18.00')
+        nota.evaluacion_4 = Decimal('18.00')
         nota.save()
         generar_alertas_rendimiento()
         alerta.refresh_from_db()
@@ -613,7 +678,8 @@ class GenerarAlertasRendimientoTests(TestCase):
         director = crear_usuario('director2', 'director')
         Nota.objects.create(
             alumno=self.alumno, materia=self.materia, lapso=self.lapso,
-            evaluacion_1=Decimal('7.00'),
+            evaluacion_1=Decimal('7.00'), evaluacion_2=Decimal('7.00'),
+            evaluacion_3=Decimal('7.00'), evaluacion_4=Decimal('7.00'),
         )
         generar_alertas_rendimiento()
 
@@ -898,7 +964,8 @@ class PlanEvaluacionEndpointTests(TestCase):
             {
                 'bloques': [
                     {
-                        'id': bloque.id, 'nombre': 'Contenido', 'modo': 'puntos', 'orden': 1,
+                        'id': bloque.id, 'nombre': 'Contenido', 'modo': 'puntos',
+                        'total_puntos': '20.00', 'orden': 1,
                         'items': [
                             {'id': item.id, 'nombre': 'Examen (editado)', 'valor_maximo': '15.00', 'orden': 1},
                             {'nombre': 'Nuevo item', 'valor_maximo': '5.00', 'orden': 2},
@@ -933,6 +1000,9 @@ class PlanEvaluacionEndpointTests(TestCase):
 
     def test_notas_post_guarda_y_get_refleja_total(self):
         plan = PlanEvaluacion.objects.create(materia=self.materia, lapso=self.lapso)
+        ConfiguracionCalificacion.objects.create(
+            materia=self.materia, lapso=self.lapso, motor='plan'
+        )
         bloque = BloqueEvaluacion.objects.create(plan=plan, nombre='Contenido', modo='puntos')
         item = ItemEvaluacion.objects.create(bloque=bloque, nombre='Examen', valor_maximo=15)
 
@@ -961,6 +1031,10 @@ class PlanEvaluacionEndpointTests(TestCase):
             nombre='Biología II', grado_seccion='8vo Grado A',
             tipo_evaluacion='numerica', docente=self.docente, activa=True,
         )
+        PlanEvaluacion.objects.create(materia=otra_materia, lapso=self.lapso)
+        ConfiguracionCalificacion.objects.create(
+            materia=otra_materia, lapso=self.lapso, motor='plan'
+        )
 
         self.client.force_authenticate(user=self.docente)
         resp = self.client.post('/api/academico/docente/plan-evaluacion/notas/', {
@@ -968,12 +1042,15 @@ class PlanEvaluacionEndpointTests(TestCase):
             'lapso_id': self.lapso.id,
             'notas': [{'item_id': item.id, 'alumno_id': self.alumno.id, 'valor_numerico': '13.00'}],
         }, format='json')
-        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.status_code, 400, resp.content)
         self.assertEqual(len(resp.data['guardadas']), 0)
         self.assertEqual(len(resp.data['errores']), 1)
 
     def test_notas_post_rechaza_alumno_de_otra_seccion_y_fuera_de_rango(self):
         plan = PlanEvaluacion.objects.create(materia=self.materia, lapso=self.lapso)
+        ConfiguracionCalificacion.objects.create(
+            materia=self.materia, lapso=self.lapso, motor='plan'
+        )
         bloque = BloqueEvaluacion.objects.create(plan=plan, nombre='Contenido', modo='puntos')
         item = ItemEvaluacion.objects.create(bloque=bloque, nombre='Examen', valor_maximo=15)
         alumno_ajeno = crear_alumno('E84000022', grado_seccion='9no Grado A')
@@ -987,9 +1064,29 @@ class PlanEvaluacionEndpointTests(TestCase):
                 {'item_id': item.id, 'alumno_id': self.alumno.id, 'valor_numerico': '16.00'},
             ],
         }, format='json')
-        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.status_code, 400, resp.content)
         self.assertEqual(len(resp.data['guardadas']), 0)
         self.assertEqual(len(resp.data['errores']), 2)
+
+    def test_notas_plan_bulk_no_confirma_fila_valida_si_otra_falla(self):
+        plan = PlanEvaluacion.objects.create(materia=self.materia, lapso=self.lapso)
+        ConfiguracionCalificacion.objects.create(
+            materia=self.materia, lapso=self.lapso, motor='plan'
+        )
+        bloque = BloqueEvaluacion.objects.create(plan=plan, nombre='Contenido', modo='puntos')
+        item = ItemEvaluacion.objects.create(bloque=bloque, nombre='Examen', valor_maximo=15)
+
+        self.client.force_authenticate(user=self.docente)
+        resp = self.client.post('/api/academico/docente/plan-evaluacion/notas/', {
+            'materia_id': self.materia.id,
+            'lapso_id': self.lapso.id,
+            'notas': [
+                {'item_id': item.id, 'alumno_id': self.alumno.id, 'valor_numerico': '13.00'},
+                {'item_id': 999999, 'alumno_id': self.alumno.id, 'valor_numerico': '10.00'},
+            ],
+        }, format='json')
+        self.assertEqual(resp.status_code, 400, resp.content)
+        self.assertEqual(NotaItemEvaluacion.objects.count(), 0)
 
 
 # ─────────────────────────────────────────────

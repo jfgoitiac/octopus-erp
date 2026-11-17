@@ -1,5 +1,6 @@
 from collections import defaultdict
 from datetime import date, datetime
+from decimal import Decimal
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
@@ -32,6 +33,13 @@ from .models import (
     PaqueteHorario,
     PaqueteHorarioGrado,
     PlanEvaluacion,
+    ConfiguracionCalificacion,
+    ObservacionCalificacion,
+)
+from .calificaciones import (
+    calcular_calificacion,
+    calcular_calificaciones_seccion,
+    validar_captura,
 )
 from .services import (
     UMBRAL_APROBATORIO,
@@ -541,8 +549,15 @@ class NotasGradoView(APIView):
         resultado = []
         for alumno in alumnos:
             nota = notas_map.get(alumno.id)
+            canonico = calcular_calificacion(alumno, materia, lapso)
             if nota:
-                resultado.append(NotaSerializer(nota).data)
+                fila = NotaSerializer(nota).data
+                fila.update({
+                    'definitiva': canonico['definitiva'],
+                    'aprobado': canonico['aprobado'],
+                    'resultado': canonico,
+                })
+                resultado.append(fila)
             else:
                 # Alumno sin nota registrada — retornar objeto vacío
                 resultado.append({
@@ -560,6 +575,7 @@ class NotasGradoView(APIView):
                     'definitiva': None,
                     'aprobado': None,
                     'observaciones': '',
+                    'resultado': canonico,
                 })
 
         return Response(resultado)
@@ -603,6 +619,16 @@ class NotasGradoView(APIView):
                 status=status.HTTP_409_CONFLICT
             )
 
+        config_motor, _ = ConfiguracionCalificacion.objects.get_or_create(
+            materia=materia, lapso=lapso,
+            defaults={'motor': 'legacy', 'evaluaciones_esperadas': 4, 'origen': 'captura_legacy'},
+        )
+        if config_motor.motor != 'legacy':
+            return Response(
+                {'error': 'Esta materia/lapso usa el plan de evaluación; la captura legacy está deshabilitada.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
         # Prefetch de todos los alumnos del payload en una sola query (antes:
         # 1 query por fila con Alumno.objects.get() dentro del loop).
         alumno_ids  = [item['alumno_id'] for item in notas_data]
@@ -614,6 +640,15 @@ class NotasGradoView(APIView):
         guardadas = []
         errores   = []
 
+        for item in notas_data:
+            alumno = alumnos_map.get(item['alumno_id'])
+            if alumno is None:
+                errores.append({'alumno_id': item['alumno_id'], 'error': 'Alumno no encontrado.'})
+            elif alumno.grado_seccion != materia.grado_seccion:
+                errores.append({'alumno_id': item['alumno_id'], 'error': 'El alumno no pertenece a esta materia.'})
+        if errores:
+            return Response({'guardadas': [], 'errores': errores}, status=status.HTTP_400_BAD_REQUEST)
+
         # Todo el guardado masivo corre en una única transacción: si una fila
         # revienta a mitad de camino (constraint, timeout, etc.) se hace
         # rollback completo en vez de dejar un guardado parcial del grado.
@@ -621,12 +656,6 @@ class NotasGradoView(APIView):
             for item in notas_data:
                 alumno_id = item['alumno_id']
                 alumno = alumnos_map.get(alumno_id)
-                if alumno is None:
-                    errores.append({'alumno_id': alumno_id, 'error': 'Alumno no encontrado.'})
-                    continue
-                if alumno.grado_seccion != materia.grado_seccion:
-                    errores.append({'alumno_id': alumno_id, 'error': 'El alumno no pertenece a esta materia.'})
-                    continue
 
                 nota, _ = Nota.objects.get_or_create(
                     alumno=alumno,
@@ -646,7 +675,14 @@ class NotasGradoView(APIView):
                 nota.evaluacion_4  = item.get('evaluacion_4')
                 nota.observaciones = item.get('observaciones', '')
                 nota.save()
-                guardadas.append(NotaSerializer(nota).data)
+                ObservacionCalificacion.objects.update_or_create(
+                    alumno=alumno, materia=materia, lapso=lapso,
+                    defaults={'texto': nota.observaciones, 'origen': 'captura_legacy'},
+                )
+                fila = NotaSerializer(nota).data
+                canonico = calcular_calificacion(alumno, materia, lapso)
+                fila.update({'definitiva': canonico['definitiva'], 'aprobado': canonico['aprobado'], 'resultado': canonico})
+                guardadas.append(fila)
 
         return Response({
             'guardadas': guardadas,
@@ -1244,59 +1280,38 @@ class BoletinView(APIView):
         except Lapso.DoesNotExist:
             return Response({'error': 'Lapso no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
-        # Notas del alumno en este lapso — materias sin plan de evaluación
-        # configurado (sistema viejo evaluacion_1..4).
-        notas_qs = Nota.objects.filter(
-            alumno=alumno, lapso=lapso
-        ).select_related('materia')
-
         materias_notas = []
-        materias_con_nota_ids = set()
-        for nota in notas_qs:
-            materias_con_nota_ids.add(nota.materia_id)
+        materias = materia_queryset_para(request.user, Materia.objects).filter(
+            grado_seccion=alumno.grado_seccion, activa=True, sede_id=alumno.sede_id,
+        ).order_by('nombre')
+        notas_map = {
+            n.materia_id: n for n in Nota.objects.filter(
+                alumno=alumno, lapso=lapso, materia__in=materias,
+            )
+        }
+        definitivas_promedio = []
+        for materia in materias:
+            nota = notas_map.get(materia.id)
+            canonico = calcular_calificacion(alumno, materia, lapso)
+            if canonico['definitiva'] is not None and canonico['cuenta_para_promedio']:
+                definitivas_promedio.append(Decimal(str(canonico['definitiva'])))
             materias_notas.append({
-                'materia_id':    nota.materia.id,
-                'materia_nombre': nota.materia.nombre,
-                'evaluacion_1':  nota.evaluacion_1,
-                'evaluacion_2':  nota.evaluacion_2,
-                'evaluacion_3':  nota.evaluacion_3,
-                'evaluacion_4':  nota.evaluacion_4,
-                'definitiva':    nota.definitiva,
-                'definitiva_letra': None,
-                'aprobado':      nota.aprobado,
-                'cuenta_para_promedio': nota.materia.cuenta_para_promedio,
-            })
-
-        # Materias del grado del alumno con Plan de Evaluación en este lapso
-        # (sistema nuevo de bloques/ítems) — no dejan fila en `Nota`, así que
-        # sin este bloque quedarían completamente ausentes del boletín.
-        materias_con_plan = materia_queryset_para(request.user, Materia.objects).filter(
-            grado_seccion=alumno.grado_seccion,
-            activa=True,
-            planes_evaluacion__lapso=lapso,
-        ).exclude(pk__in=materias_con_nota_ids).distinct()
-        if alumno.sede_id:
-            materias_con_plan = materias_con_plan.filter(sede_id=alumno.sede_id)
-
-        for materia in materias_con_plan:
-            _, alumnos_data = calcular_plan_notas(materia, lapso)
-            fila_alumno = next((a for a in alumnos_data if a['alumno_id'] == alumno.id), None)
-            if fila_alumno is None:
-                continue
-            definitiva = fila_alumno['total']
-            aprobado = (definitiva >= float(UMBRAL_APROBATORIO)) if definitiva is not None else None
-            materias_notas.append({
-                'materia_id':    materia.id,
+                'materia_id': materia.id,
                 'materia_nombre': materia.nombre,
-                'evaluacion_1':  None,
-                'evaluacion_2':  None,
-                'evaluacion_3':  None,
-                'evaluacion_4':  None,
-                'definitiva':    definitiva,
-                'definitiva_letra': fila_alumno['total_letra'],
-                'aprobado':      aprobado,
-                'cuenta_para_promedio': materia.cuenta_para_promedio,
+                'evaluacion_1': nota.evaluacion_1 if nota else None,
+                'evaluacion_2': nota.evaluacion_2 if nota else None,
+                'evaluacion_3': nota.evaluacion_3 if nota else None,
+                'evaluacion_4': nota.evaluacion_4 if nota else None,
+                'definitiva': canonico['definitiva'],
+                'definitiva_letra': canonico['definitiva_literal'],
+                'aprobado': canonico['aprobado'],
+                'cuenta_para_promedio': canonico['cuenta_para_promedio'],
+                'resultado': canonico,
             })
+        promedio_general = (
+            sum(definitivas_promedio) / len(definitivas_promedio)
+            if definitivas_promedio else None
+        )
 
         # Resumen de asistencia durante el período del lapso
         asistencias = Asistencia.objects.filter(
@@ -1339,6 +1354,7 @@ class BoletinView(APIView):
                 'activo':          lapso.activo,
             },
             'materias': materias_notas,
+            'promedio_general': promedio_general,
             'asistencia': {
                 'total_dias':     total_dias,
                 'dias_presentes': dias_presentes,
@@ -3128,6 +3144,75 @@ def _sync_plan_bloques(plan, bloques_data):
             old_bloque.delete()
 
 
+def _presupuesto_plan_existente(materia, lapso):
+    plan = PlanEvaluacion.objects.filter(materia=materia, lapso=lapso).prefetch_related('bloques').first()
+    if not plan:
+        return Decimal('0')
+    return sum((b.total_puntos or Decimal('0')) for b in plan.bloques.all())
+
+
+def _validar_payload_plan(materia, lapso, bloques):
+    """Valida presupuesto/duplicados antes de persistir el árbol del plan."""
+    errores = []
+    if not bloques:
+        return ['El plan debe contener al menos un bloque.']
+    nombres_bloques = [b['nombre'].strip().casefold() for b in bloques]
+    if len(nombres_bloques) != len(set(nombres_bloques)):
+        errores.append('No puede haber bloques duplicados.')
+    presupuesto = Decimal('0')
+    for bloque in bloques:
+        items = bloque.get('items', [])
+        if not items:
+            errores.append(f'El bloque "{bloque["nombre"]}" debe tener al menos un ítem.')
+            continue
+        nombres_items = [i['nombre'].strip().casefold() for i in items]
+        if len(nombres_items) != len(set(nombres_items)):
+            errores.append(f'El bloque "{bloque["nombre"]}" tiene ítems duplicados.')
+        if materia.tipo_evaluacion == 'numerica':
+            peso = bloque.get('total_puntos')
+            if peso is None or peso <= 0:
+                errores.append(f'El bloque "{bloque["nombre"]}" requiere un peso positivo.')
+                continue
+            presupuesto += peso
+            if bloque.get('modo', 'puntos') == 'puntos':
+                maximos = [i.get('valor_maximo') for i in items]
+                if any(v is None for v in maximos) or sum((v or Decimal('0')) for v in maximos) != peso:
+                    errores.append(f'Los máximos de "{bloque["nombre"]}" deben sumar su peso.')
+            else:
+                maximos = [i.get('valor_maximo') for i in items]
+                if any(v is None or v <= 0 for v in maximos):
+                    errores.append(
+                        f'Cada ítem de "{bloque["nombre"]}" requiere un máximo positivo para normalizar el promedio.'
+                    )
+    if materia.tipo_evaluacion == 'numerica':
+        aportantes = Materia.objects.filter(
+            sede_id=materia.sede_id,
+            grado_seccion=materia.grado_seccion,
+            tipo_evaluacion='numerica',
+            aporta_a_todas_las_materias=True,
+            configuraciones_calificacion__lapso=lapso,
+            configuraciones_calificacion__motor='plan',
+        ).exclude(pk=materia.pk)
+        presupuesto += sum(_presupuesto_plan_existente(m, lapso) for m in aportantes)
+    if materia.tipo_evaluacion == 'numerica' and presupuesto > Decimal('20'):
+        errores.append('El presupuesto total del plan no puede superar 20 puntos.')
+    if materia.tipo_evaluacion == 'numerica' and materia.aporta_a_todas_las_materias:
+        destinos = Materia.objects.filter(
+            sede_id=materia.sede_id,
+            grado_seccion=materia.grado_seccion,
+            tipo_evaluacion='numerica',
+            configuraciones_calificacion__lapso=lapso,
+            configuraciones_calificacion__motor='plan',
+        ).exclude(pk=materia.pk)
+        for destino in destinos:
+            total_destino = _presupuesto_plan_existente(destino, lapso) + presupuesto
+            if total_destino > Decimal('20'):
+                errores.append(
+                    f'El aporte haría que el plan de "{destino.nombre}" supere 20 puntos.'
+                )
+    return errores
+
+
 class PlanEvaluacionView(APIView):
     """
     GET/POST/PATCH /api/academico/docente/plan-evaluacion/?materia_id=&lapso_id=
@@ -3204,7 +3289,10 @@ class PlanEvaluacionView(APIView):
             # Decisión documentada: 200 con body null (no 404) — el frontend
             # trata "sin plan configurado" como un estado válido, no un error.
             return Response(None, status=status.HTTP_200_OK)
-        return Response(PlanEvaluacionSerializer(plan).data)
+        data = PlanEvaluacionSerializer(plan).data
+        config = ConfiguracionCalificacion.objects.filter(materia=materia, lapso=lapso).first()
+        data['motor_activo'] = config.motor if config else None
+        return Response(data)
 
     def post(self, request):
         materia, lapso, error = self._resolver_materia_lapso(request)
@@ -3228,12 +3316,25 @@ class PlanEvaluacionView(APIView):
         serializer = PlanEvaluacionInputSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        errores_plan = _validar_payload_plan(materia, lapso, serializer.validated_data['bloques'])
+        if errores_plan:
+            return Response({'error': errores_plan}, status=status.HTTP_400_BAD_REQUEST)
 
         # La creación y el árbol anidado son una sola operación: un error de
         # persistencia no debe dejar un plan vacío o parcialmente configurado.
         with transaction.atomic():
             plan = PlanEvaluacion.objects.create(materia=materia, lapso=lapso)
             _sync_plan_bloques(plan, serializer.validated_data['bloques'])
+            config, _ = ConfiguracionCalificacion.objects.get_or_create(
+                materia=materia, lapso=lapso,
+                defaults={'motor': None, 'origen': 'plan_manual'},
+            )
+            # Un plan nuevo solo se activa automáticamente cuando no existe
+            # captura legacy. La coexistencia requiere reconciliación explícita.
+            if not Nota.objects.filter(materia=materia, lapso=lapso).exists():
+                config.motor = 'plan'
+                config.origen = 'plan_manual'
+                config.save(update_fields=['motor', 'origen', 'actualizado_en'])
 
         plan = PlanEvaluacion.objects.filter(pk=plan.pk).prefetch_related('bloques__items').first()
         return Response(PlanEvaluacionSerializer(plan).data, status=status.HTTP_201_CREATED)
@@ -3261,6 +3362,9 @@ class PlanEvaluacionView(APIView):
         serializer = PlanEvaluacionInputSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        errores_plan = _validar_payload_plan(materia, lapso, serializer.validated_data['bloques'])
+        if errores_plan:
+            return Response({'error': errores_plan}, status=status.HTTP_400_BAD_REQUEST)
 
         with transaction.atomic():
             _sync_plan_bloques(plan, serializer.validated_data['bloques'])
@@ -3323,6 +3427,14 @@ class PlanEvaluacionNotasView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+        resultados = calcular_calificaciones_seccion(materia, lapso)
+        resultados_map = {r['alumno_id']: r for r in resultados}
+        for fila in alumnos_data:
+            resultado = resultados_map.get(fila['alumno_id'])
+            fila['resultado'] = resultado
+            fila['total'] = float(resultado['valor_provisional']) if resultado and resultado['valor_provisional'] is not None else None
+            fila['total_letra'] = resultado['valor_literal_provisional'] if resultado else None
+        config = ConfiguracionCalificacion.objects.filter(materia=materia, lapso=lapso).first()
         return Response({
             'plan_id':          plan.id,
             'materia_id':       materia.id,
@@ -3331,6 +3443,8 @@ class PlanEvaluacionNotasView(APIView):
             'lapso_id':         lapso.id,
             'lapso_nombre':     str(lapso),
             'alumnos':          alumnos_data,
+            'resultados':       resultados,
+            'motor_activo':     config.motor if config else None,
         })
 
     def post(self, request):
@@ -3366,6 +3480,18 @@ class PlanEvaluacionNotasView(APIView):
                 status=status.HTTP_409_CONFLICT
             )
 
+        config = ConfiguracionCalificacion.objects.filter(materia=materia, lapso=lapso).first()
+        if config is None and PlanEvaluacion.objects.filter(materia=materia, lapso=lapso).exists() \
+                and not Nota.objects.filter(materia=materia, lapso=lapso).exists():
+            config = ConfiguracionCalificacion.objects.create(
+                materia=materia, lapso=lapso, motor='plan', origen='captura_plan',
+            )
+        if config is None or config.motor != 'plan':
+            return Response(
+                {'error': 'El plan de evaluación no está activado como fuente canónica.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
         item_ids   = [item['item_id'] for item in notas_data]
         alumno_ids = [item['alumno_id'] for item in notas_data]
         items_map  = {
@@ -3381,67 +3507,41 @@ class PlanEvaluacionNotasView(APIView):
         guardadas = []
         errores   = []
 
+        capturas_validas = []
+        for item_data in notas_data:
+            item_id = item_data['item_id']
+            alumno_id = item_data['alumno_id']
+            item = items_map.get(item_id)
+            alumno = alumnos_map.get(alumno_id)
+            error = None
+            if item is None:
+                error = 'Ítem no encontrado.'
+            elif alumno is None:
+                error = 'Alumno no encontrado.'
+            elif alumno.grado_seccion != materia.grado_seccion:
+                error = 'El alumno no pertenece a la sección de esta materia.'
+            elif item.bloque.plan.materia_id != materia.id or item.bloque.plan.lapso_id != lapso.id:
+                error = 'El ítem no pertenece al plan de evaluación de esta materia/lapso.'
+            else:
+                errores_captura = validar_captura(
+                    item, alumno,
+                    valor_numerico=item_data.get('valor_numerico'),
+                    valor_letra=item_data.get('valor_letra'),
+                )
+                if errores_captura:
+                    error = ', '.join(errores_captura)
+            if error:
+                errores.append({'item_id': item_id, 'alumno_id': alumno_id, 'error': error})
+            else:
+                capturas_validas.append((item_data, item, alumno))
+        if errores:
+            return Response({'guardadas': [], 'errores': errores}, status=status.HTTP_400_BAD_REQUEST)
+
         # Igual que NotasGradoView: todo el bloque de guardado corre en una
         # única transacción para evitar guardados parciales del plan si una
         # fila falla a mitad de camino.
         with transaction.atomic():
-            for item_data in notas_data:
-                item_id   = item_data['item_id']
-                alumno_id = item_data['alumno_id']
-
-                item = items_map.get(item_id)
-                if item is None:
-                    errores.append({'item_id': item_id, 'alumno_id': alumno_id, 'error': 'Ítem no encontrado.'})
-                    continue
-
-                alumno = alumnos_map.get(alumno_id)
-                if alumno is None:
-                    errores.append({'item_id': item_id, 'alumno_id': alumno_id, 'error': 'Alumno no encontrado.'})
-                    continue
-
-                # Un docente solo puede calificar la matrícula de la sección
-                # de su materia; validar el item no basta para evitar que un
-                # alumno de otra sección sea incluido mediante una petición
-                # manipulada.
-                if alumno.grado_seccion != materia.grado_seccion:
-                    errores.append({
-                        'item_id': item_id, 'alumno_id': alumno_id,
-                        'error': 'El alumno no pertenece a la sección de esta materia.',
-                    })
-                    continue
-
-                # El item debe pertenecer al plan de la materia/lapso solicitados
-                # — evita que, vía item_id, se escriban notas de otra materia.
-                if item.bloque.plan.materia_id != materia.id or item.bloque.plan.lapso_id != lapso.id:
-                    errores.append({
-                        'item_id': item_id, 'alumno_id': alumno_id,
-                        'error': 'El ítem no pertenece al plan de evaluación de esta materia/lapso.',
-                    })
-                    continue
-
-                valor_numerico = item_data.get('valor_numerico')
-                valor_letra = item_data.get('valor_letra')
-                if materia.tipo_evaluacion == 'numerica':
-                    if valor_numerico is None or valor_letra is not None:
-                        errores.append({
-                            'item_id': item_id, 'alumno_id': alumno_id,
-                            'error': 'Esta materia requiere una nota numérica.',
-                        })
-                        continue
-                    if valor_numerico < 0 or (
-                        item.valor_maximo is not None and valor_numerico > item.valor_maximo
-                    ):
-                        errores.append({
-                            'item_id': item_id, 'alumno_id': alumno_id,
-                            'error': 'La nota está fuera del rango permitido para este ítem.',
-                        })
-                        continue
-                elif valor_letra is None or valor_numerico is not None:
-                    errores.append({
-                        'item_id': item_id, 'alumno_id': alumno_id,
-                        'error': 'Esta materia requiere una calificación literal.',
-                    })
-                    continue
+            for item_data, item, alumno in capturas_validas:
 
                 nota_item, _ = NotaItemEvaluacion.objects.update_or_create(
                     item=item,
@@ -3458,7 +3558,9 @@ class PlanEvaluacionNotasView(APIView):
                     'valor_letra':    nota_item.valor_letra,
                 })
 
+        resultados = calcular_calificaciones_seccion(materia, lapso)
         return Response({
             'guardadas': guardadas,
             'errores':   errores,
+            'resultados': resultados,
         }, status=status.HTTP_200_OK)

@@ -21,8 +21,12 @@ from .models import (
     NotaItemEvaluacion,
     PlanEvaluacion,
 )
+from .calificaciones import (
+    UMBRAL_APROBATORIO,
+    calcular_calificacion,
+    calcular_calificaciones_seccion,
+)
 
-UMBRAL_APROBATORIO = Decimal('10')
 
 
 def _periodo_escolar_activo():
@@ -44,54 +48,25 @@ def calcular_rendimiento_alumno(alumno):
     por_lapso = []
     en_riesgo = False
     for lapso in lapsos:
-        # Una materia usa la tabla clásica de notas o un PlanEvaluacion, pero
-        # el portal debe presentar ambas fuentes de manera transparente.
-        planes = list(
-            PlanEvaluacion.objects.filter(
-                lapso=lapso,
-                materia__grado_seccion=alumno.grado_seccion,
-                materia__sede_id=alumno.sede_id,
-                materia__activa=True,
-            ).select_related('materia')
-        )
-        materia_ids_con_plan = {plan.materia_id for plan in planes}
-        notas = (
-            Nota.objects.filter(alumno=alumno, lapso=lapso)
-            .exclude(materia_id__in=materia_ids_con_plan)
-            .select_related('materia')
-        )
+        materias = Materia.objects.filter(
+            grado_seccion=alumno.grado_seccion, sede_id=alumno.sede_id, activa=True,
+        ).order_by('nombre')
         por_materia = []
         definitivas = []
-        for nota in notas:
-            if nota.definitiva is not None:
-                if nota.materia.cuenta_para_promedio:
-                    definitivas.append(nota.definitiva)
-                if nota.definitiva < UMBRAL_APROBATORIO:
+        for materia in materias:
+            resultado = calcular_calificacion(alumno, materia, lapso)
+            definitiva = resultado['definitiva']
+            if definitiva is not None:
+                if resultado['cuenta_para_promedio']:
+                    definitivas.append(Decimal(str(definitiva)))
+                if Decimal(str(definitiva)) < UMBRAL_APROBATORIO:
                     en_riesgo = True
             por_materia.append({
-                'materia_id': nota.materia_id,
-                'materia': nota.materia.nombre,
-                'promedio': float(nota.definitiva) if nota.definitiva is not None else None,
-                'calificacion_literal': None,
-            })
-
-        # Reutilizamos el mismo cálculo que ve el docente para no duplicar las
-        # reglas de bloques, promedios y aportes entre materias.
-        for plan in planes:
-            _, alumnos_plan = calcular_plan_notas(plan.materia, lapso)
-            resultado = next((fila for fila in alumnos_plan if fila['alumno_id'] == alumno.id), None)
-            total = resultado['total'] if resultado else None
-            letra = resultado['total_letra'] if resultado else None
-            if total is not None:
-                if plan.materia.cuenta_para_promedio:
-                    definitivas.append(Decimal(str(total)))
-                if Decimal(str(total)) < UMBRAL_APROBATORIO:
-                    en_riesgo = True
-            por_materia.append({
-                'materia_id': plan.materia_id,
-                'materia': plan.materia.nombre,
-                'promedio': total,
-                'calificacion_literal': letra,
+                'materia_id': materia.id,
+                'materia': materia.nombre,
+                'promedio': float(definitiva) if definitiva is not None else None,
+                'calificacion_literal': resultado['definitiva_literal'],
+                'resultado': resultado,
             })
         promedio_general = float(sum(definitivas) / len(definitivas)) if definitivas else None
         por_lapso.append({
@@ -134,16 +109,16 @@ def calcular_rendimiento_seccion(grado_seccion, lapso=None, materias_queryset=No
     ).order_by('nombre')
     por_materia = []
     for materia in materias:
-        notas = Nota.objects.filter(materia=materia, definitiva__isnull=False)
-        if lapso is not None:
-            notas = notas.filter(lapso=lapso)
-        total = notas.count()
-        aprobados = notas.filter(definitiva__gte=UMBRAL_APROBATORIO).count()
+        resultados = calcular_calificaciones_seccion(materia, lapso) if lapso else []
+        cerrados = [r for r in resultados if r['aprobado'] is not None]
+        total = len(cerrados)
+        aprobados = sum(1 for r in cerrados if r['aprobado'])
         por_materia.append({
             'materia_id': materia.id,
             'materia': materia.nombre,
             'porcentaje_aprobados': round(aprobados / total * 100, 1) if total else None,
             'total_evaluados': total,
+            'resultados': resultados,
         })
 
     return {
@@ -276,17 +251,19 @@ def calcular_comparacion_materia(materia, lapso):
             porcentaje_propio = entrada['porcentaje_aprobados']
             break
 
-    otras_materias = list(Materia.objects.filter(nombre=materia.nombre, activa=True).exclude(
+    otras_materias = list(Materia.objects.filter(
+        nombre=materia.nombre, activa=True, sede_id=materia.sede_id,
+    ).exclude(
         grado_seccion=materia.grado_seccion
     ))
 
     porcentajes_otras = []
     for otra in otras_materias:
-        notas = Nota.objects.filter(materia=otra, lapso=lapso, definitiva__isnull=False)
-        total = notas.count()
+        resultados = [r for r in calcular_calificaciones_seccion(otra, lapso) if r['aprobado'] is not None]
+        total = len(resultados)
         if not total:
             continue
-        aprobados = notas.filter(definitiva__gte=UMBRAL_APROBATORIO).count()
+        aprobados = sum(1 for r in resultados if r['aprobado'])
         porcentajes_otras.append(aprobados / total * 100)
 
     porcentaje_otras_secciones = (
@@ -313,36 +290,37 @@ def generar_alertas_rendimiento():
 
     periodo = _periodo_escolar_activo()
     lapsos = Lapso.objects.filter(periodo_escolar=periodo)
-    notas = Nota.objects.filter(lapso__in=lapsos, definitiva__isnull=False).select_related(
-        'alumno', 'materia', 'lapso'
-    )
+    materias = Materia.objects.filter(activa=True)
+    for lapso in lapsos:
+        for materia in materias:
+            for resultado in calcular_calificaciones_seccion(materia, lapso):
+                alumno_id = resultado['alumno_id']
+                definitiva = resultado['definitiva']
+                en_riesgo = resultado['aprobado'] is False
+                alerta = AlertaRendimiento.objects.filter(
+                    alumno_id=alumno_id, materia=materia, lapso=lapso
+                ).first()
 
-    for nota in notas:
-        en_riesgo = nota.definitiva < UMBRAL_APROBATORIO
-        alerta = AlertaRendimiento.objects.filter(
-            alumno=nota.alumno, materia=nota.materia, lapso=nota.lapso
-        ).first()
-
-        if en_riesgo:
-            if alerta:
-                alerta.promedio_actual = nota.definitiva
-                if not alerta.activa:
-                    alerta.activa = True
-                    alerta.resuelta_at = None
-                alerta.save(update_fields=['promedio_actual', 'activa', 'resuelta_at'])
-            else:
-                AlertaRendimiento.objects.create(
-                    alumno=nota.alumno,
-                    materia=nota.materia,
-                    lapso=nota.lapso,
-                    promedio_actual=nota.definitiva,
-                    umbral_minimo=UMBRAL_APROBATORIO,
-                    activa=True,
-                )
-        elif alerta and alerta.activa:
-            alerta.activa = False
-            alerta.resuelta_at = timezone.now()
-            alerta.save(update_fields=['activa', 'resuelta_at'])
+                if en_riesgo:
+                    if alerta:
+                        alerta.promedio_actual = definitiva
+                        if not alerta.activa:
+                            alerta.activa = True
+                            alerta.resuelta_at = None
+                        alerta.save(update_fields=['promedio_actual', 'activa', 'resuelta_at'])
+                    else:
+                        AlertaRendimiento.objects.create(
+                            alumno_id=alumno_id,
+                            materia=materia,
+                            lapso=lapso,
+                            promedio_actual=definitiva,
+                            umbral_minimo=UMBRAL_APROBATORIO,
+                            activa=True,
+                        )
+                elif alerta and alerta.activa:
+                    alerta.activa = False
+                    alerta.resuelta_at = timezone.now()
+                    alerta.save(update_fields=['activa', 'resuelta_at'])
 
 
 # ─────────────────────────────────────────────

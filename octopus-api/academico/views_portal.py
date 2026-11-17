@@ -5,7 +5,8 @@ from rest_framework.views import APIView
 from portal.authentication import PortalJWTAuthentication
 from secretaria.models import Alumno
 
-from .models import NotaItemEvaluacion, PlanEvaluacion
+from .models import ConfiguracionCalificacion, NotaItemEvaluacion, PlanEvaluacion
+from .calificaciones import calcular_calificacion
 from .services import calcular_rendimiento_alumno
 
 
@@ -42,12 +43,25 @@ class PlanesEvaluacionAlumnoPortalView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        planes = list(
+        # El plan es visible para el representante únicamente cuando fue
+        # activado como fuente canónica. Un plan coexistente, vacío o dejado
+        # como sombra de rollback no debe filtrar su estructura ni sus notas.
+        pares_plan_activos = set(
+            ConfiguracionCalificacion.objects.filter(
+                materia__grado_seccion=alumno.grado_seccion,
+                materia__sede_id=alumno.sede_id,
+                materia__activa=True,
+                motor='plan',
+            ).values_list('materia_id', 'lapso_id')
+        )
+        planes = [plan for plan in
             PlanEvaluacion.objects.filter(
                 materia__grado_seccion=alumno.grado_seccion,
+                materia__sede_id=alumno.sede_id,
                 materia__activa=True,
             ).select_related('materia', 'lapso').prefetch_related('bloques__items')
-        )
+            if (plan.materia_id, plan.lapso_id) in pares_plan_activos
+        ]
         item_ids = [item.id for plan in planes for bloque in plan.bloques.all() for item in bloque.items.all()]
         notas = {
             nota.item_id: nota
@@ -56,6 +70,7 @@ class PlanesEvaluacionAlumnoPortalView(APIView):
 
         data = []
         for plan in planes:
+            resultado = calcular_calificacion(alumno, plan.materia, plan.lapso)
             data.append({
                 'plan_id': plan.id,
                 'materia_id': plan.materia_id,
@@ -63,6 +78,7 @@ class PlanesEvaluacionAlumnoPortalView(APIView):
                 'tipo_evaluacion': plan.materia.tipo_evaluacion,
                 'lapso_id': plan.lapso_id,
                 'lapso': plan.lapso.nombre,
+                'resultado': resultado,
                 'bloques': [{
                     'id': bloque.id,
                     'nombre': bloque.nombre,
@@ -79,7 +95,17 @@ class PlanesEvaluacionAlumnoPortalView(APIView):
                 } for bloque in plan.bloques.all()],
             })
 
+        calificaciones = []
+        configuraciones = ConfiguracionCalificacion.objects.filter(
+            materia__grado_seccion=alumno.grado_seccion,
+            materia__sede_id=alumno.sede_id,
+            materia__activa=True,
+        ).select_related('materia', 'lapso')
+        for config in configuraciones:
+            calificaciones.append(calcular_calificacion(alumno, config.materia, config.lapso))
+
         return Response({
             'alumno': {'id': alumno.id, 'nombre': alumno.nombre, 'apellido': alumno.apellido},
             'planes': data,
+            'calificaciones': calificaciones,
         })
