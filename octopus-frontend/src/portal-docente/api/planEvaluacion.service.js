@@ -10,11 +10,15 @@ export const getPlanEvaluacion = (materiaId, lapsoId, signal) =>
 
 // Crea o actualiza el plan (bloques anidados con items anidados en el body).
 // materia_id/lapso_id van en query params (así resuelve el backend a qué plan
-// se refiere, tanto para crear como para editar) — el body es solo {bloques}.
+// se refiere, tanto para crear como para editar). En PATCH se envía además la
+// versión leída para evitar sobrescribir cambios concurrentes.
 // Usa PATCH cuando el plan ya existe (tiene id), POST para crearlo.
 export const guardarPlanEvaluacion = (plan) => {
   const qs = `?materia_id=${plan.materia_id}&lapso_id=${plan.lapso_id}`;
-  const payload = { bloques: plan.bloques };
+  const payload = {
+    bloques: plan.bloques,
+    ...(plan.id ? { expected_version: plan.expected_version } : {}),
+  };
   return plan.id
     ? apiClient.patch(`academico/docente/plan-evaluacion/${qs}`, payload)
     : apiClient.post(`academico/docente/plan-evaluacion/${qs}`, payload);

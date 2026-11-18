@@ -16,6 +16,8 @@ export function useDocentePlanEvaluacion(materiaId, lapsoId) {
   const [plan, setPlan] = useState(null);
   const [loadingPlan, setLoadingPlan] = useState(false);
   const [savingPlan, setSavingPlan] = useState(false);
+  const [conflictoPlan, setConflictoPlan] = useState(null);
+  const [conflictoVersion, setConflictoVersion] = useState(null);
 
   const [alumnos, setAlumnos] = useState([]);
   const [loadingNotas, setLoadingNotas] = useState(false);
@@ -76,20 +78,38 @@ export function useDocentePlanEvaluacion(materiaId, lapsoId) {
 
   const guardarPlan = useCallback(async (bloques) => {
     setSavingPlan(true);
+    setConflictoPlan(null);
+    setConflictoVersion(null);
     try {
       const res = await guardarPlanEvaluacion({
         id: plan?.id ?? null,
         materia_id: materiaId,
         lapso_id: lapsoId,
         bloques,
+        expected_version: plan?.version,
       });
       setPlan(res.data);
       toast.success('Plan de evaluación guardado correctamente.');
-      return true;
+      return { ok: true, impacto: null };
     } catch (err) {
+      if (err.response?.status === 409 && ['PLAN_AFECTA_CALIFICACIONES', 'PLAN_ITEMS_CON_NOTAS'].includes(err.response?.data?.codigo)) {
+        const impacto = err.response?.data?.impacto || {};
+        setConflictoPlan(impacto);
+        toast.warning(err.response?.data?.error || 'El cambio afectaría calificaciones existentes.');
+        return { ok: false, impacto };
+      }
+      if (err.response?.status === 409 && err.response?.data?.codigo === 'PLAN_VERSION_CONFLICT') {
+        const conflicto = {
+          expected_version: err.response.data.expected_version,
+          current_version: err.response.data.current_version,
+        };
+        setConflictoVersion(conflicto);
+        toast.warning('Otra persona actualizó este plan. Recarga la versión más reciente antes de continuar.');
+        return { ok: false, impacto: null, conflictoVersion: conflicto };
+      }
       const msg = err.response?.data?.error || err.response?.data?.detail || 'No se pudo guardar el plan de evaluación.';
       toast.error(msg);
-      return false;
+      return { ok: false, impacto: null };
     } finally {
       setSavingPlan(false);
     }
@@ -126,6 +146,8 @@ export function useDocentePlanEvaluacion(materiaId, lapsoId) {
 
   return {
     plan, loadingPlan, savingPlan, guardarPlan, refetchPlan: fetchPlan,
+    conflictoPlan, limpiarConflictoPlan: () => setConflictoPlan(null),
+    conflictoVersion, limpiarConflictoVersion: () => setConflictoVersion(null),
     alumnos, loadingNotas, savingNotas, guardarNotas, refetchNotas: fetchNotas,
   };
 }

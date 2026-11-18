@@ -37,9 +37,11 @@ const Notas = () => {
     lapsos, modalLapso,
     lapsoEditando, formLapso, setFormLapso,
     guardandoLapso, cerrandoLapso,
+    reabriendoLapso,
     confirmCerrar, setConfirmCerrar,
+    checklistCierre, loadingChecklist, impactoCierre,
     abrirModalCrear, abrirModalEditar, cerrarModal,
-    guardarLapso, cerrarLapso,
+    guardarLapso, cargarChecklistCierre, cerrarLapso, reabrirLapso,
   } = useLapsos();
 
   const lapsoSeleccionado = useMemo(
@@ -47,9 +49,14 @@ const Notas = () => {
     [lapsos, lapsoId],
   );
 
-  const handleCerrarLapso = async () => {
-    const cerrado = await cerrarLapso(lapsoId);
+  const handleCerrarLapso = async (opciones) => {
+    const cerrado = await cerrarLapso(lapsoId, opciones);
     if (cerrado) resetLapso();
+  };
+
+  const handleReabrirLapso = async (motivo) => {
+    const reabierto = await reabrirLapso(lapsoId, motivo);
+    if (reabierto) resetLapso();
   };
 
   return (
@@ -187,11 +194,16 @@ const Notas = () => {
           setFormLapso={setFormLapso}
           guardando={guardandoLapso}
           cerrando={cerrandoLapso}
+          reabriendo={reabriendoLapso}
           confirmCerrar={confirmCerrar}
-          onConfirmCerrar={() => setConfirmCerrar(true)}
+          checklist={checklistCierre}
+          loadingChecklist={loadingChecklist}
+          impactoCierre={impactoCierre}
+          onConfirmCerrar={() => cargarChecklistCierre(lapsoEditando?.id)}
           onCancelCerrar={() => setConfirmCerrar(false)}
           onGuardar={guardarLapso}
           onCerrarLapso={handleCerrarLapso}
+          onReabrirLapso={handleReabrirLapso}
           onClose={cerrarModal}
         />
       )}

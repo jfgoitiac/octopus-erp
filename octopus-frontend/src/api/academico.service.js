@@ -157,6 +157,15 @@ export const updateLapso = (id, data) =>
 export const deleteLapso = (id) =>
   apiClient.delete(`academico/lapsos/${id}/`);
 
+export const getChecklistCierreLapso = (id, signal) =>
+  apiClient.get(`academico/lapsos/${id}/checklist-cierre/`, signal ? { signal } : undefined);
+
+export const cerrarLapsoSeguro = (id, data = {}) =>
+  apiClient.post(`academico/lapsos/${id}/cerrar/`, data);
+
+export const reabrirLapso = (id, motivo) =>
+  apiClient.post(`academico/lapsos/${id}/reabrir/`, { motivo });
+
 // Incidentes disciplinarios
 export const getIncidentes = (filtros, signal) => {
   const params = new URLSearchParams(filtros || {});

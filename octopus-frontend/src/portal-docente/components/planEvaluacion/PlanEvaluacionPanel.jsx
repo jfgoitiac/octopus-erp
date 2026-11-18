@@ -6,11 +6,12 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { datepickerPopperContainer } from '../../../utils/datepickerPortal';
 import {
-  ClipboardList, Plus, Trash2, Save, Loader2, Pencil, X, Layers,
+  AlertTriangle, ClipboardList, Plus, Trash2, Save, Loader2, Pencil, X, Layers,
 } from 'lucide-react';
 
 import { useDocentePlanEvaluacion } from '../../hooks/useDocentePlanEvaluacion';
 import SkeletonCard from '../../../portal/components/SkeletonCard';
+import { Modal } from '../../../components/ui/Modal';
 
 const nuevoId = () => `tmp-${Math.random().toString(36).slice(2)}${Date.now()}`;
 
@@ -42,7 +43,9 @@ export function obtenerTotalCanonicoVisible(fila) {
 export default function PlanEvaluacionPanel({ materiaId, lapsoId, tipoEvaluacion, lapsoActivo }) {
   const esLiteral = tipoEvaluacion === 'literal';
   const {
-    plan, loadingPlan, savingPlan, guardarPlan,
+    plan, loadingPlan, savingPlan, guardarPlan, refetchPlan,
+    conflictoPlan, limpiarConflictoPlan,
+    conflictoVersion, limpiarConflictoVersion,
     alumnos, loadingNotas, savingNotas, guardarNotas,
   } = useDocentePlanEvaluacion(materiaId, lapsoId);
 
@@ -96,15 +99,6 @@ export default function PlanEvaluacionPanel({ materiaId, lapsoId, tipoEvaluacion
       }
     }
 
-    // Quitar un ítem borra sus notas asociadas en el servidor. Hacer explícito
-    // ese efecto antes del PATCH evita pérdidas accidentales al editar.
-    const idsOriginales = new Set((plan?.bloques || []).flatMap(b => (b.items || []).map(it => it.id)));
-    const idsConservados = new Set(bloquesForm.flatMap(b => (b.items || []).map(it => it.id)).filter(id => !esTemporal(id)));
-    const eliminados = [...idsOriginales].filter(id => !idsConservados.has(id));
-    if (eliminados.length && !window.confirm(
-      `Eliminarás ${eliminados.length} ítem${eliminados.length === 1 ? '' : 's'} del plan y sus notas cargadas. ¿Deseas continuar?`
-    )) return;
-
     const payload = bloquesForm.map((b, i) => ({
       ...(esTemporal(b.id) ? {} : { id: b.id }),
       nombre: b.nombre.trim(),
@@ -122,8 +116,15 @@ export default function PlanEvaluacionPanel({ materiaId, lapsoId, tipoEvaluacion
       })),
     }));
 
-    const ok = await guardarPlan(payload);
-    if (ok) setEditando(false);
+    const resultado = await guardarPlan(payload);
+    if (resultado.ok) setEditando(false);
+  };
+
+  const recargarTrasConflicto = async () => {
+    await refetchPlan();
+    limpiarConflictoVersion();
+    setEditando(false);
+    toast.info('Plan actualizado con la versión más reciente. Revisa los cambios antes de editar nuevamente.');
   };
 
   // ── Notas por alumno ─────────────────────────────────────────────────────
@@ -293,6 +294,70 @@ export default function PlanEvaluacionPanel({ materiaId, lapsoId, tipoEvaluacion
           </button>
         </>
       )}
+
+      <Modal
+        open={Boolean(conflictoPlan)}
+        onClose={limpiarConflictoPlan}
+        size="sm"
+        titulo={<><AlertTriangle size={18} aria-hidden="true" /> Cambio bloqueado</>}
+        footer={(
+          <button
+            type="button"
+            onClick={limpiarConflictoPlan}
+            className="min-h-[44px] w-full rounded-xl bg-[var(--docente-primary)] px-4 text-sm font-semibold text-white sm:w-auto"
+          >
+            Volver al plan
+          </button>
+        )}
+      >
+        <div className="space-y-3 text-sm text-[var(--jet-mid)]">
+          <p>No se aplicó ningún cambio porque eliminaría ítems que ya tienen calificaciones. Conserva esos ítems o consulta con coordinación para archivar una versión del plan.</p>
+          <p className="font-semibold text-[var(--jet)]">
+            {conflictoPlan?.total_notas ?? 0} nota{conflictoPlan?.total_notas === 1 ? '' : 's'} protegida{conflictoPlan?.total_notas === 1 ? '' : 's'}
+            {conflictoPlan?.total_alumnos ? ` de ${conflictoPlan.total_alumnos} alumno${conflictoPlan.total_alumnos === 1 ? '' : 's'}` : ''}
+          </p>
+          {Array.isArray(conflictoPlan?.items) && conflictoPlan.items.length > 0 && (
+            <ul className="max-h-48 space-y-2 overflow-y-auto rounded-xl bg-[var(--surface-sunken)] p-3" aria-label="Ítems protegidos">
+              {conflictoPlan.items.map(item => (
+                <li key={item.id} className="flex min-w-0 items-start justify-between gap-3">
+                  <span className="min-w-0 break-words">{item.nombre || `Ítem ${item.id}`}</span>
+                  <span className="shrink-0 font-semibold">{item.notas_afectadas ?? 0} notas</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </Modal>
+
+      <Modal
+        open={Boolean(conflictoVersion)}
+        onClose={limpiarConflictoVersion}
+        size="sm"
+        titulo={<><AlertTriangle size={18} aria-hidden="true" /> El plan cambió</>}
+        footer={(
+          <>
+            <button
+              type="button"
+              onClick={limpiarConflictoVersion}
+              className="min-h-[44px] w-full rounded-xl px-4 text-sm font-medium text-[var(--jet-mid)] hover:bg-[var(--ash-light)] sm:w-auto"
+            >
+              Seguir revisando
+            </button>
+            <button
+              type="button"
+              onClick={recargarTrasConflicto}
+              className="min-h-[44px] w-full rounded-xl bg-[var(--docente-primary)] px-4 text-sm font-semibold text-white sm:w-auto"
+            >
+              Recargar versión reciente
+            </button>
+          </>
+        )}
+      >
+        <div className="space-y-3 text-sm text-[var(--jet-mid)]">
+          <p>Otra persona guardó cambios mientras editabas. No sobrescribimos su trabajo ni aplicamos el tuyo.</p>
+          <p>Al recargar verás la versión {conflictoVersion?.current_version ?? 'más reciente'}. Revisa las diferencias y vuelve a aplicar solamente los cambios necesarios.</p>
+        </div>
+      </Modal>
     </div>
   );
 }

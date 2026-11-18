@@ -1,6 +1,13 @@
 import { useState, useCallback, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import { getLapsos, createLapso, updateLapso, deleteLapso } from '../api/academico.service';
+import {
+  getLapsos,
+  createLapso,
+  updateLapso,
+  getChecklistCierreLapso,
+  cerrarLapsoSeguro,
+  reabrirLapso as solicitarReapertura,
+} from '../api/academico.service';
 import { LAPSO_VACIO } from '../utils/notas.utils';
 
 export function useLapsos() {
@@ -11,6 +18,10 @@ export function useLapsos() {
   const [guardandoLapso, setGuardandoLapso] = useState(false);
   const [cerrandoLapso, setCerrandoLapso] = useState(false);
   const [confirmCerrar, setConfirmCerrar] = useState(false);
+  const [checklistCierre, setChecklistCierre] = useState(null);
+  const [loadingChecklist, setLoadingChecklist] = useState(false);
+  const [impactoCierre, setImpactoCierre] = useState(null);
+  const [reabriendoLapso, setReabriendoLapso] = useState(false);
 
   const recargarLapsos = useCallback(() =>
     getLapsos()
@@ -24,6 +35,8 @@ export function useLapsos() {
     setLapsoEditando(null);
     setFormLapso(LAPSO_VACIO);
     setConfirmCerrar(false);
+    setChecklistCierre(null);
+    setImpactoCierre(null);
     setModalLapso(true);
   }, []);
 
@@ -39,12 +52,34 @@ export function useLapsos() {
       activo: lapso.activo ?? true,
     });
     setConfirmCerrar(false);
+    setChecklistCierre(null);
+    setImpactoCierre(null);
     setModalLapso(true);
   }, [lapsos]);
 
   const cerrarModal = useCallback(() => {
     setModalLapso(false);
     setConfirmCerrar(false);
+    setChecklistCierre(null);
+    setImpactoCierre(null);
+  }, []);
+
+  const cargarChecklistCierre = useCallback(async (lapsoId) => {
+    if (!lapsoId) return null;
+    setLoadingChecklist(true);
+    setImpactoCierre(null);
+    try {
+      const res = await getChecklistCierreLapso(lapsoId);
+      setChecklistCierre(res.data);
+      setConfirmCerrar(true);
+      return res.data;
+    } catch (err) {
+      const msg = err.response?.data?.error || err.response?.data?.detail || 'No se pudo verificar si el lapso está listo para cerrar.';
+      toast.error(msg);
+      return null;
+    } finally {
+      setLoadingChecklist(false);
+    }
   }, []);
 
   const guardarLapso = useCallback(async () => {
@@ -72,23 +107,54 @@ export function useLapsos() {
   }, [formLapso, lapsoEditando, recargarLapsos]);
 
   // Retorna true si el cierre fue exitoso — el llamador puede limpiar su estado de lapsoId
-  const cerrarLapso = useCallback(async (lapsoId) => {
+  const cerrarLapso = useCallback(async (lapsoId, opciones = {}) => {
     const lapso = lapsos.find(l => String(l.id) === String(lapsoId));
     if (!lapso) return false;
     setCerrandoLapso(true);
     try {
-      const res = await deleteLapso(lapso.id);
+      const res = await cerrarLapsoSeguro(lapso.id, opciones);
       toast.success(res.data?.mensaje || `Lapso "${lapso.nombre}" cerrado.`);
       setConfirmCerrar(false);
       setModalLapso(false);
       await recargarLapsos();
       return true;
     } catch (err) {
+      if (err.response?.status === 409 && err.response?.data?.codigo === 'LAPSO_INCOMPLETO') {
+        const impacto = err.response?.data?.impacto || null;
+        setImpactoCierre(impacto);
+        setChecklistCierre(impacto);
+        setConfirmCerrar(true);
+        toast.warning(err.response?.data?.error || 'El lapso todavía tiene pendientes que deben revisarse.');
+        return false;
+      }
       const msg = err.response?.data?.error || 'Error al cerrar el lapso.';
       toast.error(msg);
       return false;
     } finally {
       setCerrandoLapso(false);
+    }
+  }, [lapsos, recargarLapsos]);
+
+  const reabrirLapso = useCallback(async (lapsoId, motivo) => {
+    const lapso = lapsos.find(l => String(l.id) === String(lapsoId));
+    if (!lapso) return false;
+    if (!motivo?.trim()) {
+      toast.warning('Indica el motivo de la reapertura.');
+      return false;
+    }
+    setReabriendoLapso(true);
+    try {
+      const res = await solicitarReapertura(lapso.id, motivo.trim());
+      toast.success(res.data?.mensaje || `Lapso "${lapso.nombre}" reabierto.`);
+      setModalLapso(false);
+      await recargarLapsos();
+      return true;
+    } catch (err) {
+      const msg = err.response?.data?.error || err.response?.data?.detail || 'No se pudo reabrir el lapso.';
+      toast.error(msg);
+      return false;
+    } finally {
+      setReabriendoLapso(false);
     }
   }, [lapsos, recargarLapsos]);
 
@@ -99,11 +165,17 @@ export function useLapsos() {
     formLapso, setFormLapso,
     guardandoLapso,
     cerrandoLapso,
+    reabriendoLapso,
     confirmCerrar, setConfirmCerrar,
+    checklistCierre,
+    loadingChecklist,
+    impactoCierre,
     abrirModalCrear,
     abrirModalEditar,
     cerrarModal,
     guardarLapso,
+    cargarChecklistCierre,
     cerrarLapso,
+    reabrirLapso,
   };
 }
