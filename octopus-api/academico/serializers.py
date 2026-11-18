@@ -503,7 +503,7 @@ class PlanEvaluacionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model  = PlanEvaluacion
-        fields = ['id', 'materia_id', 'lapso_id', 'bloques']
+        fields = ['id', 'materia_id', 'lapso_id', 'version', 'bloques']
 
 
 # ─────────────────────────────────────────────
@@ -533,6 +533,7 @@ class PlanEvaluacionInputSerializer(serializers.Serializer):
     """Payload compartido por POST y PATCH de PlanEvaluacionView.
     materia_id/lapso_id NO van aquí: se toman de los query params
     (?materia_id=&lapso_id=), igual en los 3 métodos del endpoint."""
+    expected_version = serializers.IntegerField(required=False, min_value=1, write_only=True)
     bloques = BloqueEvaluacionInputSerializer(many=True)
 
 

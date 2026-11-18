@@ -261,6 +261,7 @@ class PlanEvaluacion(models.Model):
     )
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
+    version = models.PositiveIntegerField(default=1)
 
     class Meta:
         unique_together = ('materia', 'lapso')
@@ -269,6 +270,52 @@ class PlanEvaluacion(models.Model):
 
     def __str__(self):
         return f"Plan — {self.materia.nombre} ({self.lapso.nombre})"
+
+
+class VersionPlanEvaluacion(models.Model):
+    """Copia inmutable del árbol anterior a cada edición del plan."""
+
+    plan = models.ForeignKey(PlanEvaluacion, on_delete=models.PROTECT, related_name='versiones')
+    numero = models.PositiveIntegerField()
+    contenido = models.JSONField()
+    creado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.PROTECT,
+        related_name='versiones_plan_evaluacion_creadas',
+    )
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=('plan', 'numero'), name='academico_version_plan_unica'),
+        ]
+        ordering = ['plan_id', '-numero']
+
+
+class CierreLapso(models.Model):
+    """Snapshot auditable de un cierre. Nunca se modifica salvo al reabrirlo."""
+
+    lapso = models.ForeignKey(Lapso, on_delete=models.PROTECT, related_name='cierres')
+    version = models.PositiveIntegerField()
+    checklist = models.JSONField()
+    snapshot = models.JSONField()
+    override = models.BooleanField(default=False)
+    justificacion = models.TextField(blank=True)
+    cerrado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='cierres_lapso_realizados'
+    )
+    cerrado_en = models.DateTimeField(auto_now_add=True)
+    reabierto_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT,
+        related_name='reaperturas_lapso_realizadas',
+    )
+    reabierto_en = models.DateTimeField(null=True, blank=True)
+    motivo_reapertura = models.TextField(blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=('lapso', 'version'), name='academico_cierre_lapso_version_unica'),
+        ]
+        ordering = ['-cerrado_en']
 
 
 class BloqueEvaluacion(models.Model):

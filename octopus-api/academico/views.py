@@ -4,7 +4,8 @@ from decimal import Decimal
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Max, Q
+from django.utils import timezone
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -34,7 +35,9 @@ from .models import (
     PaqueteHorarioGrado,
     PlanEvaluacion,
     ConfiguracionCalificacion,
+    CierreLapso,
     ObservacionCalificacion,
+    VersionPlanEvaluacion,
 )
 from .calificaciones import (
     calcular_calificacion,
@@ -49,6 +52,8 @@ from .services import (
     calcular_radar_cierre_lapso,
     calcular_rendimiento_alumno,
     calcular_rendimiento_seccion,
+    construir_checklist_cierre,
+    construir_snapshot_cierre,
 )
 from .serializers import (
     AsistenciaBulkSerializer,
@@ -80,6 +85,7 @@ from .permissions import (
     materia_queryset_para,
     rol_usuario,
     sede_permitida,
+    sedes_academicas_ids,
 )
 from usuarios.models import crear_log
 
@@ -653,6 +659,12 @@ class NotasGradoView(APIView):
         # revienta a mitad de camino (constraint, timeout, etc.) se hace
         # rollback completo en vez de dejar un guardado parcial del grado.
         with transaction.atomic():
+            lapso = Lapso.objects.select_for_update().get(pk=lapso.pk)
+            if not lapso.activo:
+                return Response(
+                    {'error': 'El lapso fue cerrado mientras se preparaba la captura.'},
+                    status=status.HTTP_409_CONFLICT,
+                )
             for item in notas_data:
                 alumno_id = item['alumno_id']
                 alumno = alumnos_map.get(alumno_id)
@@ -1279,6 +1291,15 @@ class BoletinView(APIView):
             lapso = Lapso.objects.get(pk=lapso_id)
         except Lapso.DoesNotExist:
             return Response({'error': 'Lapso no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not lapso.activo:
+            cierre = CierreLapso.objects.filter(
+                lapso=lapso, reabierto_en__isnull=True,
+            ).order_by('-version').first()
+            if cierre:
+                boletin_cerrado = cierre.snapshot.get('boletines', {}).get(str(alumno.id))
+                if boletin_cerrado is not None:
+                    return Response(boletin_cerrado)
 
         materias_notas = []
         materias = materia_queryset_para(request.user, Materia.objects).filter(
@@ -2487,6 +2508,11 @@ class LapsoDetailView(APIView):
             lapso = Lapso.objects.get(pk=pk)
         except Lapso.DoesNotExist:
             return Response({'error': 'Lapso no encontrado.'}, status=404)
+        if 'activo' in request.data and bool(request.data['activo']) != lapso.activo:
+            return Response(
+                {'error': 'Use los endpoints explícitos de cierre o reapertura para cambiar el estado del lapso.'},
+                status=status.HTTP_409_CONFLICT,
+            )
         serializer = LapsoSerializer(lapso, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -2494,16 +2520,142 @@ class LapsoDetailView(APIView):
         return Response(serializer.errors, status=400)
 
     def delete(self, request, pk):
-        """Cierra el lapso (activo=False). No elimina para preservar notas."""
-        if not self._verificar_rol(request):
-            return Response({'error': 'Sin permiso.'}, status=403)
+        return Response(
+            {'error': 'El cierre requiere checklist. Use POST /lapsos/<id>/cerrar/.'},
+            status=status.HTTP_409_CONFLICT,
+        )
+
+
+def _validar_privilegio_y_alcance_cierre(request):
+    if not (request.user.is_superuser or _get_rol(request) in ('director', 'sistemas')):
+        return Response({'error': 'Solo director o sistemas puede gestionar el cierre de un lapso.'}, status=403)
+    permitidas = sedes_academicas_ids(request.user)
+    if permitidas is None:
+        return None
+    materias = Materia.objects.filter(activa=True)
+    requeridas = set(materias.exclude(sede_id__isnull=True).values_list('sede_id', flat=True))
+    sin_sede = materias.filter(sede_id__isnull=True).exists()
+    faltantes = sorted(requeridas - set(permitidas))
+    if faltantes or sin_sede:
+        return Response({
+            'error': 'El lapso es global y la cuenta no cubre todas las sedes académicas implicadas.',
+            'codigo': 'LAPSO_ALCANCE_SEDES_INCOMPLETO',
+            'impacto': {'sedes_faltantes': faltantes, 'materias_sin_sede': sin_sede},
+        }, status=status.HTTP_403_FORBIDDEN)
+    return None
+
+
+class ChecklistCierreLapsoView(APIView):
+    permission_classes = [IsAcademicoRead]
+
+    def get(self, request, pk):
+        error = _validar_privilegio_y_alcance_cierre(request)
+        if error:
+            return error
         try:
             lapso = Lapso.objects.get(pk=pk)
         except Lapso.DoesNotExist:
             return Response({'error': 'Lapso no encontrado.'}, status=404)
-        lapso.activo = False
-        lapso.save()
-        return Response({'mensaje': f'Lapso "{lapso.nombre}" cerrado correctamente.'})
+        return Response(construir_checklist_cierre(lapso))
+
+
+class CerrarLapsoView(APIView):
+    permission_classes = [IsAcademicoRead]
+
+    @staticmethod
+    def _autorizado(request):
+        return request.user.is_superuser or _get_rol(request) in ('director', 'sistemas')
+
+    def post(self, request, pk):
+        error = _validar_privilegio_y_alcance_cierre(request)
+        if error:
+            return error
+        with transaction.atomic():
+            try:
+                lapso = Lapso.objects.select_for_update().get(pk=pk)
+            except Lapso.DoesNotExist:
+                return Response({'error': 'Lapso no encontrado.'}, status=404)
+            if not lapso.activo:
+                return Response({'error': 'El lapso ya está cerrado.', 'codigo': 'LAPSO_YA_CERRADO'}, status=409)
+            checklist = construir_checklist_cierre(lapso)
+            override = bool(request.data.get('override', False))
+            justificacion = str(request.data.get('justificacion') or '').strip()
+            if not checklist['puede_cerrar'] and not override:
+                return Response(
+                    {'error': 'El lapso está incompleto.', 'codigo': 'LAPSO_INCOMPLETO', 'impacto': checklist},
+                    status=status.HTTP_409_CONFLICT,
+                )
+            if override and not justificacion:
+                return Response({'error': 'La justificación es obligatoria para el override.'}, status=400)
+            lapso.activo = False
+            lapso.save(update_fields=['activo'])
+            version = (CierreLapso.objects.filter(lapso=lapso).aggregate(m=Max('version'))['m'] or 0) + 1
+            cierre = CierreLapso.objects.create(
+                lapso=lapso, version=version, checklist=checklist,
+                snapshot=construir_snapshot_cierre(lapso), override=override,
+                justificacion=justificacion or str(request.data.get('motivo') or '').strip(),
+                cerrado_por=request.user,
+            )
+        return Response({
+            'mensaje': f'Lapso "{lapso.nombre}" cerrado correctamente.',
+            'cierre': {
+                'id': cierre.id, 'version': cierre.version, 'cerrado_en': cierre.cerrado_en,
+                'override': cierre.override, 'checklist': cierre.checklist, 'snapshot': cierre.snapshot,
+            },
+        })
+
+
+class ReabrirLapsoView(CerrarLapsoView):
+    def post(self, request, pk):
+        error = _validar_privilegio_y_alcance_cierre(request)
+        if error:
+            return error
+        motivo = str(request.data.get('motivo') or '').strip()
+        if not motivo:
+            return Response({'error': 'El motivo de reapertura es obligatorio.'}, status=400)
+        with transaction.atomic():
+            try:
+                lapso = Lapso.objects.select_for_update().get(pk=pk)
+            except Lapso.DoesNotExist:
+                return Response({'error': 'Lapso no encontrado.'}, status=404)
+            if lapso.activo:
+                return Response({'error': 'El lapso ya está abierto.', 'codigo': 'LAPSO_YA_ABIERTO'}, status=409)
+            cierre = CierreLapso.objects.select_for_update().filter(
+                lapso=lapso, reabierto_en__isnull=True,
+            ).order_by('-version').first()
+            if cierre is None:
+                return Response({'error': 'No existe un cierre auditable para reabrir.'}, status=409)
+            ahora = timezone.now()
+            cierre.reabierto_por = request.user
+            cierre.reabierto_en = ahora
+            cierre.motivo_reapertura = motivo
+            cierre.save(update_fields=['reabierto_por', 'reabierto_en', 'motivo_reapertura'])
+            lapso.activo = True
+            lapso.save(update_fields=['activo'])
+        return Response({
+            'mensaje': f'Lapso "{lapso.nombre}" reabierto correctamente.',
+            'reapertura': {'id': cierre.id, 'motivo': motivo, 'reabierto_en': ahora},
+        })
+
+
+class UltimoCierreLapsoView(APIView):
+    permission_classes = [IsAcademicoRead]
+
+    def get(self, request, pk):
+        error = _validar_privilegio_y_alcance_cierre(request)
+        if error:
+            return error
+        cierre = CierreLapso.objects.filter(lapso_id=pk).order_by('-version').first()
+        if cierre is None:
+            return Response({'error': 'El lapso no tiene cierres auditables.'}, status=404)
+        return Response({
+            'id': cierre.id, 'lapso_id': cierre.lapso_id, 'version': cierre.version,
+            'cerrado_en': cierre.cerrado_en, 'cerrado_por_id': cierre.cerrado_por_id,
+            'override': cierre.override, 'justificacion': cierre.justificacion,
+            'checklist': cierre.checklist, 'snapshot': cierre.snapshot,
+            'reabierto_en': cierre.reabierto_en, 'reabierto_por_id': cierre.reabierto_por_id,
+            'motivo_reapertura': cierre.motivo_reapertura,
+        })
 
 
 # ─────────────────────────────────────────────
@@ -3144,6 +3296,41 @@ def _sync_plan_bloques(plan, bloques_data):
             old_bloque.delete()
 
 
+def _contenido_plan(plan):
+    return PlanEvaluacionSerializer(
+        PlanEvaluacion.objects.filter(pk=plan.pk).prefetch_related('bloques__items').get()
+    ).data
+
+
+def _impacto_edicion_plan(plan, bloques_data):
+    """Valida ownership de IDs y calcula notas que el PATCH intentaría borrar."""
+    bloques = {b.id: b for b in plan.bloques.prefetch_related('items__notas').all()}
+    ids_bloques_payload = {b['id'] for b in bloques_data if b.get('id')}
+    ids_items_payload = {
+        i['id'] for bloque in bloques_data for i in bloque.get('items', []) if i.get('id')
+    }
+    ids_bloques_ajenos = [b['id'] for b in bloques_data if b.get('id') and b['id'] not in bloques]
+    items_del_plan = {i.id: i for bloque in bloques.values() for i in bloque.items.all()}
+    ids_items_ajenos = [
+        i['id'] for bloque in bloques_data for i in bloque.get('items', [])
+        if i.get('id') and i['id'] not in items_del_plan
+    ]
+    afectados = []
+    for item in items_del_plan.values():
+        bloque_eliminado = item.bloque_id not in ids_bloques_payload
+        if (bloque_eliminado or item.id not in ids_items_payload) and item.notas.exists():
+            afectados.append({
+                'id': item.id, 'nombre': item.nombre,
+                'bloque_id': item.bloque_id, 'notas_afectadas': item.notas.count(),
+            })
+    return {
+        'ids_bloques_ajenos': ids_bloques_ajenos,
+        'ids_items_ajenos': ids_items_ajenos,
+        'items': afectados,
+        'total_notas': sum(i['notas_afectadas'] for i in afectados),
+    }
+
+
 def _presupuesto_plan_existente(materia, lapso):
     plan = PlanEvaluacion.objects.filter(materia=materia, lapso=lapso).prefetch_related('bloques').first()
     if not plan:
@@ -3352,22 +3539,65 @@ class PlanEvaluacionView(APIView):
         if error:
             return error
 
-        plan = PlanEvaluacion.objects.filter(materia=materia, lapso=lapso).first()
-        if plan is None:
+        if not PlanEvaluacion.objects.filter(materia=materia, lapso=lapso).exists():
             return Response(
                 {'error': 'No existe un plan de evaluación para esta materia y lapso. Use POST para crearlo.'},
-                status=status.HTTP_404_NOT_FOUND
+                status=status.HTTP_404_NOT_FOUND,
             )
-
         serializer = PlanEvaluacionInputSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        expected_version = serializer.validated_data.get('expected_version')
+        if expected_version is None:
+            return Response(
+                {'error': 'expected_version es obligatorio para editar el plan.',
+                 'codigo': 'PLAN_VERSION_REQUIRED'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         errores_plan = _validar_payload_plan(materia, lapso, serializer.validated_data['bloques'])
         if errores_plan:
             return Response({'error': errores_plan}, status=status.HTTP_400_BAD_REQUEST)
 
         with transaction.atomic():
+            lapso = Lapso.objects.select_for_update().get(pk=lapso.pk)
+            if not lapso.activo:
+                return Response(
+                    {'error': 'El lapso fue cerrado mientras se preparaba la edición.',
+                     'codigo': 'LAPSO_CERRADO'},
+                    status=status.HTTP_409_CONFLICT,
+                )
+            plan = PlanEvaluacion.objects.select_for_update().filter(materia=materia, lapso=lapso).first()
+            if plan is None:
+                return Response(
+                    {'error': 'No existe un plan de evaluación para esta materia y lapso. Use POST para crearlo.'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            if plan.version != expected_version:
+                return Response({
+                    'error': 'El plan cambió desde que fue cargado.',
+                    'codigo': 'PLAN_VERSION_CONFLICT',
+                    'expected_version': expected_version,
+                    'current_version': plan.version,
+                }, status=status.HTTP_409_CONFLICT)
+            impacto = _impacto_edicion_plan(plan, serializer.validated_data['bloques'])
+            if impacto['ids_bloques_ajenos'] or impacto['ids_items_ajenos']:
+                return Response(
+                    {'error': 'El payload contiene bloques o ítems que no pertenecen a este plan.',
+                     'codigo': 'PLAN_IDS_AJENOS', 'impacto': impacto},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if impacto['total_notas']:
+                return Response(
+                    {'error': 'La edición eliminaría ítems que ya tienen calificaciones.',
+                     'codigo': 'PLAN_ITEMS_CON_NOTAS', 'impacto': impacto},
+                    status=status.HTTP_409_CONFLICT,
+                )
+            VersionPlanEvaluacion.objects.create(
+                plan=plan, numero=plan.version, contenido=_contenido_plan(plan), creado_por=request.user,
+            )
             _sync_plan_bloques(plan, serializer.validated_data['bloques'])
+            plan.version += 1
+            plan.save(update_fields=['version', 'actualizado_en'])
 
         plan = PlanEvaluacion.objects.filter(pk=plan.pk).prefetch_related('bloques__items').first()
         return Response(PlanEvaluacionSerializer(plan).data, status=status.HTTP_200_OK)
@@ -3541,6 +3771,12 @@ class PlanEvaluacionNotasView(APIView):
         # única transacción para evitar guardados parciales del plan si una
         # fila falla a mitad de camino.
         with transaction.atomic():
+            lapso = Lapso.objects.select_for_update().get(pk=lapso.pk)
+            if not lapso.activo:
+                return Response(
+                    {'error': 'El lapso fue cerrado mientras se preparaba la captura.'},
+                    status=status.HTTP_409_CONFLICT,
+                )
             for item_data, item, alumno in capturas_validas:
 
                 nota_item, _ = NotaItemEvaluacion.objects.update_or_create(

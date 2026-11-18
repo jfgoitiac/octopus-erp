@@ -9,11 +9,12 @@ from decimal import Decimal
 
 from django.utils import timezone
 
-from secretaria.models import Alumno
+from secretaria.models import Alumno, ConfiguracionSistema
 
 from .models import (
     AlertaRendimiento,
     Asistencia,
+    ConfiguracionCalificacion,
     ItemEvaluacion,
     Lapso,
     Materia,
@@ -36,6 +37,147 @@ def _periodo_escolar_activo():
     lo importan así — mismo comportamiento, sin duplicar la lógica."""
     from common.periodo import periodo_escolar_activo
     return periodo_escolar_activo()
+
+
+def _json_academico(valor):
+    """Convierte resultados canónicos a primitivas aptas para JSONField."""
+    if isinstance(valor, Decimal):
+        return str(valor)
+    if hasattr(valor, 'isoformat'):
+        return valor.isoformat()
+    if isinstance(valor, dict):
+        return {k: _json_academico(v) for k, v in valor.items()}
+    if isinstance(valor, (list, tuple)):
+        return [_json_academico(v) for v in valor]
+    return valor
+
+
+def construir_checklist_cierre(lapso):
+    """Diagnóstico determinista previo al cierre de un lapso."""
+    materias = list(Materia.objects.filter(activa=True).select_related('sede').order_by('id'))
+    planes = set(PlanEvaluacion.objects.filter(lapso=lapso).values_list('materia_id', flat=True))
+    configuradas = set(
+        ConfiguracionCalificacion.objects.filter(lapso=lapso, motor__isnull=False)
+        .exclude(motor='').values_list('materia_id', flat=True)
+    )
+    sin_plan = []
+    pendientes = []
+    inconsistencias = []
+    for materia in materias:
+        if materia.id not in configuradas:
+            sin_plan.append({'materia_id': materia.id, 'materia': materia.nombre, 'motivo': 'fuente_sin_resolver'})
+        resultados = calcular_calificaciones_seccion(materia, lapso)
+        for resultado in resultados:
+            if resultado['inconsistencias']:
+                inconsistencias.append({
+                    'materia_id': materia.id, 'alumno_id': resultado['alumno_id'],
+                    'codigos': resultado['inconsistencias'],
+                })
+            if resultado['estado'] != 'completo':
+                pendientes.append({
+                    'materia_id': materia.id, 'materia': materia.nombre,
+                    'alumno_id': resultado['alumno_id'], 'alumno': resultado['alumno_nombre'],
+                    'estado': resultado['estado'], 'progreso': resultado['progreso'],
+                })
+    puede_cerrar = not sin_plan and not pendientes and not inconsistencias
+    return _json_academico({
+        'lapso_id': lapso.id,
+        'puede_cerrar': puede_cerrar,
+        'planes_configurados': not sin_plan,
+        'notas_completas': not pendientes,
+        'inconsistencias': inconsistencias,
+        'resumen': {
+            'materias_total': len(materias),
+            'materias_con_plan': len(planes),
+            'materias_sin_plan': len(sin_plan),
+            'notas_pendientes': len(pendientes),
+            'inconsistencias': len(inconsistencias),
+        },
+        'materias_sin_plan': sin_plan,
+        'notas_pendientes': pendientes,
+    })
+
+
+def construir_snapshot_cierre(lapso):
+    """Resultado canónico reproducible, incluyendo las sedes derivadas."""
+    materias = Materia.objects.filter(activa=True).select_related('sede').order_by('id')
+    filas = []
+    boletines = {}
+    sedes = set()
+    for materia in materias:
+        if materia.sede_id:
+            sedes.add(materia.sede_id)
+        resultados = calcular_calificaciones_seccion(materia, lapso)
+        filas.append({
+            'materia_id': materia.id,
+            'materia': materia.nombre,
+            'sede_id': materia.sede_id,
+            'grado_seccion': materia.grado_seccion,
+            'resultados': resultados,
+        })
+        notas_legacy = {
+            n.alumno_id: n for n in Nota.objects.filter(materia=materia, lapso=lapso)
+        }
+        alumnos = {
+            a.id: a for a in Alumno.objects.filter(id__in=[r['alumno_id'] for r in resultados])
+        }
+        for resultado in resultados:
+            alumno = alumnos[resultado['alumno_id']]
+            entrada = boletines.setdefault(str(alumno.id), {
+                'alumno': {
+                    'id': alumno.id, 'nombre': alumno.nombre, 'apellido': alumno.apellido,
+                    'grado_seccion': alumno.grado_seccion, 'cedula_escolar': alumno.cedula_escolar,
+                },
+                'lapso': {
+                    'id': lapso.id, 'nombre': lapso.nombre,
+                    'periodo_escolar': lapso.periodo_escolar,
+                    'fecha_inicio': lapso.fecha_inicio, 'fecha_fin': lapso.fecha_fin,
+                    'activo': False,
+                },
+                'materias': [], 'promedio_general': None,
+                'asistencia': {}, 'colegio': {},
+            })
+            legacy = notas_legacy.get(alumno.id)
+            entrada['materias'].append({
+                'materia_id': materia.id, 'materia_nombre': materia.nombre,
+                'evaluacion_1': legacy.evaluacion_1 if legacy else None,
+                'evaluacion_2': legacy.evaluacion_2 if legacy else None,
+                'evaluacion_3': legacy.evaluacion_3 if legacy else None,
+                'evaluacion_4': legacy.evaluacion_4 if legacy else None,
+                'definitiva': resultado['definitiva'],
+                'definitiva_letra': resultado['definitiva_literal'],
+                'aprobado': resultado['aprobado'],
+                'cuenta_para_promedio': resultado['cuenta_para_promedio'],
+                'resultado': resultado,
+            })
+    config = ConfiguracionSistema.objects.first()
+    colegio = {}
+    if config:
+        colegio = {
+            'nombre_colegio': config.nombre_colegio, 'rif': config.rif,
+            'direccion': config.direccion_colegio, 'telefono': config.telefono_colegio,
+            'correo': config.correo_colegio, 'municipio': config.municipio,
+            'estado': config.estado_colegio, 'periodo_escolar': config.periodo_escolar_activo,
+        }
+    for alumno_id, boletin in boletines.items():
+        definitivas = [
+            Decimal(str(m['definitiva'])) for m in boletin['materias']
+            if m['definitiva'] is not None and m['cuenta_para_promedio']
+        ]
+        boletin['promedio_general'] = sum(definitivas) / len(definitivas) if definitivas else None
+        asistencias = Asistencia.objects.filter(
+            alumno_id=int(alumno_id), fecha__gte=lapso.fecha_inicio, fecha__lte=lapso.fecha_fin,
+        )
+        total = asistencias.count()
+        presentes = asistencias.filter(presente=True).count()
+        boletin['asistencia'] = {
+            'total_dias': total, 'dias_presentes': presentes, 'ausencias': total - presentes,
+        }
+        boletin['colegio'] = colegio
+    return _json_academico({
+        'lapso_id': lapso.id, 'periodo_escolar': lapso.periodo_escolar,
+        'sedes_derivadas': sorted(sedes), 'materias': filas, 'boletines': boletines,
+    })
 
 
 def calcular_rendimiento_alumno(alumno):

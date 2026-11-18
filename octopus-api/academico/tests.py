@@ -18,6 +18,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from authentication.models import PerfilUsuario
+from multisede.models import PermisoSede, Sede
 from secretaria.models import Alumno, ConfiguracionGrado, Representante
 
 from django.db import IntegrityError, transaction
@@ -25,7 +26,7 @@ from django.db import IntegrityError, transaction
 from .models import (
     AlertaRendimiento, Asistencia, BloqueEvaluacion, Docente, HorarioClase, IncidenteDisciplinario,
     ConfiguracionCalificacion, ItemEvaluacion, Lapso, Materia, MaterialEstudio, Nota,
-    NotaItemEvaluacion, PlanEvaluacion,
+    NotaItemEvaluacion, PlanEvaluacion, CierreLapso, VersionPlanEvaluacion,
 )
 from .serializers import estado_a_booleanos
 from .services import (
@@ -914,6 +915,7 @@ class PlanEvaluacionEndpointTests(TestCase):
         resp = self.client.post(
             f'/api/academico/docente/plan-evaluacion/?materia_id={self.materia.id}&lapso_id={self.lapso.id}',
             {
+                'expected_version': 1,
                 'bloques': [
                     {
                         'nombre': 'Contenido', 'modo': 'puntos', 'total_puntos': '15.00', 'orden': 1,
@@ -962,6 +964,7 @@ class PlanEvaluacionEndpointTests(TestCase):
         resp = self.client.patch(
             f'/api/academico/docente/plan-evaluacion/?materia_id={self.materia.id}&lapso_id={self.lapso.id}',
             {
+                'expected_version': 1,
                 'bloques': [
                     {
                         'id': bloque.id, 'nombre': 'Contenido', 'modo': 'puntos',
@@ -981,6 +984,66 @@ class PlanEvaluacionEndpointTests(TestCase):
         self.assertEqual(item.nombre, 'Examen (editado)')
         # La nota ligada al item original sigue existiendo (mismo PK conservado)
         self.assertTrue(NotaItemEvaluacion.objects.filter(item=item, alumno=self.alumno).exists())
+
+    def test_patch_que_omite_item_con_notas_devuelve_409_sin_perder_datos(self):
+        plan = PlanEvaluacion.objects.create(materia=self.materia, lapso=self.lapso)
+        bloque = BloqueEvaluacion.objects.create(plan=plan, nombre='Contenido', modo='puntos')
+        item = ItemEvaluacion.objects.create(bloque=bloque, nombre='Examen', valor_maximo=15)
+        nota = NotaItemEvaluacion.objects.create(
+            item=item, alumno=self.alumno, valor_numerico=Decimal('10.00')
+        )
+        self.client.force_authenticate(user=self.docente)
+        resp = self.client.patch(
+            f'/api/academico/docente/plan-evaluacion/?materia_id={self.materia.id}&lapso_id={self.lapso.id}',
+            {'expected_version': 1, 'bloques': [{'id': bloque.id, 'nombre': 'Contenido', 'modo': 'puntos',
+                          'total_puntos': '15.00', 'items': [
+                              {'nombre': 'Sustituto', 'valor_maximo': '15.00'},
+                          ]}]},
+            format='json',
+        )
+        self.assertEqual(resp.status_code, 409, resp.content)
+        self.assertEqual(resp.data['codigo'], 'PLAN_ITEMS_CON_NOTAS')
+        self.assertEqual(resp.data['impacto']['total_notas'], 1)
+        self.assertTrue(ItemEvaluacion.objects.filter(pk=item.pk).exists())
+        self.assertTrue(NotaItemEvaluacion.objects.filter(pk=nota.pk).exists())
+        self.assertEqual(VersionPlanEvaluacion.objects.count(), 0)
+
+    def test_patch_seguro_versiona_plan_anterior(self):
+        plan = PlanEvaluacion.objects.create(materia=self.materia, lapso=self.lapso)
+        bloque = BloqueEvaluacion.objects.create(plan=plan, nombre='Contenido', modo='puntos')
+        item = ItemEvaluacion.objects.create(bloque=bloque, nombre='Examen', valor_maximo=15)
+        self.client.force_authenticate(user=self.docente)
+        resp = self.client.patch(
+            f'/api/academico/docente/plan-evaluacion/?materia_id={self.materia.id}&lapso_id={self.lapso.id}',
+            {'expected_version': 1, 'bloques': [{'id': bloque.id, 'nombre': 'Contenido', 'modo': 'puntos',
+                          'total_puntos': '15.00', 'items': [
+                              {'id': item.id, 'nombre': 'Examen final', 'valor_maximo': '15.00'},
+                          ]}]},
+            format='json',
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.data['version'], 2)
+        version = VersionPlanEvaluacion.objects.get(plan=plan, numero=1)
+        self.assertEqual(version.contenido['bloques'][0]['items'][0]['nombre'], 'Examen')
+
+    def test_patch_rechaza_version_stale(self):
+        plan = PlanEvaluacion.objects.create(materia=self.materia, lapso=self.lapso, version=2)
+        bloque = BloqueEvaluacion.objects.create(plan=plan, nombre='Contenido', modo='puntos')
+        item = ItemEvaluacion.objects.create(bloque=bloque, nombre='Examen', valor_maximo=15)
+        self.client.force_authenticate(user=self.docente)
+        resp = self.client.patch(
+            f'/api/academico/docente/plan-evaluacion/?materia_id={self.materia.id}&lapso_id={self.lapso.id}',
+            {'expected_version': 1, 'bloques': [
+                {'id': bloque.id, 'nombre': 'Contenido', 'modo': 'puntos',
+                 'total_puntos': '15.00', 'items': [
+                    {'id': item.id, 'nombre': 'Examen', 'valor_maximo': '15.00'},
+                 ]},
+            ]}, format='json',
+        )
+        self.assertEqual(resp.status_code, 409, resp.content)
+        self.assertEqual(resp.data['codigo'], 'PLAN_VERSION_CONFLICT')
+        self.assertEqual(resp.data['current_version'], 2)
+        self.assertEqual(VersionPlanEvaluacion.objects.count(), 0)
 
     def test_patch_sin_plan_previo_devuelve_404(self):
         self.client.force_authenticate(user=self.docente)
@@ -1087,6 +1150,144 @@ class PlanEvaluacionEndpointTests(TestCase):
         }, format='json')
         self.assertEqual(resp.status_code, 400, resp.content)
         self.assertEqual(NotaItemEvaluacion.objects.count(), 0)
+
+
+class CierreLapsoSeguroTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.director = crear_usuario('director_cierre_lapso', 'director')
+        self.docente = crear_usuario('docente_cierre_lapso', 'docente')
+        self.materia = Materia.objects.create(
+            nombre='Historia', grado_seccion='7mo A', tipo_evaluacion='numerica',
+            docente=self.docente, activa=True,
+        )
+        self.lapso = Lapso.objects.create(
+            nombre='1er Lapso', periodo_escolar='2030-2031',
+            fecha_inicio=date(2030, 9, 1), fecha_fin=date(2030, 12, 15), activo=True,
+        )
+
+    def test_lapso_incompleto_no_cierra_sin_override(self):
+        self.client.force_authenticate(user=self.director)
+        resp = self.client.post(f'/api/academico/lapsos/{self.lapso.id}/cerrar/', {}, format='json')
+        self.assertEqual(resp.status_code, 409, resp.content)
+        self.assertEqual(resp.data['codigo'], 'LAPSO_INCOMPLETO')
+        self.lapso.refresh_from_db()
+        self.assertTrue(self.lapso.activo)
+        self.assertEqual(CierreLapso.objects.count(), 0)
+
+    def test_docente_no_puede_consultar_checklist_global(self):
+        self.client.force_authenticate(user=self.docente)
+        resp = self.client.get(f'/api/academico/lapsos/{self.lapso.id}/checklist-cierre/')
+        self.assertEqual(resp.status_code, 403)
+
+    def test_director_parcial_no_puede_cerrar_lapso_global_multisede(self):
+        sede_a = Sede.objects.create(nombre='Sede cierre A')
+        sede_b = Sede.objects.create(nombre='Sede cierre B')
+        self.materia.sede = sede_a
+        self.materia.save(update_fields=['sede'])
+        Materia.objects.create(
+            nombre='Geografía', grado_seccion='7mo B', tipo_evaluacion='numerica',
+            docente=self.docente, activa=True, sede=sede_b,
+        )
+        PermisoSede.objects.create(user=self.director, sede=sede_a, rol='director')
+        self.client.force_authenticate(user=self.director)
+        resp = self.client.post(
+            f'/api/academico/lapsos/{self.lapso.id}/cerrar/',
+            {'override': True, 'justificacion': 'No debe alcanzar'}, format='json',
+        )
+        self.assertEqual(resp.status_code, 403, resp.content)
+        self.assertEqual(resp.data['codigo'], 'LAPSO_ALCANCE_SEDES_INCOMPLETO')
+        self.assertIn(sede_b.id, resp.data['impacto']['sedes_faltantes'])
+        self.lapso.refresh_from_db()
+        self.assertTrue(self.lapso.activo)
+
+    def test_override_requiere_justificacion_y_crea_snapshot(self):
+        self.client.force_authenticate(user=self.director)
+        sin_motivo = self.client.post(
+            f'/api/academico/lapsos/{self.lapso.id}/cerrar/', {'override': True}, format='json'
+        )
+        self.assertEqual(sin_motivo.status_code, 400)
+        resp = self.client.post(
+            f'/api/academico/lapsos/{self.lapso.id}/cerrar/',
+            {'override': True, 'justificacion': 'Cierre extraordinario autorizado'}, format='json',
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        cierre = CierreLapso.objects.get()
+        self.assertTrue(cierre.override)
+        self.assertEqual(cierre.cerrado_por, self.director)
+        self.assertEqual(cierre.snapshot['lapso_id'], self.lapso.id)
+        self.assertIn('sedes_derivadas', cierre.snapshot)
+        self.lapso.refresh_from_db()
+        self.assertFalse(self.lapso.activo)
+
+    def test_reapertura_restringida_auditada_y_con_motivo(self):
+        self.client.force_authenticate(user=self.director)
+        self.client.post(
+            f'/api/academico/lapsos/{self.lapso.id}/cerrar/',
+            {'override': True, 'justificacion': 'Cierre extraordinario'}, format='json',
+        )
+        self.client.force_authenticate(user=self.docente)
+        prohibida = self.client.post(
+            f'/api/academico/lapsos/{self.lapso.id}/reabrir/', {'motivo': 'Intento'}, format='json'
+        )
+        self.assertEqual(prohibida.status_code, 403)
+        self.client.force_authenticate(user=self.director)
+        sin_motivo = self.client.post(f'/api/academico/lapsos/{self.lapso.id}/reabrir/', {}, format='json')
+        self.assertEqual(sin_motivo.status_code, 400)
+        resp = self.client.post(
+            f'/api/academico/lapsos/{self.lapso.id}/reabrir/',
+            {'motivo': 'Corrección autorizada de acta'}, format='json',
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        cierre = CierreLapso.objects.get()
+        self.assertEqual(cierre.reabierto_por, self.director)
+        self.assertEqual(cierre.motivo_reapertura, 'Corrección autorizada de acta')
+        self.lapso.refresh_from_db()
+        self.assertTrue(self.lapso.activo)
+
+    def test_ultimo_cierre_devuelve_snapshot_inmutable(self):
+        self.client.force_authenticate(user=self.director)
+        cierre_resp = self.client.post(
+            f'/api/academico/lapsos/{self.lapso.id}/cerrar/',
+            {'override': True, 'justificacion': 'Cierre para acta'}, format='json',
+        )
+        self.assertEqual(cierre_resp.status_code, 200, cierre_resp.content)
+        nombre_cerrado = cierre_resp.data['cierre']['snapshot']['materias'][0]['materia']
+        self.materia.nombre = 'Nombre cambiado después del cierre'
+        self.materia.save(update_fields=['nombre'])
+        resp = self.client.get(f'/api/academico/lapsos/{self.lapso.id}/ultimo-cierre/')
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.data['snapshot']['materias'][0]['materia'], nombre_cerrado)
+        self.assertNotEqual(resp.data['snapshot']['materias'][0]['materia'], self.materia.nombre)
+
+    def test_boletin_cerrado_usa_snapshot_aunque_cambien_nota_y_alumno(self):
+        alumno = crear_alumno('E-CIERRE-001', grado_seccion='7mo A')
+        ConfiguracionCalificacion.objects.create(
+            materia=self.materia, lapso=self.lapso, motor='legacy',
+            evaluaciones_esperadas=1, origen='test_cierre',
+        )
+        nota = Nota.objects.create(
+            alumno=alumno, materia=self.materia, lapso=self.lapso,
+            evaluacion_1=Decimal('12.00'),
+        )
+        self.client.force_authenticate(user=self.director)
+        cierre = self.client.post(
+            f'/api/academico/lapsos/{self.lapso.id}/cerrar/',
+            {'override': True, 'justificacion': 'Cierre reproducible'}, format='json',
+        )
+        self.assertEqual(cierre.status_code, 200, cierre.content)
+        boletin_cerrado = cierre.data['cierre']['snapshot']['boletines'][str(alumno.id)]
+        nota.evaluacion_1 = Decimal('2.00')
+        nota.save()
+        alumno.nombre = 'Nombre alterado después del cierre'
+        alumno.save(update_fields=['nombre'])
+        resp = self.client.get('/api/academico/boletin/', {
+            'alumno_id': alumno.id, 'lapso_id': self.lapso.id,
+        })
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual(resp.data, boletin_cerrado)
+        self.assertEqual(resp.data['materias'][0]['definitiva'], '12.00')
+        self.assertNotEqual(resp.data['alumno']['nombre'], alumno.nombre)
 
 
 # ─────────────────────────────────────────────
