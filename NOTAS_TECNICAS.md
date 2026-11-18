@@ -4587,3 +4587,21 @@ tasa). Deuda nueva (solo anotada):
    participan planes cuyo motor activo es `plan` y la API impide superar 20,
    pero los datos históricos importados deben revisarse con
    `auditar_calificaciones` antes de habilitarlos.
+
+## Fase 2 de Control de Estudios: planes seguros y cierre (2026-11-17)
+
+1. **`Lapso` continúa siendo global**: mientras no exista la relación
+   normalizada con periodo y sede prevista para la Fase 3, el cierre se bloquea
+   en instalaciones multi-sede cuando el actor no cubre todas las sedes activas
+   o existen materias activas sin sede. Es una protección fail-closed, no el
+   modelo multi-sede definitivo.
+2. **Costo del checklist y del snapshot**: el cierre calcula resultados y
+   boletines alumno por alumno mediante el servicio canónico. La corrección y
+   reproducibilidad tienen prioridad en esta fase, pero debe perfilarse y
+   convertirse a consultas por lote antes de cierres con matrículas grandes.
+3. **Lint heredado del portal docente**: los archivos
+   `PlanEvaluacionPanel.jsx` y `useDocentePlanEvaluacion.js` conservan avisos de
+   `react-refresh/only-export-components` y
+   `react-hooks/set-state-in-effect` anteriores a esta fase. Las pruebas,
+   build y E2E focalizados pasan; corregir esos patrones requiere un refactor
+   separado para no mezclar alcance.
