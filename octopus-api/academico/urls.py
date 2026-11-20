@@ -49,9 +49,17 @@ from .views import (
     AlertasRendimientoView,
     PlanEvaluacionView,
     PlanEvaluacionNotasView,
+    PeriodosEscolaresView,
+    PeriodoEscolarDetailView,
+    GradosSeccionesView,
+    IncidenciasMigracionAcademicaView,
 )
 
 urlpatterns = [
+    path('periodos-escolares/', PeriodosEscolaresView.as_view()),
+    path('periodos-escolares/<int:pk>/', PeriodoEscolarDetailView.as_view()),
+    path('secciones/', GradosSeccionesView.as_view()),
+    path('migracion-academica/incidencias/', IncidenciasMigracionAcademicaView.as_view()),
     path('materias/',              MateriasView.as_view()),
     path('materias/<int:pk>/',     MateriaDetailView.as_view()),
     path('docentes/',              DocentesView.as_view()),

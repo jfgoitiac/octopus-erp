@@ -6,8 +6,42 @@ from .models import (
     MaterialEstudio, EventoCalendario,
     PlanEvaluacion, BloqueEvaluacion, ItemEvaluacion, NotaItemEvaluacion, Docente,
     PaqueteHorario, PaqueteHorarioGrado, BloqueHorario, DisponibilidadDocente,
+    PeriodoEscolar, GradoSeccion, IncidenciaMigracionAcademica,
 )
 from .services import calcular_rendimiento_seccion
+
+
+class PeriodoEscolarSerializer(serializers.ModelSerializer):
+    sede_nombre = serializers.CharField(source='sede.nombre', read_only=True)
+
+    class Meta:
+        model = PeriodoEscolar
+        fields = [
+            'id', 'sede', 'sede_nombre', 'nombre', 'fecha_inicio', 'fecha_fin',
+            'estado', 'creado_en',
+        ]
+        read_only_fields = ['creado_en']
+
+
+class GradoSeccionSerializer(serializers.ModelSerializer):
+    periodo_id = serializers.PrimaryKeyRelatedField(
+        source='periodo', queryset=PeriodoEscolar.objects.select_related('sede').all()
+    )
+    periodo_nombre = serializers.CharField(source='periodo.nombre', read_only=True)
+    sede = serializers.IntegerField(source='periodo.sede_id', read_only=True)
+
+    class Meta:
+        model = GradoSeccion
+        fields = [
+            'id', 'periodo_id', 'periodo_nombre', 'sede', 'nombre', 'codigo', 'activo',
+        ]
+
+
+class IncidenciaMigracionAcademicaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = IncidenciaMigracionAcademica
+        fields = ['id', 'tipo', 'modelo', 'objeto_id', 'detalle', 'resuelta', 'creada_en']
+        read_only_fields = fields
 
 
 # ─────────────────────────────────────────────
@@ -21,13 +55,22 @@ class MateriaSerializer(serializers.ModelSerializer):
     )
     docente_username = serializers.SerializerMethodField()
     docente_nombre = serializers.SerializerMethodField()
+    periodo_id = serializers.PrimaryKeyRelatedField(
+        source='periodo', queryset=PeriodoEscolar.objects.select_related('sede').all(),
+        required=False, allow_null=True,
+    )
+    seccion_id = serializers.PrimaryKeyRelatedField(
+        source='grado', queryset=GradoSeccion.objects.select_related('periodo').all(),
+        required=False, allow_null=True,
+    )
+    grado_id = serializers.IntegerField(read_only=True)
 
     class Meta:
         model  = Materia
         fields = [
             'id', 'nombre', 'codigo', 'grado_seccion', 'docente_id', 'docente_username',
             'docente_nombre',
-            'activa', 'horas_academicas', 'sede',
+            'activa', 'horas_academicas', 'sede', 'periodo_id', 'seccion_id', 'grado_id',
             # Plan de Evaluación (sistema nuevo) — editables solo por admin/control de estudios
             'tipo_evaluacion', 'aporta_a_todas_las_materias', 'cuenta_para_promedio',
         ]
@@ -50,6 +93,21 @@ class MateriaSerializer(serializers.ModelSerializer):
                 'El usuario seleccionado no tiene rol "docente" y no puede ser asignado como docente de una materia.'
             )
         return value
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        periodo = attrs.get('periodo', getattr(self.instance, 'periodo', None))
+        grado = attrs.get('grado', getattr(self.instance, 'grado', None))
+        sede = attrs.get('sede', getattr(self.instance, 'sede', None))
+        if grado:
+            if periodo and grado.periodo_id != periodo.id:
+                raise serializers.ValidationError({'seccion_id': 'La sección pertenece a otro período.'})
+            if sede and grado.periodo.sede_id != sede.id:
+                raise serializers.ValidationError({'seccion_id': 'La sección pertenece a otra sede.'})
+            attrs['grado_seccion'] = grado.nombre
+            attrs['periodo'] = grado.periodo
+            attrs['sede'] = grado.periodo.sede
+        return attrs
 
 
 # ─────────────────────────────────────────────
@@ -112,9 +170,24 @@ class DocenteSerializer(serializers.ModelSerializer):
 # LAPSO
 # ─────────────────────────────────────────────
 class LapsoSerializer(serializers.ModelSerializer):
+    periodo_id = serializers.PrimaryKeyRelatedField(
+        source='periodo', queryset=PeriodoEscolar.objects.all(), required=False, allow_null=True
+    )
+    periodo_detalle = PeriodoEscolarSerializer(source='periodo', read_only=True)
+
     class Meta:
         model  = Lapso
-        fields = '__all__'
+        fields = [
+            'id', 'nombre', 'periodo_escolar', 'periodo_id', 'periodo_detalle',
+            'fecha_inicio', 'fecha_fin', 'activo',
+        ]
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        periodo = attrs.get('periodo', getattr(self.instance, 'periodo', None))
+        if periodo:
+            attrs['periodo_escolar'] = periodo.nombre
+        return attrs
 
 
 # ─────────────────────────────────────────────
@@ -204,7 +277,7 @@ class AsistenciaSerializer(serializers.ModelSerializer):
 
     class Meta:
         model  = Asistencia
-        fields = ['id', 'alumno_id', 'alumno_nombre', 'fecha', 'presente', 'justificada', 'estado', 'observacion', 'actualizado_en']
+        fields = ['id', 'alumno_id', 'alumno_nombre', 'fecha', 'presente', 'justificada', 'estado', 'observacion', 'actualizado_en', 'periodo_id', 'grado_id', 'sede_id']
 
     def get_alumno_nombre(self, obj):
         return f"{obj.alumno.nombre} {obj.alumno.apellido}"
@@ -247,6 +320,8 @@ class AsistenciaBulkSerializer(serializers.Serializer):
     """
     fecha         = serializers.DateField()
     grado_seccion = serializers.CharField(max_length=50)
+    periodo_id     = serializers.IntegerField(required=False, allow_null=True)
+    seccion_id     = serializers.IntegerField(required=False, allow_null=True)
     registros     = AsistenciaRegistroSerializer(many=True)
 
 
@@ -272,6 +347,12 @@ class HorarioClaseSerializer(serializers.ModelSerializer):
         required=False, allow_null=True,
     )
     dia_semana_label = serializers.SerializerMethodField()
+    periodo_id = serializers.PrimaryKeyRelatedField(
+        source='periodo', queryset=PeriodoEscolar.objects.all(), required=False, allow_null=True,
+    )
+    seccion_id = serializers.PrimaryKeyRelatedField(
+        source='grado', queryset=GradoSeccion.objects.all(), required=False, allow_null=True,
+    )
 
     class Meta:
         model  = HorarioClase
@@ -279,7 +360,7 @@ class HorarioClaseSerializer(serializers.ModelSerializer):
             'id', 'materia', 'materia_id',
             'dia_semana', 'dia_semana_label',
             'hora_inicio', 'hora_fin', 'aula',
-            'bloque_id', 'pineado',
+            'bloque_id', 'pineado', 'periodo_id', 'seccion_id',
         ]
         extra_kwargs = {
             # Se derivan de `bloque` en validate() cuando se manda bloque_id
@@ -321,10 +402,23 @@ class HorarioClaseSerializer(serializers.ModelSerializer):
 # PAQUETE DE HORARIO / BLOQUE / DISPONIBILIDAD (rediseño 2026-09)
 # ─────────────────────────────────────────────
 class PaqueteHorarioGradoSerializer(serializers.ModelSerializer):
+    seccion_id = serializers.PrimaryKeyRelatedField(
+        source='grado', queryset=GradoSeccion.objects.all(), required=False, allow_null=True,
+    )
     class Meta:
         model  = PaqueteHorarioGrado
-        fields = ['id', 'paquete', 'grado_seccion']
+        fields = ['id', 'paquete', 'grado_seccion', 'seccion_id']
         extra_kwargs = {'paquete': {'required': False}}
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        grado = attrs.get('grado', getattr(self.instance, 'grado', None))
+        paquete = attrs.get('paquete', getattr(self.instance, 'paquete', None))
+        if grado:
+            if paquete and paquete.periodo_id and grado.periodo_id != paquete.periodo_id:
+                raise serializers.ValidationError({'seccion_id': 'La sección pertenece a otro período.'})
+            attrs['grado_seccion'] = grado.nombre
+        return attrs
 
 
 class BloqueHorarioSerializer(serializers.ModelSerializer):
@@ -345,11 +439,14 @@ class BloqueHorarioSerializer(serializers.ModelSerializer):
 class PaqueteHorarioSerializer(serializers.ModelSerializer):
     grados = serializers.SerializerMethodField()
     creado_por_username = serializers.SerializerMethodField()
+    periodo_id = serializers.PrimaryKeyRelatedField(
+        source='periodo', queryset=PeriodoEscolar.objects.all(), required=False, allow_null=True,
+    )
 
     class Meta:
         model  = PaqueteHorario
         fields = [
-            'id', 'nombre', 'periodo_escolar', 'sede', 'estado',
+            'id', 'nombre', 'periodo_escolar', 'periodo_id', 'sede', 'estado',
             'creado_por', 'creado_por_username', 'creado_en', 'actualizado_en',
             'grados',
         ]
@@ -360,6 +457,17 @@ class PaqueteHorarioSerializer(serializers.ModelSerializer):
 
     def get_creado_por_username(self, obj):
         return obj.creado_por.username if obj.creado_por else None
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        periodo = attrs.get('periodo', getattr(self.instance, 'periodo', None))
+        sede = attrs.get('sede', getattr(self.instance, 'sede', None))
+        if periodo:
+            if sede and periodo.sede_id != sede.id:
+                raise serializers.ValidationError({'periodo_id': 'El período pertenece a otra sede.'})
+            attrs['sede'] = periodo.sede
+            attrs['periodo_escolar'] = periodo.nombre
+        return attrs
 
 
 # ─────────────────────────────────────────────

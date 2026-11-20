@@ -334,7 +334,11 @@ class BienNacional(models.Model):
 # CONFIGURACIÓN DE GRADO
 # ─────────────────────────────────────────────
 class ConfiguracionGrado(models.Model):
-    grado_seccion    = models.CharField(max_length=50, unique=True)
+    grado_seccion    = models.CharField(max_length=50)
+    grado = models.OneToOneField(
+        'academico.GradoSeccion', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='configuracion_cupos',
+    )
     cupos_maximos    = models.PositiveIntegerField(default=30)
     cupos_utilizados = models.PositiveIntegerField(default=0, editable=False)
     # Aula "hogar" fija del grado (ej. "Aula 12"). El generador automático de
@@ -344,12 +348,25 @@ class ConfiguracionGrado(models.Model):
     # generador sigue creando las clases sin aula, como antes.
     aula_fija        = models.CharField(max_length=50, blank=True, default='')
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=('grado_seccion',), condition=models.Q(grado__isnull=True),
+                name='secretaria_config_grado_legacy_unico',
+            ),
+        ]
+
     @property
     def cupos_disponibles(self):
         return self.cupos_maximos - self.cupos_utilizados
 
     def __str__(self):
         return f"{self.grado_seccion} ({self.cupos_utilizados}/{self.cupos_maximos})"
+
+    def save(self, *args, **kwargs):
+        if self.grado_id:
+            self.grado_seccion = self.grado.nombre
+        super().save(*args, **kwargs)
 
 
 # ─────────────────────────────────────────────
@@ -364,6 +381,18 @@ class Inscripcion(models.Model):
     alumno               = models.ForeignKey(Alumno, on_delete=models.PROTECT)
     periodo_escolar      = models.CharField(max_length=20, default="2025-2026")
     grado_seccion        = models.CharField(max_length=50)
+    periodo = models.ForeignKey(
+        'academico.PeriodoEscolar', on_delete=models.PROTECT,
+        null=True, blank=True, related_name='inscripciones',
+    )
+    grado = models.ForeignKey(
+        'academico.GradoSeccion', on_delete=models.PROTECT,
+        null=True, blank=True, related_name='inscripciones',
+    )
+    sede = models.ForeignKey(
+        'multisede.Sede', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='inscripciones',
+    )
     tipo_ingreso         = models.CharField(max_length=15, choices=TIPOS_INGRESO)
     fecha_inscripcion    = models.DateTimeField(auto_now_add=True)
     documentos_completos = models.BooleanField(default=False)
@@ -381,6 +410,12 @@ class Inscripcion(models.Model):
         ]
 
     def clean(self):
+        if self.grado_id and self.periodo_id and self.grado.periodo_id != self.periodo_id:
+            raise ValidationError({'grado': 'El grado no pertenece al período de la inscripción.'})
+        if self.periodo_id and self.alumno.sede_id != self.periodo.sede_id:
+            raise ValidationError({'periodo': 'El período no pertenece a la sede del alumno.'})
+        if self.periodo_id and self.sede_id and self.periodo.sede_id != self.sede_id:
+            raise ValidationError({'sede': 'La sede no coincide con el período de la inscripción.'})
         # Evitar inscripción duplicada para el mismo alumno y período
         qs = Inscripcion.objects.filter(alumno=self.alumno, periodo_escolar=self.periodo_escolar)
         if self.pk:
@@ -406,6 +441,12 @@ class Inscripcion(models.Model):
 
     def save(self, *args, **kwargs):
         is_new = self.pk is None
+        if self.grado_id:
+            self.periodo = self.grado.periodo
+            self.grado_seccion = self.grado.nombre
+        if self.periodo_id:
+            self.sede = self.periodo.sede
+            self.periodo_escolar = self.periodo.nombre
         self.full_clean()
 
         # Al inscribirse actualizar grado en el alumno

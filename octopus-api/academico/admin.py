@@ -3,7 +3,29 @@ from simple_history.admin import SimpleHistoryAdmin
 from .models import (
     Nota, Asistencia, Materia, Lapso, HorarioClase, IncidenteDisciplinario, MaterialEstudio, EventoCalendario,
     PlanEvaluacion, BloqueEvaluacion, ItemEvaluacion, NotaItemEvaluacion, Docente,
+    PeriodoEscolar, GradoSeccion, IncidenciaMigracionAcademica,
 )
+
+
+@admin.register(PeriodoEscolar)
+class PeriodoEscolarAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'sede', 'fecha_inicio', 'fecha_fin', 'estado')
+    list_filter = ('sede', 'estado')
+    search_fields = ('nombre', 'sede__nombre')
+
+
+@admin.register(GradoSeccion)
+class GradoSeccionAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'codigo', 'periodo', 'activo')
+    list_filter = ('activo', 'periodo__sede', 'periodo')
+    search_fields = ('nombre', 'codigo')
+
+
+@admin.register(IncidenciaMigracionAcademica)
+class IncidenciaMigracionAcademicaAdmin(admin.ModelAdmin):
+    list_display = ('tipo', 'modelo', 'objeto_id', 'resuelta', 'creada_en')
+    list_filter = ('tipo', 'modelo', 'resuelta')
+    readonly_fields = ('tipo', 'modelo', 'objeto_id', 'detalle', 'creada_en')
 
 
 @admin.register(Nota)

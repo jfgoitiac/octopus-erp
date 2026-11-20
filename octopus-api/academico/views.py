@@ -38,6 +38,9 @@ from .models import (
     CierreLapso,
     ObservacionCalificacion,
     VersionPlanEvaluacion,
+    PeriodoEscolar,
+    GradoSeccion,
+    IncidenciaMigracionAcademica,
 )
 from .calificaciones import (
     calcular_calificacion,
@@ -75,6 +78,9 @@ from .serializers import (
     PaqueteHorarioSerializer,
     PlanEvaluacionInputSerializer,
     PlanEvaluacionSerializer,
+    PeriodoEscolarSerializer,
+    GradoSeccionSerializer,
+    IncidenciaMigracionAcademicaSerializer,
 )
 from .permissions import (
     IsAcademicoRead,
@@ -166,6 +172,32 @@ def _sede_id_autorizada(user, valor):
         return False
 
 
+def _contexto_normalizado_autorizado(user, data, instance=None):
+    """Resuelve período/sección antes del serializer y evita IDs cross-sede."""
+    periodo_id = data.get('periodo_id')
+    seccion_id = data.get('seccion_id') or data.get('grado_id')
+    periodo = getattr(instance, 'periodo', None) if periodo_id in (None, '') else None
+    seccion = getattr(instance, 'grado', None) if seccion_id in (None, '') else None
+    if periodo_id not in (None, ''):
+        periodo = PeriodoEscolar.objects.select_related('sede').filter(pk=periodo_id).first()
+        if not periodo or not sede_permitida(user, periodo.sede_id):
+            return None, None, Response({'error': 'Período no encontrado o no autorizado.'}, status=404)
+    if seccion_id not in (None, ''):
+        seccion = GradoSeccion.objects.select_related('periodo', 'periodo__sede').filter(pk=seccion_id).first()
+        if not seccion or not sede_permitida(user, seccion.periodo.sede_id):
+            return None, None, Response({'error': 'Sección no encontrada o no autorizada.'}, status=404)
+    if seccion:
+        if periodo and seccion.periodo_id != periodo.id:
+            return None, None, Response({'error': 'La sección pertenece a otro período.'}, status=400)
+        periodo = periodo or seccion.periodo
+    sede_id = data.get('sede')
+    if sede_id not in (None, '') and not _sede_id_autorizada(user, sede_id):
+        return None, None, Response({'error': 'Sede no autorizada.'}, status=403)
+    if periodo and sede_id not in (None, '') and int(sede_id) != periodo.sede_id:
+        return None, None, Response({'error': 'La sede no coincide con el período.'}, status=400)
+    return periodo, seccion, None
+
+
 def _materia_operacion_para(request, materia_id):
     """Resuelve materia manteniendo 403 de ownership docente y 404 cross-sede staff."""
     try:
@@ -210,6 +242,114 @@ class IsDocenteAsignadoOrSecretariaOrAbove(permissions.BasePermission):
 
 
 # ─────────────────────────────────────────────
+# PERIODOS Y SECCIONES NORMALIZADOS
+# ─────────────────────────────────────────────
+class PeriodosEscolaresView(APIView):
+    permission_classes = [IsAcademicoRead]
+
+    def get(self, request):
+        qs = filtrar_sedes_academicas(
+            request.user, PeriodoEscolar.objects.select_related('sede'), 'sede'
+        )
+        sede = request.query_params.get('sede')
+        estado = request.query_params.get('estado')
+        if sede:
+            if not _sede_id_autorizada(request.user, sede):
+                return Response({'error': 'Sede no autorizada.'}, status=403)
+            qs = qs.filter(sede_id=sede)
+        if estado:
+            qs = qs.filter(estado=estado)
+        return Response(PeriodoEscolarSerializer(qs, many=True).data)
+
+    def post(self, request):
+        if not IsAdminOrAbove().has_permission(request, self):
+            return Response({'error': 'Sin permiso para crear períodos.'}, status=403)
+        if not _sede_id_autorizada(request.user, request.data.get('sede')):
+            return Response({'error': 'Sede no autorizada.'}, status=403)
+        serializer = PeriodoEscolarSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=201)
+
+
+class PeriodoEscolarDetailView(APIView):
+    permission_classes = [IsAcademicoRead]
+
+    def _get(self, request, pk):
+        return filtrar_sedes_academicas(
+            request.user, PeriodoEscolar.objects.select_related('sede'), 'sede'
+        ).filter(pk=pk).first()
+
+    def get(self, request, pk):
+        periodo = self._get(request, pk)
+        if not periodo:
+            return Response({'error': 'Período no encontrado.'}, status=404)
+        return Response(PeriodoEscolarSerializer(periodo).data)
+
+    def put(self, request, pk):
+        if not IsAdminOrAbove().has_permission(request, self):
+            return Response({'error': 'Sin permiso para editar períodos.'}, status=403)
+        periodo = self._get(request, pk)
+        if not periodo:
+            return Response({'error': 'Período no encontrado.'}, status=404)
+        serializer = PeriodoEscolarSerializer(periodo, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        sede_destino = serializer.validated_data.get('sede', periodo.sede)
+        if not sede_permitida(request.user, sede_destino.id):
+            return Response({'error': 'Sede no autorizada.'}, status=403)
+        serializer.save()
+        return Response(serializer.data)
+
+
+class GradosSeccionesView(APIView):
+    permission_classes = [IsAcademicoRead]
+
+    def get(self, request):
+        qs = filtrar_sedes_academicas(
+            request.user,
+            GradoSeccion.objects.select_related('periodo', 'periodo__sede'),
+            'periodo__sede',
+        )
+        periodo_id = request.query_params.get('periodo_id')
+        sede = request.query_params.get('sede')
+        activo = request.query_params.get('activo')
+        if periodo_id:
+            periodo_obj = PeriodoEscolar.objects.filter(pk=periodo_id).first()
+            if not periodo_obj or not sede_permitida(request.user, periodo_obj.sede_id):
+                return Response({'error': 'Período no encontrado o no autorizado.'}, status=404)
+            qs = qs.filter(periodo_id=periodo_id)
+        if sede:
+            if not _sede_id_autorizada(request.user, sede):
+                return Response({'error': 'Sede no autorizada.'}, status=403)
+            qs = qs.filter(periodo__sede_id=sede)
+        if activo is not None:
+            qs = qs.filter(activo=activo.lower() == 'true')
+        return Response(GradoSeccionSerializer(qs, many=True).data)
+
+    def post(self, request):
+        if not IsAdminOrAbove().has_permission(request, self):
+            return Response({'error': 'Sin permiso para crear secciones.'}, status=403)
+        serializer = GradoSeccionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        periodo = serializer.validated_data['periodo']
+        if not sede_permitida(request.user, periodo.sede_id):
+            return Response({'error': 'Sede no autorizada.'}, status=403)
+        serializer.save()
+        return Response(serializer.data, status=201)
+
+
+class IncidenciasMigracionAcademicaView(APIView):
+    permission_classes = [IsAdminOrAbove]
+
+    def get(self, request):
+        qs = IncidenciaMigracionAcademica.objects.all()
+        resuelta = request.query_params.get('resuelta')
+        if resuelta is not None:
+            qs = qs.filter(resuelta=resuelta.lower() == 'true')
+        return Response(IncidenciaMigracionAcademicaSerializer(qs, many=True).data)
+
+
+# ─────────────────────────────────────────────
 # MATERIAS
 # ─────────────────────────────────────────────
 class MateriasView(APIView):
@@ -218,11 +358,25 @@ class MateriasView(APIView):
     def get(self, request):
         """Lista todas las materias. Filtro opcional por ?grado_seccion="""
         qs = materia_queryset_para(
-            request.user, Materia.objects.select_related('docente', 'sede')
+            request.user, Materia.objects.select_related('docente', 'sede', 'periodo', 'grado')
         )
         grado = request.query_params.get('grado_seccion')
+        periodo_id = request.query_params.get('periodo_id')
+        seccion_id = request.query_params.get('seccion_id') or request.query_params.get('grado_id')
+        if periodo_id or seccion_id:
+            periodo, seccion, error = _contexto_normalizado_autorizado(request.user, request.query_params)
+            if error:
+                return error
+            if seccion:
+                grado = seccion.nombre
+        if seccion_id and not periodo_id:
+            periodo_id = seccion.periodo_id
         if grado:
             qs = qs.filter(grado_seccion=grado)
+        if seccion_id:
+            qs = qs.filter(grado_id=seccion_id)
+        if periodo_id:
+            qs = qs.filter(periodo_id=periodo_id)
         serializer = MateriaSerializer(qs, many=True)
         return Response(serializer.data)
 
@@ -235,9 +389,9 @@ class MateriasView(APIView):
             )
 
         datos = request.data.copy()
-        sede_id = datos.get('sede')
-        if not _sede_id_autorizada(request.user, sede_id):
-            return Response({'error': 'Sede no autorizada.'}, status=status.HTTP_403_FORBIDDEN)
+        _, _, error = _contexto_normalizado_autorizado(request.user, datos)
+        if error:
+            return error
 
         # Autogenerar código si no se proporcionó
         if not datos.get('codigo'):
@@ -287,9 +441,9 @@ class MateriaDetailView(APIView):
         materia = self._get_materia(request, pk)
         if not materia:
             return Response({'error': 'Materia no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
-        sede_id = request.data.get('sede')
-        if not _sede_id_autorizada(request.user, sede_id):
-            return Response({'error': 'Sede no autorizada.'}, status=status.HTTP_403_FORBIDDEN)
+        _, _, error = _contexto_normalizado_autorizado(request.user, request.data, materia)
+        if error:
+            return error
         serializer = MateriaSerializer(materia, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -474,11 +628,25 @@ class LapsosView(APIView):
 
     def get(self, request):
         """Lista lapsos. Filtros opcionales: ?periodo_escolar=&activo=true/false"""
-        qs = Lapso.objects.all()
+        qs = Lapso.objects.select_related('periodo', 'periodo__sede')
+        ids_sede = sedes_academicas_ids(request.user)
+        if ids_sede is not None:
+            qs = qs.filter(periodo__sede_id__in=ids_sede)
         periodo = request.query_params.get('periodo_escolar')
+        periodo_id = request.query_params.get('periodo_id')
+        sede = request.query_params.get('sede')
         activo  = request.query_params.get('activo')
         if periodo:
             qs = qs.filter(periodo_escolar=periodo)
+        if periodo_id:
+            periodo_obj = PeriodoEscolar.objects.filter(pk=periodo_id).first()
+            if not periodo_obj or not sede_permitida(request.user, periodo_obj.sede_id):
+                return Response({'error': 'Período no encontrado o no autorizado.'}, status=404)
+            qs = qs.filter(periodo_id=periodo_id)
+        if sede:
+            if not _sede_id_autorizada(request.user, sede):
+                return Response({'error': 'Sede no autorizada.'}, status=403)
+            qs = qs.filter(periodo__sede_id=sede)
         if activo is not None:
             qs = qs.filter(activo=(activo.lower() == 'true'))
         return Response(LapsoSerializer(qs, many=True).data)
@@ -491,6 +659,9 @@ class LapsosView(APIView):
                 {'error': 'Solo el director o sistemas pueden crear lapsos.'},
                 status=status.HTTP_403_FORBIDDEN
             )
+        _, _, error = _contexto_normalizado_autorizado(request.user, request.data)
+        if error:
+            return error
         serializer = LapsoSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -655,6 +826,12 @@ class NotasGradoView(APIView):
         if errores:
             return Response({'guardadas': [], 'errores': errores}, status=status.HTTP_400_BAD_REQUEST)
 
+        if materia.periodo_id and lapso.periodo_id and materia.periodo_id != lapso.periodo_id:
+            return Response(
+                {'error': 'La materia y el lapso pertenecen a períodos distintos.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
         # Todo el guardado masivo corre en una única transacción: si una fila
         # revienta a mitad de camino (constraint, timeout, etc.) se hace
         # rollback completo en vez de dejar un guardado parcial del grado.
@@ -674,6 +851,7 @@ class NotasGradoView(APIView):
                     materia=materia,
                     lapso=lapso,
                 )
+                nota.periodo_id = lapso.periodo_id or materia.periodo_id
                 # Reasigna los objetos ya en memoria: get_or_create no cachea las
                 # relaciones FK cuando toma la rama "get" (registro ya existente),
                 # así que sin esto NotaSerializer(nota).data dispararía 3 queries
@@ -720,6 +898,14 @@ class AsistenciaView(APIView):
         """
         grado = request.query_params.get('grado_seccion')
         fecha = request.query_params.get('fecha')
+        seccion_id = request.query_params.get('seccion_id') or request.query_params.get('grado_id')
+        periodo_id = request.query_params.get('periodo_id')
+        if seccion_id:
+            seccion = GradoSeccion.objects.select_related('periodo').filter(pk=seccion_id).first()
+            if not seccion or not sede_permitida(request.user, seccion.periodo.sede_id):
+                return Response({'error': 'Sección no encontrada o no autorizada.'}, status=404)
+            grado = seccion.nombre
+            periodo_id = periodo_id or seccion.periodo_id
 
         if not grado or not fecha:
             return Response(
@@ -741,6 +927,10 @@ class AsistenciaView(APIView):
             Asistencia.objects.filter(alumno__grado_seccion=grado, fecha=fecha),
             'alumno__sede',
         ).select_related('alumno')
+        if periodo_id:
+            asistencias_qs = asistencias_qs.filter(periodo_id=periodo_id)
+        if seccion_id:
+            asistencias_qs = asistencias_qs.filter(grado_id=seccion_id)
         if _get_rol(request) == 'docente' and not request.user.is_superuser:
             asistencias_qs = asistencias_qs.filter(alumno_id__in=alumnos.values('id'))
         # Aplicar filtros adicionales vía query params (presente, justificada, etc.)
@@ -775,7 +965,11 @@ class AsistenciaView(APIView):
 
     def _grado_seccion_objetivo(self, request):
         # GET envía grado_seccion por query params; POST lo envía en el body.
-        return request.query_params.get('grado_seccion') or request.data.get('grado_seccion')
+        grado = request.query_params.get('grado_seccion') or request.data.get('grado_seccion')
+        seccion_id = request.query_params.get('seccion_id') or request.data.get('seccion_id')
+        if not grado and seccion_id:
+            grado = GradoSeccion.objects.filter(pk=seccion_id).values_list('nombre', flat=True).first()
+        return grado
 
     def post(self, request):
         """
@@ -804,7 +998,23 @@ class AsistenciaView(APIView):
         datos     = serializer.validated_data
         fecha     = datos['fecha']
         grado     = datos['grado_seccion']
+        periodo_id = datos.get('periodo_id')
+        seccion_id = datos.get('seccion_id')
         registros = datos['registros']
+
+        seccion = None
+        periodo = None
+        if seccion_id:
+            seccion = GradoSeccion.objects.select_related('periodo').filter(pk=seccion_id).first()
+            if not seccion or not sede_permitida(request.user, seccion.periodo.sede_id):
+                return Response({'error': 'Sección no encontrada o no autorizada.'}, status=404)
+            if seccion.nombre != grado:
+                return Response({'error': 'grado_seccion no coincide con seccion_id.'}, status=400)
+            periodo = seccion.periodo
+        elif periodo_id:
+            periodo = PeriodoEscolar.objects.filter(pk=periodo_id).first()
+            if not periodo or not sede_permitida(request.user, periodo.sede_id):
+                return Response({'error': 'Período no encontrado o no autorizado.'}, status=404)
 
         # Prefetch de todos los alumnos del payload en una sola query (antes:
         # 1 query por fila con Alumno.objects.get() dentro del loop).
@@ -885,6 +1095,9 @@ class AsistenciaView(APIView):
                         'estado':         item.get('estado'),
                         'observacion':    item.get('observacion', ''),
                         'registrado_por': request.user,
+                        'periodo': periodo,
+                        'grado': seccion,
+                        'sede_id': periodo.sede_id if periodo else alumno.sede_id,
                     }
                 )
                 # update_or_create no cachea la relación FK cuando toma la rama
@@ -1076,7 +1289,16 @@ class HorariosView(APIView):
         """
         grado = request.query_params.get('grado_seccion')
         docente_id = request.query_params.get('docente_id')
-        if not grado and not docente_id:
+        periodo_id = request.query_params.get('periodo_id')
+        seccion_id = request.query_params.get('seccion_id') or request.query_params.get('grado_id')
+        if periodo_id or seccion_id:
+            periodo, seccion, error = _contexto_normalizado_autorizado(request.user, request.query_params)
+            if error:
+                return error
+            if seccion:
+                grado = seccion.nombre
+                periodo_id = periodo_id or seccion.periodo_id
+        if not grado and not docente_id and not periodo_id:
             return Response(
                 {'error': 'Se requiere el parámetro grado_seccion o docente_id.'},
                 status=status.HTTP_400_BAD_REQUEST
@@ -1091,6 +1313,10 @@ class HorariosView(APIView):
             horarios = horarios.filter(materia__grado_seccion=grado)
         if docente_id:
             horarios = horarios.filter(materia__docente_id=docente_id)
+        if periodo_id:
+            horarios = horarios.filter(periodo_id=periodo_id)
+        if seccion_id:
+            horarios = horarios.filter(grado_id=seccion_id)
 
         # Un mismo grado_seccion puede repetirse en distintos periodos/sedes
         # (paquetes distintos) — sin este filtro se mezclaban horarios de
@@ -1111,6 +1337,9 @@ class HorariosView(APIView):
                 {'error': 'No tienes permisos para crear horarios.'},
                 status=status.HTTP_403_FORBIDDEN
             )
+        _, _, error = _contexto_normalizado_autorizado(request.user, request.data)
+        if error:
+            return error
         serializer = HorarioClaseSerializer(data=request.data)
         if serializer.is_valid():
             materia = serializer.validated_data.get('materia')
@@ -1121,6 +1350,18 @@ class HorariosView(APIView):
                 return Response({'error': 'Bloque no autorizado.'}, status=status.HTTP_403_FORBIDDEN)
             if bloque and materia.sede_id != bloque.paquete.sede_id:
                 return Response({'error': 'Materia y bloque deben pertenecer a la misma sede.'}, status=400)
+            periodo = serializer.validated_data.get('periodo') or (
+                bloque.paquete.periodo if bloque else materia.periodo
+            )
+            grado = serializer.validated_data.get('grado') or materia.grado
+            if periodo and materia.periodo_id and materia.periodo_id != periodo.id:
+                return Response({'error': 'La materia pertenece a otro período.'}, status=400)
+            if grado and materia.grado_id and materia.grado_id != grado.id:
+                return Response({'error': 'La materia pertenece a otra sección.'}, status=400)
+            if grado and periodo and grado.periodo_id != periodo.id:
+                return Response({'error': 'La sección pertenece a otro período.'}, status=400)
+            if bloque and periodo and bloque.paquete.periodo_id and bloque.paquete.periodo_id != periodo.id:
+                return Response({'error': 'El bloque pertenece a otro período.'}, status=400)
             with transaction.atomic():
                 otro, mismo_docente, misma_aula, mismo_grado = _buscar_choque_horario(
                     materia,
@@ -1135,7 +1376,7 @@ class HorariosView(APIView):
                         {'error': _mensaje_choque_horario(otro, mismo_docente, misma_aula, mismo_grado)},
                         status=status.HTTP_400_BAD_REQUEST
                     )
-                serializer.save()
+                serializer.save(periodo=periodo, grado=grado)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -1167,6 +1408,9 @@ class HorarioDetailView(APIView):
         horario = self._get_horario(request, pk)
         if not horario:
             return Response({'error': 'Horario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+        _, _, error = _contexto_normalizado_autorizado(request.user, request.data, horario)
+        if error:
+            return error
         serializer = HorarioClaseSerializer(horario, data=request.data, partial=True)
         if serializer.is_valid():
             nueva_materia = serializer.validated_data.get('materia', horario.materia)
@@ -1177,6 +1421,12 @@ class HorarioDetailView(APIView):
                 return Response({'error': 'Bloque no autorizado.'}, status=status.HTTP_403_FORBIDDEN)
             if nuevo_bloque and nueva_materia.sede_id != nuevo_bloque.paquete.sede_id:
                 return Response({'error': 'Materia y bloque deben pertenecer a la misma sede.'}, status=400)
+            nuevo_periodo = serializer.validated_data.get('periodo', horario.periodo)
+            nuevo_grado = serializer.validated_data.get('grado', horario.grado)
+            if nuevo_periodo and nueva_materia.periodo_id and nueva_materia.periodo_id != nuevo_periodo.id:
+                return Response({'error': 'La materia pertenece a otro período.'}, status=400)
+            if nuevo_grado and nueva_materia.grado_id and nueva_materia.grado_id != nuevo_grado.id:
+                return Response({'error': 'La materia pertenece a otra sección.'}, status=400)
             with transaction.atomic():
                 datos = serializer.validated_data
                 materia = datos.get('materia', horario.materia)
@@ -1890,11 +2140,17 @@ class PaquetesHorarioView(APIView):
         )
         sede = request.query_params.get('sede')
         periodo = request.query_params.get('periodo_escolar')
+        periodo_id = request.query_params.get('periodo_id')
         estado = request.query_params.get('estado')
         if sede:
             qs = qs.filter(sede_id=sede)
         if periodo:
             qs = qs.filter(periodo_escolar=periodo)
+        if periodo_id:
+            periodo_obj = PeriodoEscolar.objects.filter(pk=periodo_id).first()
+            if not periodo_obj or not sede_permitida(request.user, periodo_obj.sede_id):
+                return Response({'error': 'Período no encontrado o no autorizado.'}, status=404)
+            qs = qs.filter(periodo_id=periodo_id)
         if estado:
             qs = qs.filter(estado=estado)
         return Response(PaqueteHorarioSerializer(qs, many=True).data)
@@ -1902,8 +2158,9 @@ class PaquetesHorarioView(APIView):
     def post(self, request):
         if not IsAdminOrAbove().has_permission(request, self):
             return Response({'error': 'No tienes permisos para crear paquetes de horario.'}, status=status.HTTP_403_FORBIDDEN)
-        if not _sede_id_autorizada(request.user, request.data.get('sede')):
-            return Response({'error': 'Sede no autorizada.'}, status=status.HTTP_403_FORBIDDEN)
+        _, _, error = _contexto_normalizado_autorizado(request.user, request.data)
+        if error:
+            return error
         serializer = PaqueteHorarioSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(creado_por=request.user)
@@ -1938,8 +2195,9 @@ class PaqueteHorarioDetailView(APIView):
         paquete = self._get(request, pk)
         if not paquete:
             return Response({'error': 'Paquete no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
-        if not _sede_id_autorizada(request.user, request.data.get('sede')):
-            return Response({'error': 'Sede no autorizada.'}, status=status.HTTP_403_FORBIDDEN)
+        _, _, error = _contexto_normalizado_autorizado(request.user, request.data, paquete)
+        if error:
+            return error
         serializer = PaqueteHorarioSerializer(paquete, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -1999,7 +2257,15 @@ class PaqueteHorarioGradosView(APIView):
         except PaqueteHorario.DoesNotExist:
             return Response({'error': 'Paquete no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
-        grado_seccion = (request.data.get('grado_seccion') or '').strip()
+        seccion_id = request.data.get('seccion_id') or request.data.get('grado_id')
+        seccion = None
+        if seccion_id:
+            seccion = GradoSeccion.objects.select_related('periodo').filter(pk=seccion_id).first()
+            if not seccion or not sede_permitida(request.user, seccion.periodo.sede_id):
+                return Response({'error': 'Sección no encontrada o no autorizada.'}, status=404)
+            if paquete.periodo_id and seccion.periodo_id != paquete.periodo_id:
+                return Response({'error': 'La sección pertenece a otro período.'}, status=400)
+        grado_seccion = (request.data.get('grado_seccion') or (seccion.nombre if seccion else '')).strip()
         if not grado_seccion:
             return Response({'error': 'El campo grado_seccion es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -2027,7 +2293,9 @@ class PaqueteHorarioGradosView(APIView):
         if PaqueteHorarioGrado.objects.filter(paquete=paquete, grado_seccion=grado_seccion).exists():
             return Response({'error': 'Ese grado ya está en este paquete.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        pg = PaqueteHorarioGrado.objects.create(paquete=paquete, grado_seccion=grado_seccion)
+        pg = PaqueteHorarioGrado.objects.create(
+            paquete=paquete, grado_seccion=grado_seccion, grado=seccion
+        )
         return Response(PaqueteHorarioGradoSerializer(pg).data, status=status.HTTP_201_CREATED)
 
 
@@ -2495,24 +2763,29 @@ class LapsoDetailView(APIView):
         return rol in ('director', 'sistemas')
 
     def get(self, request, pk):
-        try:
-            lapso = Lapso.objects.get(pk=pk)
-        except Lapso.DoesNotExist:
+        lapso = filtrar_sedes_academicas(
+            request.user, Lapso.objects.select_related('periodo'), 'periodo__sede'
+        ).filter(pk=pk).first()
+        if not lapso:
             return Response({'error': 'Lapso no encontrado.'}, status=404)
         return Response(LapsoSerializer(lapso).data)
 
     def put(self, request, pk):
         if not self._verificar_rol(request):
             return Response({'error': 'Sin permiso.'}, status=403)
-        try:
-            lapso = Lapso.objects.get(pk=pk)
-        except Lapso.DoesNotExist:
+        lapso = filtrar_sedes_academicas(
+            request.user, Lapso.objects.select_related('periodo'), 'periodo__sede'
+        ).filter(pk=pk).first()
+        if not lapso:
             return Response({'error': 'Lapso no encontrado.'}, status=404)
         if 'activo' in request.data and bool(request.data['activo']) != lapso.activo:
             return Response(
                 {'error': 'Use los endpoints explícitos de cierre o reapertura para cambiar el estado del lapso.'},
                 status=status.HTTP_409_CONFLICT,
             )
+        _, _, error = _contexto_normalizado_autorizado(request.user, request.data, lapso)
+        if error:
+            return error
         serializer = LapsoSerializer(lapso, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()

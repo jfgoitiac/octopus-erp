@@ -6,13 +6,113 @@ from django.core.exceptions import ValidationError
 from django.db import models
 
 
+class PeriodoEscolar(models.Model):
+    ESTADOS = (
+        ('planificado', 'Planificado'),
+        ('activo', 'Activo'),
+        ('cerrado', 'Cerrado'),
+    )
+
+    sede = models.ForeignKey(
+        'multisede.Sede', on_delete=models.PROTECT, related_name='periodos_escolares'
+    )
+    nombre = models.CharField(max_length=20)
+    fecha_inicio = models.DateField()
+    fecha_fin = models.DateField()
+    estado = models.CharField(max_length=12, choices=ESTADOS, default='planificado')
+    creado_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=('sede', 'nombre'), name='academico_periodo_sede_nombre_unico'
+            ),
+            models.UniqueConstraint(
+                fields=('sede',), condition=models.Q(estado='activo'),
+                name='academico_un_periodo_activo_por_sede',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(fecha_fin__gte=models.F('fecha_inicio')),
+                name='academico_periodo_fechas_validas',
+            ),
+        ]
+        ordering = ['-fecha_inicio', 'sede__nombre']
+
+    def clean(self):
+        super().clean()
+        if self.fecha_inicio and self.fecha_fin and self.fecha_fin < self.fecha_inicio:
+            raise ValidationError({'fecha_fin': 'La fecha de fin no puede preceder al inicio.'})
+        if self.sede_id and self.fecha_inicio and self.fecha_fin:
+            solapado = PeriodoEscolar.objects.filter(
+                sede_id=self.sede_id,
+                fecha_inicio__lte=self.fecha_fin,
+                fecha_fin__gte=self.fecha_inicio,
+            ).exclude(pk=self.pk)
+            if solapado.exists():
+                raise ValidationError('El período se solapa con otro período de la sede.')
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'{self.nombre} — {self.sede}'
+
+
+class GradoSeccion(models.Model):
+    periodo = models.ForeignKey(
+        PeriodoEscolar, on_delete=models.PROTECT, related_name='grados_secciones'
+    )
+    nombre = models.CharField(max_length=50)
+    codigo = models.CharField(max_length=50)
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=('periodo', 'nombre'), name='academico_grado_periodo_nombre_unico'
+            ),
+            models.UniqueConstraint(
+                fields=('periodo', 'codigo'), name='academico_grado_periodo_codigo_unico'
+            ),
+        ]
+        ordering = ['periodo__fecha_inicio', 'nombre']
+
+    @property
+    def sede_id(self):
+        return self.periodo.sede_id
+
+    def __str__(self):
+        return f'{self.nombre} — {self.periodo}'
+
+
+class IncidenciaMigracionAcademica(models.Model):
+    """Fila legacy que no pudo reconciliarse sin adivinar sede/período/grado."""
+
+    tipo = models.CharField(max_length=40)
+    modelo = models.CharField(max_length=80)
+    objeto_id = models.PositiveBigIntegerField(null=True, blank=True)
+    detalle = models.JSONField(default=dict)
+    resuelta = models.BooleanField(default=False)
+    creada_en = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['tipo', 'modelo', 'objeto_id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=('tipo', 'modelo', 'objeto_id'),
+                name='academico_incidencia_migracion_unica',
+            ),
+        ]
+
+
 # ─────────────────────────────────────────────
 # MATERIA
 # ─────────────────────────────────────────────
 class Materia(models.Model):
     nombre       = models.CharField(max_length=100)
     # Se autogenera en save() si se deja vacío
-    codigo       = models.CharField(max_length=20, unique=True, blank=True)
+    codigo       = models.CharField(max_length=20, blank=True)
     # Debe coincidir con ConfiguracionGrado.grado_seccion
     grado_seccion = models.CharField(max_length=50)
     docente      = models.ForeignKey(
@@ -32,6 +132,14 @@ class Materia(models.Model):
         null=True, blank=True,
         related_name='materias',
         verbose_name='Sede',
+    )
+    periodo = models.ForeignKey(
+        PeriodoEscolar, on_delete=models.PROTECT, null=True, blank=True,
+        related_name='materias',
+    )
+    grado = models.ForeignKey(
+        GradoSeccion, on_delete=models.PROTECT, null=True, blank=True,
+        related_name='materias',
     )
 
     # ── Plan de Evaluación (sistema nuevo, opcional por materia+lapso) ──────
@@ -54,12 +162,33 @@ class Materia(models.Model):
     cuenta_para_promedio = models.BooleanField(default=True)
 
     class Meta:
-        unique_together = ('nombre', 'grado_seccion')
+        constraints = [
+            models.UniqueConstraint(
+                fields=('sede', 'periodo', 'codigo'),
+                condition=(models.Q(sede__isnull=False) & models.Q(periodo__isnull=False)),
+                name='academico_materia_codigo_contexto_unico',
+            ),
+            models.UniqueConstraint(
+                fields=('sede', 'periodo', 'grado', 'nombre'),
+                condition=(models.Q(sede__isnull=False) & models.Q(periodo__isnull=False)
+                           & models.Q(grado__isnull=False)),
+                name='academico_materia_contexto_unica',
+            ),
+            models.UniqueConstraint(
+                fields=('nombre', 'grado_seccion'),
+                condition=models.Q(grado__isnull=True),
+                name='academico_materia_legacy_unica',
+            ),
+        ]
         ordering = ['grado_seccion', 'nombre']
         verbose_name = 'Materia'
         verbose_name_plural = 'Materias'
 
     def save(self, *args, **kwargs):
+        if self.grado_id:
+            self.periodo = self.grado.periodo
+            self.sede = self.grado.periodo.sede
+            self.grado_seccion = self.grado.nombre
         # Autogenerar código si no se proporcionó
         if not self.codigo:
             prefijo = self.nombre[:3].upper().replace(' ', '')
@@ -72,6 +201,14 @@ class Materia(models.Model):
                 contador += 1
             self.codigo = codigo
         super().save(*args, **kwargs)
+
+    def clean(self):
+        super().clean()
+        if self.grado_id:
+            if self.periodo_id and self.grado.periodo_id != self.periodo_id:
+                raise ValidationError({'grado': 'El grado no pertenece al período de la materia.'})
+            if self.sede_id and self.grado.periodo.sede_id != self.sede_id:
+                raise ValidationError({'grado': 'El grado no pertenece a la sede de la materia.'})
 
     def __str__(self):
         return f"{self.grado_seccion} — {self.nombre}"
@@ -92,15 +229,47 @@ class Lapso(models.Model):
     fecha_inicio    = models.DateField()
     fecha_fin       = models.DateField()
     activo          = models.BooleanField(default=True)
+    periodo = models.ForeignKey(
+        PeriodoEscolar, on_delete=models.PROTECT, null=True, blank=True,
+        related_name='lapsos',
+    )
 
     class Meta:
-        unique_together = ('nombre', 'periodo_escolar')
+        constraints = [
+            models.UniqueConstraint(
+                fields=('periodo', 'nombre'), condition=models.Q(periodo__isnull=False),
+                name='academico_lapso_periodo_nombre_unico',
+            ),
+            models.UniqueConstraint(
+                fields=('periodo_escolar', 'nombre'), condition=models.Q(periodo__isnull=True),
+                name='academico_lapso_legacy_nombre_unico',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(fecha_fin__gte=models.F('fecha_inicio')),
+                name='academico_lapso_fechas_validas',
+            ),
+        ]
         ordering = ['periodo_escolar', 'nombre']
         verbose_name = 'Lapso'
         verbose_name_plural = 'Lapsos'
 
     def __str__(self):
         return f"{self.nombre} ({self.periodo_escolar})"
+
+    def clean(self):
+        super().clean()
+        if self.fecha_inicio and self.fecha_fin and self.fecha_fin < self.fecha_inicio:
+            raise ValidationError({'fecha_fin': 'La fecha final no puede preceder al inicio.'})
+        if self.periodo_id and self.fecha_inicio and self.fecha_fin:
+            if self.fecha_inicio < self.periodo.fecha_inicio or self.fecha_fin > self.periodo.fecha_fin:
+                raise ValidationError('Las fechas del lapso deben estar dentro del período escolar.')
+            solapado = Lapso.objects.filter(
+                periodo_id=self.periodo_id,
+                fecha_inicio__lte=self.fecha_fin,
+                fecha_fin__gte=self.fecha_inicio,
+            ).exclude(pk=self.pk)
+            if solapado.exists():
+                raise ValidationError('El lapso se solapa con otro lapso del período.')
 
 
 # ─────────────────────────────────────────────
@@ -121,6 +290,10 @@ class Nota(models.Model):
         Lapso,
         on_delete=models.CASCADE,
         related_name='notas'
+    )
+    periodo = models.ForeignKey(
+        PeriodoEscolar, on_delete=models.PROTECT, null=True, blank=True,
+        related_name='notas_legacy',
     )
 
     # Evaluaciones parciales (escala 0-20)
@@ -450,6 +623,18 @@ class Asistencia(models.Model):
         null=True,
         related_name='asistencias_registradas'
     )
+    periodo = models.ForeignKey(
+        PeriodoEscolar, on_delete=models.PROTECT, null=True, blank=True,
+        related_name='asistencias',
+    )
+    grado = models.ForeignKey(
+        GradoSeccion, on_delete=models.PROTECT, null=True, blank=True,
+        related_name='asistencias',
+    )
+    sede = models.ForeignKey(
+        'multisede.Sede', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='asistencias_academicas',
+    )
 
     class Meta:
         unique_together = ('alumno', 'fecha')
@@ -500,6 +685,14 @@ class HorarioClase(models.Model):
     # Si está en True, el generador automático no la toca ni la cuenta como
     # bloque libre al regenerar el paquete.
     pineado = models.BooleanField(default=False)
+    periodo = models.ForeignKey(
+        PeriodoEscolar, on_delete=models.PROTECT, null=True, blank=True,
+        related_name='horarios',
+    )
+    grado = models.ForeignKey(
+        GradoSeccion, on_delete=models.PROTECT, null=True, blank=True,
+        related_name='horarios',
+    )
 
     class Meta:
         ordering = ['dia_semana', 'hora_inicio']
@@ -518,6 +711,17 @@ class HorarioClase(models.Model):
                 raise ValidationError(
                     'La hora de fin debe ser posterior a la hora de inicio.'
                 )
+        if self.grado_id and self.periodo_id and self.grado.periodo_id != self.periodo_id:
+            raise ValidationError({'grado': 'El grado no pertenece al período del horario.'})
+        if self.materia_id and self.grado_id and self.materia.grado_id:
+            if self.materia.grado_id != self.grado_id:
+                raise ValidationError({'materia': 'La materia no pertenece al grado del horario.'})
+        if self.bloque_id:
+            paquete = self.bloque.paquete
+            if self.periodo_id and paquete.periodo_id and paquete.periodo_id != self.periodo_id:
+                raise ValidationError({'bloque': 'El bloque pertenece a otro período escolar.'})
+            if self.materia_id and self.materia.sede_id != paquete.sede_id:
+                raise ValidationError({'materia': 'La materia y el bloque pertenecen a sedes distintas.'})
 
     def save(self, *args, **kwargs):
         self.full_clean()
@@ -757,6 +961,10 @@ class PaqueteHorario(models.Model):
         null=True, blank=True,
         related_name='paquetes_horario',
     )
+    periodo = models.ForeignKey(
+        PeriodoEscolar, on_delete=models.PROTECT, null=True, blank=True,
+        related_name='paquetes_horario',
+    )
     estado = models.CharField(max_length=10, choices=ESTADO_CHOICES, default='borrador')
     creado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -787,9 +995,22 @@ class PaqueteHorarioGrado(models.Model):
         PaqueteHorario, on_delete=models.CASCADE, related_name='grados'
     )
     grado_seccion = models.CharField(max_length=50)
+    grado = models.ForeignKey(
+        GradoSeccion, on_delete=models.PROTECT, null=True, blank=True,
+        related_name='asignaciones_paquete',
+    )
 
     class Meta:
-        unique_together = ('paquete', 'grado_seccion')
+        constraints = [
+            models.UniqueConstraint(
+                fields=('paquete', 'grado_seccion'),
+                name='academico_paquete_grado_legacy_unico',
+            ),
+            models.UniqueConstraint(
+                fields=('grado',), condition=models.Q(grado__isnull=False),
+                name='academico_seccion_un_paquete_por_periodo',
+            ),
+        ]
         verbose_name = 'Grado de Paquete de Horario'
         verbose_name_plural = 'Grados de Paquete de Horario'
 
