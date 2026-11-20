@@ -4605,3 +4605,25 @@ tasa). Deuda nueva (solo anotada):
    `react-hooks/set-state-in-effect` anteriores a esta fase. Las pruebas,
    build y E2E focalizados pasan; corregir esos patrones requiere un refactor
    separado para no mezclar alcance.
+
+## Fase 3 de Control de Estudios: contexto académico multi-sede (2026-11-20)
+
+1. **La base actual no permite reconciliación automática**: no existe ninguna
+   `Sede`, mientras 126 materias, 6 lapsos, 375 inscripciones y 15
+   configuraciones de grado conservan solo contexto legado. La migración no
+   inventa una sede: deja las relaciones normalizadas en `NULL` y registra 507
+   incidencias para resolución explícita mediante
+   `auditar_contexto_academico`.
+2. **Transición con dual-write**: los campos de texto históricos permanecen
+   durante la adopción de `PeriodoEscolar` y `GradoSeccion`. Deben retirarse en
+   una migración posterior, únicamente cuando el reporte de pendientes llegue
+   a cero y todos los consumidores usen IDs normalizados.
+3. **Lint focal heredado**: los hooks y páginas académicas aún disparan reglas
+   `react-hooks/set-state-in-effect`. La compilación, las pruebas unitarias
+   focalizadas y los escenarios responsive pasan; corregir el patrón exige un
+   refactor de estado separado.
+4. **Fallo global ajeno al módulo académico**: la suite completa del frontend
+   tiene una expectativa desactualizada en
+   `GestionQrPanel.test.jsx`: el payload real de Cantina incluye ahora
+   `client_request_id`. No se modificó por estar fuera del alcance de Fase 3;
+   el build sí finaliza correctamente.
