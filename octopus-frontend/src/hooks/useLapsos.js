@@ -10,7 +10,7 @@ import {
 } from '../api/academico.service';
 import { LAPSO_VACIO } from '../utils/notas.utils';
 
-export function useLapsos() {
+export function useLapsos({ periodoId = '', sedeId = '' } = {}) {
   const [lapsos, setLapsos] = useState([]);
   const [modalLapso, setModalLapso] = useState(false);
   const [lapsoEditando, setLapsoEditando] = useState(null);
@@ -24,10 +24,10 @@ export function useLapsos() {
   const [reabriendoLapso, setReabriendoLapso] = useState(false);
 
   const recargarLapsos = useCallback(() =>
-    getLapsos()
+    getLapsos({ ...(periodoId ? { periodo_id: periodoId } : {}), ...(sedeId ? { sede: sedeId } : {}) })
       .then(res => setLapsos(res.data || []))
       .catch(() => toast.error('No se pudieron cargar los lapsos.')),
-  []);
+  [periodoId, sedeId]);
 
   useEffect(() => { recargarLapsos(); }, [recargarLapsos]);
 
@@ -46,6 +46,7 @@ export function useLapsos() {
     setLapsoEditando(lapso);
     setFormLapso({
       nombre: lapso.nombre,
+      periodo_id: lapso.periodo_id || lapso.periodo?.id || '',
       periodo_escolar: lapso.periodo_escolar,
       fecha_inicio: lapso.fecha_inicio || '',
       fecha_fin: lapso.fecha_fin || '',
@@ -83,7 +84,7 @@ export function useLapsos() {
   }, []);
 
   const guardarLapso = useCallback(async () => {
-    if (!formLapso.nombre || !formLapso.periodo_escolar) {
+    if (!formLapso.nombre || (!formLapso.periodo_id && !formLapso.periodo_escolar)) {
       toast.warning('Completa nombre y período escolar.');
       return;
     }

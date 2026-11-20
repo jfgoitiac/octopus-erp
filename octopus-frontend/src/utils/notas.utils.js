@@ -2,6 +2,7 @@ export const NOMBRES_LAPSO = ['1er Lapso', '2do Lapso', '3er Lapso'];
 
 export const LAPSO_VACIO = {
   nombre: '1er Lapso',
+  periodo_id: '',
   periodo_escolar: '',
   fecha_inicio: '',
   fecha_fin: '',

@@ -10,6 +10,8 @@ import { ModalLapso } from '../components/notas/ModalLapso';
 import { Modal } from '../components/ui/Modal';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Card } from '../components/ui/Card';
+import { PeriodoEscolarSelect } from '../components/academico/PeriodoEscolarSelect';
+import { useContextoAcademico } from '../hooks/useContextoAcademico';
 
 const INPUT_STYLE = {
   border: '0.5px solid var(--border-md)',
@@ -24,6 +26,7 @@ const Notas = () => {
   const puedeGestionarLapsos = useMemo(() => ROLE_GROUPS.LAPSOS_GESTION.includes(rol), [rol]);
   const puedeRegistrarNotas = useMemo(() => ROLE_GROUPS.ACADEMICO_REGISTRO.includes(rol), [rol]);
   const esDocente = useMemo(() => user?.rol === 'docente', [user?.rol]);
+  const contexto = useContextoAcademico();
 
   const {
     grado, materias, materiaId, lapsoId, notas,
@@ -31,7 +34,7 @@ const Notas = () => {
     cambiarGrado, cambiarMateria, cambiarLapso, resetLapso,
     handleNotaChange, guardar,
     confirmarDescartarCambios, cancelarDescartarCambios,
-  } = useNotas(esDocente);
+  } = useNotas(esDocente, { periodoId: contexto.periodoId, sedeId: contexto.sedeId });
 
   const {
     lapsos, modalLapso,
@@ -42,7 +45,7 @@ const Notas = () => {
     checklistCierre, loadingChecklist, impactoCierre,
     abrirModalCrear, abrirModalEditar, cerrarModal,
     guardarLapso, cargarChecklistCierre, cerrarLapso, reabrirLapso,
-  } = useLapsos();
+  } = useLapsos({ periodoId: contexto.periodoId, sedeId: contexto.sedeId });
 
   const lapsoSeleccionado = useMemo(
     () => lapsos.find(l => String(l.id) === String(lapsoId)),
@@ -79,7 +82,16 @@ const Notas = () => {
       />
 
       {/* Filtros */}
-      <div className={`grid grid-cols-1 ${esDocente ? 'md:grid-cols-2' : 'md:grid-cols-3'} gap-4 mb-6`}>
+      <div className={`grid grid-cols-1 ${esDocente ? 'md:grid-cols-3' : 'md:grid-cols-2 lg:grid-cols-4'} gap-4 mb-6`}>
+
+        <PeriodoEscolarSelect
+          id="notas-periodo"
+          periodos={contexto.periodos}
+          value={contexto.periodoId}
+          onChange={contexto.setPeriodoId}
+          loading={contexto.loadingPeriodos}
+          disabled={dirty}
+        />
 
         {/* Grado — solo secretaria/director; el docente ve directo sus propias materias */}
         {!esDocente && (
@@ -90,6 +102,8 @@ const Notas = () => {
             <GradoSelect
               value={grado}
               onChange={e => cambiarGrado(e.target.value)}
+              normalizado
+              filtros={contexto.filtrosGrado}
               className="w-full px-3 py-2 rounded-lg text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40"
               style={INPUT_STYLE}
               incluirVacio
@@ -131,7 +145,7 @@ const Notas = () => {
               <option value="">Seleccionar lapso...</option>
               {lapsos.map(l => (
                 <option key={l.id} value={l.id}>
-                  {l.nombre} — {l.periodo_escolar}{!l.activo ? ' (cerrado)' : ''}
+                  {l.nombre} — {l.periodo_detalle?.nombre || l.periodo_escolar}{!l.activo ? ' (cerrado)' : ''}
                 </option>
               ))}
             </select>
@@ -199,6 +213,7 @@ const Notas = () => {
           checklist={checklistCierre}
           loadingChecklist={loadingChecklist}
           impactoCierre={impactoCierre}
+          periodos={contexto.periodos}
           onConfirmCerrar={() => cargarChecklistCierre(lapsoEditando?.id)}
           onCancelCerrar={() => setConfirmCerrar(false)}
           onGuardar={guardarLapso}

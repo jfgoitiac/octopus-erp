@@ -21,9 +21,10 @@ function normalizeRegistro(r) {
   };
 }
 
-export function useAsistencia() {
+export function useAsistencia({ periodoId = '', sedeId = '' } = {}) {
   const [fecha, setFecha]       = useState(new Date());
   const [grado, setGrado]       = useState('');
+  const [gradoNombre, setGradoNombre] = useState('');
   const [registros, setRegistros] = useState([]);
   const [loading, setLoading]   = useState(false);
   const [saving, setSaving]     = useState(false);
@@ -33,6 +34,13 @@ export function useAsistencia() {
 
   // Cancelar cualquier petición en vuelo al desmontar
   useEffect(() => () => { abortRef.current?.abort(); }, []);
+
+  useEffect(() => {
+    setGrado('');
+    setGradoNombre('');
+    setRegistros([]);
+    setDirty(false);
+  }, [periodoId, sedeId]);
 
   const fetchAsistencia = useCallback(async () => {
     if (!grado || !fecha) { setRegistros([]); return; }
@@ -45,7 +53,7 @@ export function useAsistencia() {
     setDirty(false);
     try {
       const fechaStr = format(fecha, 'yyyy-MM-dd');
-      const res = await getAsistencia(grado, fechaStr, controller.signal);
+      const res = await getAsistencia({ seccion_id: grado, ...(periodoId ? { periodo_id: periodoId } : {}) }, fechaStr, controller.signal);
       if (controller.signal.aborted) return;
       setRegistros((res.data || []).map(normalizeRegistro));
     } catch (err) {
@@ -54,7 +62,12 @@ export function useAsistencia() {
     } finally {
       if (!controller.signal.aborted) setLoading(false);
     }
-  }, [grado, fecha]);
+  }, [grado, fecha, periodoId]);
+
+  const seleccionarGrado = useCallback((id, gradoSeleccionado) => {
+    setGrado(id);
+    setGradoNombre(gradoSeleccionado?.nombre || gradoSeleccionado?.grado_seccion || '');
+  }, []);
 
   useEffect(() => { fetchAsistencia(); }, [fetchAsistencia]);
 
@@ -110,7 +123,11 @@ export function useAsistencia() {
     setSaving(true);
     try {
       const fechaStr = format(fecha, 'yyyy-MM-dd');
-      const res = await saveAsistencia(grado, fechaStr, aPayloadAsistencia(registros));
+      const res = await saveAsistencia(
+        { seccion_id: grado, ...(periodoId ? { periodo_id: periodoId } : {}) },
+        fechaStr,
+        aPayloadAsistencia(registros),
+      );
       setRegistros(prev => aplicarVersiones(prev, res.data?.guardadas));
       toast.success('Asistencia guardada correctamente.');
       setDirty(false);
@@ -129,7 +146,7 @@ export function useAsistencia() {
     } finally {
       setSaving(false);
     }
-  }, [grado, fecha, registros, sinMarcar]);
+  }, [grado, fecha, registros, sinMarcar, periodoId]);
 
   const conteos = useMemo(
     () => registros.reduce(
@@ -148,7 +165,7 @@ export function useAsistencia() {
 
   return {
     fecha, setFecha,
-    grado, setGrado,
+    grado, gradoNombre, seleccionarGrado,
     registros,
     loading,
     saving,

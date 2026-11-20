@@ -9,6 +9,13 @@ import {
   getBloquesPaquete,
 } from '../api/academico.service';
 
+const contextoSeccion = (seccion) => {
+  if (!seccion) return {};
+  return /^\d+$/.test(String(seccion))
+    ? { seccion_id: seccion }
+    : { grado_seccion: seccion };
+};
+
 // Opera sobre un paquete de horario (jornada) + un grado dentro de ese
 // paquete. La grilla ya no usa horas fijas de 1h (buildHoraBlocks) — las
 // filas salen de los BloqueHorario reales del paquete.
@@ -36,7 +43,7 @@ export function useHorarios(paqueteId, grado) {
 
     setLoading(true);
     const solicitudes = grado
-      ? [getBloquesPaquete(paqueteId, signal), getHorarios(paqueteId, grado, signal), getMaterias(grado, signal)]
+      ? [getBloquesPaquete(paqueteId, signal), getHorarios(paqueteId, contextoSeccion(grado), signal), getMaterias(contextoSeccion(grado), signal)]
       : [getBloquesPaquete(paqueteId, signal)];
 
     Promise.all(solicitudes)
@@ -77,7 +84,7 @@ export function useHorarios(paqueteId, grado) {
     setSaving(true);
     try {
       const payload = {
-        grado_seccion: grado,
+        ...contextoSeccion(grado),
         materia_id:    form.materia_id,
         dia_semana:    form.dia_semana,
         bloque_id:     form.bloque_id,
@@ -152,7 +159,7 @@ export function useHorarios(paqueteId, grado) {
   const crearMateria = useCallback(async (form) => {
     setSavingMateria(true);
     try {
-      const respuesta = await createMateria({ ...form, grado_seccion: grado });
+      const respuesta = await createMateria({ ...form, ...contextoSeccion(grado) });
       setMaterias(prev => [...prev, respuesta.data]);
       toast.success('Materia agregada.');
       return true;
@@ -170,7 +177,7 @@ export function useHorarios(paqueteId, grado) {
     try {
       const respuesta = await updateMateria(form.id, {
         nombre: form.nombre,
-        grado_seccion: form.grado_seccion,
+        ...contextoSeccion(form.seccion_id || grado),
         horas_academicas: form.horas_academicas,
         tipo_evaluacion: form.tipo_evaluacion,
         cuenta_para_promedio: form.cuenta_para_promedio,

@@ -7,12 +7,25 @@ import { simularApi, sinScrollHorizontal, alAlcance, anuncio } from './ayudas';
  * en los 4 tamaños de referencia del ESTÁNDAR DE DISEÑO RESPONSIVE.
  */
 
-const GRADOS = [{ id: 1, grado_seccion: '3er año A' }];
+const PERIODOS = [{ id: 8, sede: 1, nombre: '2026-2027', estado: 'activo' }];
+const GRADOS = [{ id: 12, periodo: 8, sede: 1, nombre: '3er año A', codigo: '3A', activo: true }];
 
 async function prepararPanel(page) {
-  const errores = await simularApi(page, 'secretaria', (ruta) => (ruta === 'secretaria/configuracion-grados/' ? GRADOS : undefined));
+  const consultas = [];
+  page.on('request', req => {
+    if (req.url().includes('/academico/asistencia/')) consultas.push(req.url());
+  });
+  const errores = await simularApi(page, 'secretaria', (ruta) => {
+    if (ruta === 'academico/periodos-escolares/') return PERIODOS;
+    if (ruta === 'academico/secciones/') return GRADOS;
+    return undefined;
+  });
   await page.goto('/asistencia');
-  await page.locator('#filtro-grado').selectOption('3er año A');
+  await expect(page.locator('#asistencia-periodo')).toHaveValue('8');
+  await page.locator('#filtro-grado').selectOption('12');
+  await expect.poll(() => consultas.length).toBeGreaterThan(0);
+  expect(consultas.at(-1)).toContain('seccion_id=12');
+  expect(consultas.at(-1)).toContain('periodo_id=8');
   return errores;
 }
 

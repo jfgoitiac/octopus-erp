@@ -37,6 +37,11 @@ const Horarios = () => {
   const { grados: gradosPaquete, loading: loadingGrados } = useGradosPaquete(paqueteId);
 
   const [grado, setGrado] = useState('');
+  const gradoActual = useMemo(
+    () => gradosPaquete.find(item => String(item.seccion_id || item.grado_id || item.grado_seccion) === String(grado)) || null,
+    [gradosPaquete, grado],
+  );
+  const gradoNombre = gradoActual?.nombre || gradoActual?.grado_seccion || '';
   const [vista, setVista] = useState('grado');
   const [docenteId, setDocenteId] = useState('');
   const [horariosDocente, setHorariosDocente] = useState([]);
@@ -135,11 +140,13 @@ const Horarios = () => {
     if (!paqueteId || !gradosPaquete.length) { setGrillasParalelas([]); return; }
     setLoadingParalelas(true);
     try {
-      const datos = await Promise.all(gradosPaquete.map(async ({ grado_seccion: gradoParalelo }) => {
+      const datos = await Promise.all(gradosPaquete.map(async (seccion) => {
+        const seccionId = seccion.seccion_id || seccion.grado_id || seccion.grado_seccion;
+        const gradoParalelo = seccion.nombre || seccion.grado_seccion;
         const [horariosRespuesta, materiasRespuesta] = await Promise.all([
-          getHorarios(paqueteId, gradoParalelo), getMaterias(gradoParalelo),
+          getHorarios(paqueteId, { seccion_id: seccionId }), getMaterias({ seccion_id: seccionId }),
         ]);
-        return { grado: gradoParalelo, horarios: horariosRespuesta.data || [], materias: materiasRespuesta.data || [] };
+        return { grado: gradoParalelo, seccionId, horarios: horariosRespuesta.data || [], materias: materiasRespuesta.data || [] };
       }));
       setGrillasParalelas(datos);
     } catch {
@@ -252,7 +259,7 @@ const Horarios = () => {
 
   const imprimir = async ({ tipo, docenteId, titulo, subtitulo }) => {
     let horariosParaImprimir = horarios;
-    let detalle = `Grado: ${grado} · ${paqueteActual?.nombre || ''}`;
+    let detalle = `Grado: ${gradoNombre} · ${paqueteActual?.nombre || ''}`;
     if (tipo === 'docente') {
       try {
         const respuesta = await getHorariosDocente(paqueteId, docenteId);
@@ -312,7 +319,7 @@ const Horarios = () => {
                 style={{ border: '0.5px solid var(--border-md)', background: 'var(--porcelain)' }}
               >
                 <p className="text-sm font-semibold" style={{ color: 'var(--jet)' }}>{p.nombre}</p>
-                <p className="text-xs mt-1" style={{ color: 'var(--ash)' }}>{p.periodo_escolar}</p>
+                <p className="text-xs mt-1" style={{ color: 'var(--ash)' }}>{p.periodo_detalle?.nombre || p.periodo_nombre || p.periodo_escolar}</p>
                 <p className="text-[11px] mt-2" style={{ color: 'var(--ash)' }}>
                   {p.grados?.length || 0} grado{(p.grados?.length || 0) !== 1 ? 's' : ''} · {p.estado === 'publicado' ? 'Publicado' : 'Borrador'}
                 </p>
@@ -422,7 +429,7 @@ const Horarios = () => {
           >
             <option value="">Seleccionar...</option>
             {gradosPaquete.map(g => (
-              <option key={g.id} value={g.grado_seccion}>{g.grado_seccion}</option>
+              <option key={g.id} value={g.seccion_id || g.grado_id || g.grado_seccion}>{g.nombre || g.grado_seccion}</option>
             ))}
           </select>
         )}
@@ -567,7 +574,7 @@ const Horarios = () => {
 
       {showImprimir && (
         <ModalImprimirHorario
-          grado={grado}
+          grado={gradoNombre}
           docentes={docentes}
           loadingDocentes={loadingDocentes}
           onClose={() => setShowImprimir(false)}

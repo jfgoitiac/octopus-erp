@@ -16,6 +16,7 @@ export function ModalLapso({
   checklist,
   loadingChecklist,
   impactoCierre,
+  periodos = [],
   onConfirmCerrar,
   onCancelCerrar,
   onGuardar,
@@ -85,16 +86,26 @@ export function ModalLapso({
           <label htmlFor="lapso-periodo" className="block text-[11px] uppercase tracking-widest mb-1" style={{ color: 'var(--ash)' }}>
             Período escolar
           </label>
-          <input
+          <select
             id="lapso-periodo"
-            type="text"
-            placeholder="ej. 2024-2025"
             className="w-full px-3 py-2 rounded-xl text-base sm:text-sm outline-none border focus-visible:ring-2 focus-visible:ring-[var(--pb)]/40"
             style={FIELD_STYLE}
-            value={formLapso.periodo_escolar}
+            value={formLapso.periodo_id || ''}
             disabled={esCerrado}
-            onChange={e => setFormLapso(p => ({ ...p, periodo_escolar: e.target.value }))}
-          />
+            onChange={e => {
+              const periodo = periodos.find(item => String(item.id) === e.target.value);
+              setFormLapso(p => ({
+                ...p,
+                periodo_id: e.target.value,
+                periodo_escolar: periodo?.nombre || p.periodo_escolar,
+              }));
+            }}
+          >
+            <option value="">Seleccionar período...</option>
+            {periodos.map(periodo => (
+              <option key={periodo.id} value={periodo.id}>{periodo.nombre}</option>
+            ))}
+          </select>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

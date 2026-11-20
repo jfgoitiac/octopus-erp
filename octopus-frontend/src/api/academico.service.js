@@ -1,11 +1,29 @@
 import apiClient from './apiClient';
 
+const conQuery = (ruta, filtros = {}) => {
+  const params = new URLSearchParams();
+  Object.entries(filtros || {}).forEach(([clave, valor]) => {
+    if (valor !== undefined && valor !== null && valor !== '') params.set(clave, valor);
+  });
+  const query = params.toString();
+  return `${ruta}${query ? `?${query}` : ''}`;
+};
+
+// Contexto académico normalizado (Fase 3). Los endpoints conservan los
+// campos de texto legacy mientras se completa la reconciliación de datos.
+export const getPeriodosEscolares = (filtros, signal) =>
+  apiClient.get(conQuery('academico/periodos-escolares/', filtros), signal ? { signal } : undefined);
+
+export const getGradosSecciones = (filtros, signal) =>
+  apiClient.get(conQuery('academico/secciones/', filtros), signal ? { signal } : undefined);
+
 // Materias
-export const getMaterias = (gradoSeccion, signal) =>
-  apiClient.get(
-    gradoSeccion ? `academico/materias/?grado_seccion=${encodeURIComponent(gradoSeccion)}` : 'academico/materias/',
-    signal ? { signal } : undefined
-  );
+export const getMaterias = (gradoOFiltros, signal) => {
+  const filtros = typeof gradoOFiltros === 'object'
+    ? gradoOFiltros
+    : (gradoOFiltros ? { grado_seccion: gradoOFiltros } : {});
+  return apiClient.get(conQuery('academico/materias/', filtros), signal ? { signal } : undefined);
+};
 
 export const getMateria = (id, signal) =>
   apiClient.get(`academico/materias/${id}/`, signal ? { signal } : undefined);
@@ -39,11 +57,11 @@ export const asignarMateriasDocente = (id, materias) =>
   apiClient.post(`academico/docentes/${id}/asignar-materias/`, { materias });
 
 // Lapsos
-export const getLapsos = (periodoEscolar) => {
-  const url = periodoEscolar
-    ? `academico/lapsos/?periodo_escolar=${encodeURIComponent(periodoEscolar)}`
-    : 'academico/lapsos/';
-  return apiClient.get(url);
+export const getLapsos = (periodoOFiltros, signal) => {
+  const filtros = typeof periodoOFiltros === 'object'
+    ? periodoOFiltros
+    : (periodoOFiltros ? { periodo_escolar: periodoOFiltros } : {});
+  return apiClient.get(conQuery('academico/lapsos/', filtros), signal ? { signal } : undefined);
 };
 
 export const createLapso = (data) =>
@@ -57,17 +75,29 @@ export const saveNotas = (materiaId, lapsoId, notas) =>
   apiClient.post('academico/notas/', { materia_id: materiaId, lapso_id: lapsoId, notas });
 
 // Asistencia
-export const getAsistencia = (gradoSeccion, fecha, signal) =>
-  apiClient.get(`academico/asistencia/?grado_seccion=${encodeURIComponent(gradoSeccion)}&fecha=${fecha}`, { signal });
+export const getAsistencia = (gradoOContexto, fecha, signal) => {
+  const filtros = typeof gradoOContexto === 'object'
+    ? { ...gradoOContexto, fecha }
+    : { grado_seccion: gradoOContexto, fecha };
+  return apiClient.get(conQuery('academico/asistencia/', filtros), { signal });
+};
 
-export const saveAsistencia = (gradoSeccion, fecha, registros) =>
-  apiClient.post('academico/asistencia/', { grado_seccion: gradoSeccion, fecha, registros });
+export const saveAsistencia = (gradoOContexto, fecha, registros) => {
+  const contexto = typeof gradoOContexto === 'object'
+    ? gradoOContexto
+    : { grado_seccion: gradoOContexto };
+  return apiClient.post('academico/asistencia/', { ...contexto, fecha, registros });
+};
 
 // Horarios — ahora se filtran por paquete + grado_seccion (ver PaquetesHorario)
 export const getHorarios = (paqueteId, gradoSeccion, signal) => {
   const params = new URLSearchParams();
   if (paqueteId) params.set('paquete', paqueteId);
-  if (gradoSeccion) params.set('grado_seccion', gradoSeccion);
+  if (typeof gradoSeccion === 'object') {
+    Object.entries(gradoSeccion || {}).forEach(([clave, valor]) => {
+      if (valor !== undefined && valor !== null && valor !== '') params.set(clave, valor);
+    });
+  } else if (gradoSeccion) params.set('grado_seccion', gradoSeccion);
   return apiClient.get(`academico/horarios/?${params.toString()}`, signal ? { signal } : undefined);
 };
 
@@ -110,7 +140,10 @@ export const getGradosPaquete = (paqueteId, signal) =>
   apiClient.get(`academico/paquetes-horario/${paqueteId}/grados/`, signal ? { signal } : undefined);
 
 export const addGradoPaquete = (paqueteId, gradoSeccion) =>
-  apiClient.post(`academico/paquetes-horario/${paqueteId}/grados/`, { grado_seccion: gradoSeccion });
+  apiClient.post(
+    `academico/paquetes-horario/${paqueteId}/grados/`,
+    typeof gradoSeccion === 'object' ? gradoSeccion : { grado_seccion: gradoSeccion },
+  );
 
 export const removeGradoPaquete = (paqueteId, gradoPk) =>
   apiClient.delete(`academico/paquetes-horario/${paqueteId}/grados/${gradoPk}/`);

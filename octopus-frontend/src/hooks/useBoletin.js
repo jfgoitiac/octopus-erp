@@ -3,7 +3,7 @@ import { toast } from 'react-toastify';
 import { getLapsos, getBoletin } from '../api/academico.service';
 import { buscarAlumnos } from '../api/secretaria.service';
 
-export function useBoletin() {
+export function useBoletin({ periodoId = '', sedeId = '' } = {}) {
   const [busqueda, setBusqueda] = useState('');
   const [alumnos, setAlumnos] = useState([]);
   const [busquedaLoading, setBusquedaLoading] = useState(false);
@@ -19,10 +19,15 @@ export function useBoletin() {
   useEffect(() => () => abortRef.current?.abort(), []);
 
   useEffect(() => {
-    getLapsos()
+    getLapsos({ ...(periodoId ? { periodo_id: periodoId } : {}), ...(sedeId ? { sede: sedeId } : {}) })
       .then(res => setLapsos(res.data || []))
       .catch(() => toast.error('No se pudieron cargar los lapsos.'));
-  }, []);
+  }, [periodoId, sedeId]);
+
+  useEffect(() => {
+    setLapsoId('');
+    setBoletin(null);
+  }, [periodoId, sedeId]);
 
   // Búsqueda de alumnos con debounce y cancelación
   useEffect(() => {

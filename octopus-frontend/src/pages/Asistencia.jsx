@@ -15,6 +15,8 @@ import ResumenGrado from '../components/asistencia/ResumenGrado';
 import SelectorVistaAsistencia from '../components/asistencia/SelectorVistaAsistencia';
 import { useVistaAsistencia, VISTA } from '../components/asistencia/useVistaAsistencia';
 import { PageHeader } from '../components/ui/PageHeader';
+import { PeriodoEscolarSelect } from '../components/academico/PeriodoEscolarSelect';
+import { useContextoAcademico } from '../hooks/useContextoAcademico';
 
 const INPUT_STYLE = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' };
 // Sin `background` inline (a diferencia de INPUT_STYLE): así la clase
@@ -41,9 +43,10 @@ const TARJETA_STYLE = { border: '0.5px solid var(--border-md)' };
 const ALTURA_PANEL = 'h-[calc(100dvh-8.75rem)] md:h-[calc(100dvh-9.75rem)]';
 
 const Asistencia = () => {
+  const contexto = useContextoAcademico();
   const {
     fecha, setFecha,
-    grado, setGrado,
+    grado, gradoNombre, seleccionarGrado,
     registros,
     loading,
     saving,
@@ -55,7 +58,7 @@ const Asistencia = () => {
     restaurarRegistro,
     guardar,
     sinMarcar,
-  } = useAsistencia();
+  } = useAsistencia({ periodoId: contexto.periodoId, sedeId: contexto.sedeId });
 
   const [vista, cambiarVista] = useVistaAsistencia('admin_asistencia_vista', { conResumen: true });
   const enTarjetas = vista === VISTA.TARJETAS;
@@ -104,7 +107,15 @@ const Asistencia = () => {
       />
 
       {/* Filtros */}
-      <div className="mb-4 grid grid-cols-1 gap-4 rounded-2xl bg-white p-4 sm:grid-cols-2 sm:p-5" style={TARJETA_STYLE}>
+      <div className="mb-4 grid grid-cols-1 gap-4 rounded-2xl bg-white p-4 sm:grid-cols-2 lg:grid-cols-3 sm:p-5" style={TARJETA_STYLE}>
+        <PeriodoEscolarSelect
+          id="asistencia-periodo"
+          periodos={contexto.periodos}
+          value={contexto.periodoId}
+          onChange={contexto.setPeriodoId}
+          loading={contexto.loadingPeriodos}
+          disabled={dirty}
+        />
         <div>
           <label
             htmlFor="filtro-fecha"
@@ -165,7 +176,10 @@ const Asistencia = () => {
           <GradoSelect
             id="filtro-grado"
             value={grado}
-            onChange={e => setGrado(e.target.value)}
+            onChange={() => {}}
+            onGradoSeleccionado={gradoSeleccionado => seleccionarGrado(String(gradoSeleccionado?.id || ''), gradoSeleccionado)}
+            normalizado
+            filtros={contexto.filtrosGrado}
             incluirVacio
             className="w-full px-3 py-2 rounded-lg text-sm outline-none"
             style={INPUT_STYLE}
@@ -185,7 +199,7 @@ const Asistencia = () => {
       {grado && enTarjetas ? (
         <PaseListaTarjetas
           key={`${grado}-${format(fecha, 'yyyy-MM-dd')}`}
-          titulo={grado}
+          titulo={gradoNombre}
           subtitulo="Control de asistencia"
           fecha={fecha}
           registros={registros}
@@ -207,7 +221,7 @@ const Asistencia = () => {
             <p className="text-sm">No hay alumnos registrados en este grado.</p>
           </div>
         ) : (
-          <ResumenGrado grado={grado} fecha={fecha} registros={registros} dirty={dirty} />
+          <ResumenGrado grado={gradoNombre} fecha={fecha} registros={registros} dirty={dirty} />
         )
       ) : (
       <>

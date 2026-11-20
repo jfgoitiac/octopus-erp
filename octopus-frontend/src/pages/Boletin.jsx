@@ -7,6 +7,8 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { Card } from '../components/ui/Card';
 import { Tabla } from '../components/ui/Tabla';
 import { esResultadoProvisional, etiquetaEstadoCalificacion, normalizarCalificacion, valorVisibleCalificacion } from '../utils/calificaciones';
+import { PeriodoEscolarSelect } from '../components/academico/PeriodoEscolarSelect';
+import { useContextoAcademico } from '../hooks/useContextoAcademico';
 
 const BOLETIN_COLUMNAS = [
   { key: 'materia', label: 'Materia' },
@@ -83,12 +85,13 @@ const SkeletonBoletin = () => (
 );
 
 const Boletin = () => {
+  const contexto = useContextoAcademico();
   const {
     busqueda, alumnos, busquedaLoading, alumnoSeleccionado,
     lapsos, lapsoId, boletin, loading, showDropdown, promedioGeneral,
     setShowDropdown, handleChangeBusqueda, handleChangeLapso,
     handleSelectAlumno, handleVistaPrev,
-  } = useBoletin();
+  } = useBoletin({ periodoId: contexto.periodoId, sedeId: contexto.sedeId });
 
   const searchRef = useRef(null);
 
@@ -112,9 +115,16 @@ const Boletin = () => {
       />
 
       {/* Filtros */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <PeriodoEscolarSelect
+          id="boletin-periodo"
+          periodos={contexto.periodos}
+          value={contexto.periodoId}
+          onChange={contexto.setPeriodoId}
+          loading={contexto.loadingPeriodos}
+        />
         {/* Buscador alumno */}
-        <div className="md:col-span-2 relative" ref={searchRef}>
+        <div className="relative lg:col-span-2" ref={searchRef}>
           <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
             Buscar Alumno
           </label>
@@ -180,7 +190,7 @@ const Boletin = () => {
           >
             <option value="">Seleccionar lapso...</option>
             {lapsos.map(l => (
-              <option key={l.id} value={l.id}>{l.nombre} — {l.periodo_escolar}</option>
+              <option key={l.id} value={l.id}>{l.nombre} — {l.periodo_detalle?.nombre || l.periodo_escolar}</option>
             ))}
           </select>
         </div>
