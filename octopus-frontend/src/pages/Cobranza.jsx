@@ -135,6 +135,10 @@ const Cobranza = () => {
     // síncrona en el mismo evento, sin esperar al re-render.
     const enviandoPagoRef = useRef(false);
     const [loadingBusqueda, setLoadingBusqueda] = useState(false);
+    const [loadingCotizacion, setLoadingCotizacion] = useState(false);
+    const [errorCotizacion, setErrorCotizacion] = useState(false);
+    const cotizacionAbortRef = useRef(null);
+    const cotizacionAplicadaRef = useRef(null);
     const [confirming, setConfirming]           = useState(false);
 
     const totalUSD = useMemo(() => {
@@ -327,6 +331,8 @@ const Cobranza = () => {
                     );
                     setRepresentanteCedula(rep.cedula || '');
                     setAlumnosRep(alumnos);
+                    cotizacionAplicadaRef.current = today();
+                    setErrorCotizacion(false);
                     if (rep.cedula) autocompletarPagoRepresentante(rep.cedula);
                     setAlumnosSeleccionados([]); setDatosAlumnos({}); setSeleccion({});
                     setCuotasProyectoInversion(alumnos[0]?.cuotas_proyecto_inversion_pendientes || []);
@@ -353,6 +359,50 @@ const Cobranza = () => {
             resetBusqueda();
         }
     }, [resetBusqueda, autocompletarPagoRepresentante]);
+
+    // La búsqueda inicial cotiza a hoy. Al activar el modo retroactivo (o
+    // cambiar su fecha) se pide la misma fotografía de deuda evaluada en la
+    // fecha REAL del pago. Se reemplazan solo los datos cotizados: la
+    // selección y los montos parciales escritos por el cajero se conservan.
+    useEffect(() => {
+        if (cedula.length <= 6 || alumnosRep.length === 0) return undefined;
+        const fechaReferencia = retroActivo ? fechaPagoRetro : today();
+        if (!fechaReferencia || cotizacionAplicadaRef.current === fechaReferencia) return undefined;
+
+        cotizacionAbortRef.current?.abort();
+        const controller = new AbortController();
+        cotizacionAbortRef.current = controller;
+        setLoadingCotizacion(true);
+        setErrorCotizacion(false);
+
+        const timer = setTimeout(async () => {
+            try {
+                const res = await axiosInstance.get(`cobranza/buscar/${cedula}/`, {
+                    params: retroActivo ? { fecha_referencia: fechaReferencia } : undefined,
+                    signal: controller.signal,
+                });
+                const alumnosCotizados = res.data.alumnos || [];
+                const porId = new Map(alumnosCotizados.map(alumno => [alumno.id, alumno]));
+                setAlumnosRep(alumnosCotizados);
+                setDatosAlumnos(prev => Object.fromEntries(
+                    Object.entries(prev).map(([id, alumno]) => [id, porId.get(Number(id)) || alumno])
+                ));
+                setCuotasProyectoInversion(alumnosCotizados[0]?.cuotas_proyecto_inversion_pendientes || []);
+                cotizacionAplicadaRef.current = fechaReferencia;
+            } catch (err) {
+                if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
+                setErrorCotizacion(true);
+                toast.error('No se pudo actualizar el recargo para la fecha seleccionada. Intenta nuevamente.');
+            } finally {
+                if (!controller.signal.aborted) setLoadingCotizacion(false);
+            }
+        }, 250);
+
+        return () => {
+            clearTimeout(timer);
+            controller.abort();
+        };
+    }, [cedula, alumnosRep.length, retroActivo, fechaPagoRetro]);
 
     const bancosAbortRef = useRef(null);
 
@@ -506,6 +556,8 @@ const Cobranza = () => {
     const handleSubmit = async (e) => {
         e?.preventDefault();
         if (alumnosSeleccionados.length === 0) { toast.error('Selecciona al menos un alumno.'); return; }
+        if (loadingCotizacion) { toast.info('Espera mientras se actualizan los recargos para la fecha seleccionada.'); return; }
+        if (errorCotizacion) { toast.error('Actualiza la fecha del pago para volver a calcular los recargos antes de confirmar.'); return; }
         // Relee los flags justo antes de validar: si el admin los desactivó en
         // Configuración mientras esta pantalla estaba abierta, el valor en
         // estado puede estar desactualizado (ver fetchFlagsDivisas).
@@ -551,7 +603,8 @@ const Cobranza = () => {
 
             // Se incluye una mensualidad (pendiente o adelanto) en el payload
             // cuando: (a) el cajero escribió un override en "Monto a abonar", o
-            // (b) tiene un recargo/descuento vigente (saldo_a_pagar_hoy distinto
+            // (b) tiene un recargo/descuento vigente para la fecha cotizada
+            // (saldo_a_pagar_hoy distinto
             // del saldo nominal) — en ese caso se envía saldo_a_pagar_hoy aunque
             // el cajero no haya tocado el input, para no cobrar de más ni de
             // menos por default. El resto (sin override y sin recargo/descuento)
@@ -841,7 +894,7 @@ const Cobranza = () => {
                 saldoVES={saldoVES}
                 totalGenUSD={totalGenUSD}
                 totalGenVES={totalGenVES}
-                loading={loading}
+                loading={loading || loadingCotizacion}
                 setConfirming={setConfirming}
                 handleSubmit={handleSubmit}
             />

@@ -10,8 +10,9 @@ import { AuthContext } from '../context/AuthContext';
 // independiente de abonos_parciales_requieren_usd — ver backend
 // cobranza/tests.py::AbonoParcialRequiereUSDFlagTest). `vi.hoisted` lo saca
 // del scope del factory de vi.mock, que corre antes que el resto del módulo..
-const { mockConfig } = vi.hoisted(() => ({
+const { mockConfig, mockQuote } = vi.hoisted(() => ({
     mockConfig: { adelantos_requieren_usd: true, abonos_parciales_requieren_usd: true },
+    mockQuote: { enabled: false },
 }));
 
 // Único punto de acceso a la API en toda la app (apiClient.js) — mockearlo
@@ -35,12 +36,23 @@ vi.mock('../api/apiClient', () => {
         cuotas_proyecto_inversion_pendientes: [],
     };
 
-    const get = vi.fn((url) => {
+    const get = vi.fn((url, options = {}) => {
         if (url.startsWith('cobranza/buscar/')) {
+            const retroactiva = Boolean(options.params?.fecha_referencia);
+            const alumnoCotizado = mockQuote.enabled ? {
+                ...ALUMNO,
+                fecha_cotizacion: retroactiva ? options.params.fecha_referencia : '2026-11-21',
+                mensualidades_pendientes: ALUMNO.mensualidades_pendientes.map(m => ({
+                    ...m,
+                    monto_recargo: retroactiva ? '0.00' : '5.00',
+                    nombre_recargo: retroactiva ? null : 'Recargo por pago tardío',
+                    saldo_a_pagar_hoy: retroactiva ? '40.00' : '45.00',
+                })),
+            } : ALUMNO;
             return Promise.resolve({
                 data: {
                     representante: { cedula: '12345678', nombre_completo: 'Rep Test' },
-                    alumnos: [ALUMNO],
+                    alumnos: [alumnoCotizado],
                 },
             });
         }
@@ -69,6 +81,7 @@ describe('Cobranza — abono parcial fuerza pago en divisas', () => {
         vi.clearAllMocks();
         mockConfig.adelantos_requieren_usd = true;
         mockConfig.abonos_parciales_requieren_usd = true;
+        mockQuote.enabled = false;
     });
 
     // Desde 2026-09-17: abonos_parciales_requieren_usd YA NO aplica a
@@ -158,5 +171,36 @@ describe('Cobranza — abono parcial fuerza pago en divisas', () => {
         expect(botonEfectivoBs).not.toBeDisabled();
         await user.click(botonEfectivoBs);
         expect(screen.getByText(/Monto en Bolívares/)).toBeInTheDocument();
+    });
+});
+
+describe('Cobranza — cotización de pago retroactivo', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockQuote.enabled = true;
+    });
+
+    it('elimina del resumen el recargo cuando la fecha real es anterior a la regla', async () => {
+        const user = userEvent.setup();
+        renderCobranza();
+
+        fireEvent.change(screen.getByLabelText('Cédula del representante'), {
+            target: { value: '12345678' },
+        });
+        await waitFor(() => screen.getByText('Rep Test'), { timeout: 2000 });
+        await user.click(await screen.findByLabelText('Mensualidad Enero 2026'));
+        await user.click(screen.getByLabelText('Ir a registrar pago'));
+
+        expect(screen.getByText('+RECARGO')).toBeInTheDocument();
+        expect(screen.getAllByText('$45,00').length).toBeGreaterThan(0);
+
+        await user.click(screen.getByRole('switch', { name: 'Activar pago retroactivo' }));
+        const fechaInput = screen.getByText('Fecha real del pago').parentElement.querySelector('input');
+        fireEvent.change(fechaInput, { target: { value: '2026-11-20' } });
+
+        await waitFor(() => {
+            expect(screen.queryByText('+RECARGO')).not.toBeInTheDocument();
+            expect(screen.getAllByText('$40,00').length).toBeGreaterThan(0);
+        });
     });
 });
