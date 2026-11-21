@@ -775,3 +775,10 @@ incumplidos desde `EventoCiclo(convenio_incumplido)`; los cancelados sin evidenc
 - Las pruebas locales usan SQLite: no certifican bloqueos concurrentes reales de PostgreSQL. El entorno
   no dispone de configuración de acceso PostgreSQL para esa comprobación. Las consultas de bloqueo
   evitan DISTINCT y limitan FOR UPDATE al registro propio cuando hay relaciones opcionales.
+# Hallazgos Fase 5 — Control de Estudios
+
+- El lint de `src/hooks/useHorarios.js` conserva avisos previos de dependencias
+  de hooks y `set-state-in-effect`. No se refactorizó el hook completo para no
+  ampliar el alcance de integridad de horarios.
+- Los horarios legacy sin `bloque_id` mantienen `dia_semana`, `hora_inicio` y
+  `hora_fin` como fuente propia hasta completar su reconciliación manual.
