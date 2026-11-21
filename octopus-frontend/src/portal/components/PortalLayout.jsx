@@ -44,6 +44,7 @@ const PortalLayout = () => {
       setDashboardData(res.data ?? null);
       setResumen(res.data?.resumen_financiero ?? null);
       setErrorResumen(false);
+      return res.data ?? null;
     })
     .catch((err) => {
       if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;

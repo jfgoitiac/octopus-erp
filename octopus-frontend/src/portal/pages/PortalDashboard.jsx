@@ -25,6 +25,7 @@ const PortalDashboard = () => {
   } = useOutletContext() || {};
   const { alumnoActivo, sincronizarConLista } = useAlumnoActivo();
   const [modalOpen, setModalOpen] = useState(false);
+  const [cotizandoPago, setCotizandoPago] = useState(false);
   const [mensualidadesInicialesIds, setMensualidadesInicialesIds] = useState([]);
   const [alumnoFinancieroId, setAlumnoFinancieroId] = useState(null);
   const { comprobantes, ultimoPorMensualidad, recargar: recargarComprobantes } = useComprobantesPortal();
@@ -73,10 +74,19 @@ const PortalDashboard = () => {
       .filter((c) => c?.estatus === 'rechazado' && !vistos.has(c.id) && vistos.add(c.id));
   }, [pagables, ultimoPorMensualidad]);
 
-  const abrirPago = (mensualidad = null) => {
+  const abrirPago = async (mensualidad = null) => {
     const valores = Array.isArray(mensualidad) ? mensualidad : mensualidad ? [mensualidad] : [];
     setMensualidadesInicialesIds(valores.map((item) => item?.id ?? item).filter(Boolean));
     setModalOpen(true);
+    // La cotización puede cambiar mientras el portal permanece abierto (por
+    // ejemplo, al comenzar el día de recargo). Se consulta de nuevo antes de
+    // permitir el envío para no conservar el monto cargado el día anterior.
+    setCotizandoPago(true);
+    try {
+      await recargarResumen?.();
+    } finally {
+      setCotizandoPago(false);
+    }
   };
 
   return (
@@ -182,6 +192,7 @@ const PortalDashboard = () => {
           comprobantePorMensualidad={ultimoPorMensualidad}
           tasaBcv={resumen?.tasa_bcv}
           variosAlumnos={variosAlumnos}
+          cotizando={cotizandoPago}
           onSuccess={() => {
             recargarComprobantes();
             recargarResumen?.();

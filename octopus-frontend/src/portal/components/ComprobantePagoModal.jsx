@@ -39,6 +39,7 @@ const Paso = ({ numero, titulo, children }) => (
 const ComprobantePagoModal = ({
   isOpen, onClose, opciones = [], mensualidadesInicialesIds = [],
   comprobantePorMensualidad = {}, onSuccess, tasaBcv = null, variosAlumnos = false,
+  cotizando = false,
 }) => {
   const [seleccionadasIds, setSeleccionadasIds] = useState(() => mensualidadesInicialesIds);
   const [archivo, setArchivo] = useState(null);
@@ -111,6 +112,17 @@ const ComprobantePagoModal = ({
   }, []);
 
   if (!isOpen) return null;
+
+  if (cotizando) {
+    return (
+      <Modal open onClose={cerrar} size="sm" titulo="Reportar un pago">
+        <div role="status" aria-live="polite" className="space-y-3 py-2">
+          <div className="portal-skeleton h-16 animate-pulse rounded-2xl" aria-hidden="true" />
+          <p className="text-center text-sm text-[var(--portal-muted)]">Actualizando el monto pendiente…</p>
+        </div>
+      </Modal>
+    );
+  }
 
   if (disponibles.length === 0) {
     return (

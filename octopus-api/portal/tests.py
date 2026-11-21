@@ -21,7 +21,7 @@ from django.db import connection
 from rest_framework.test import APIClient
 
 from authentication.models import PerfilUsuario
-from cobranza.models import CuotaProyectoInversion, Mensualidad, Pago, TasaCambio
+from cobranza.models import CuotaProyectoInversion, Mensualidad, Pago, ReglaRecargoPago, TasaCambio
 from secretaria.models import Alumno, Representante
 
 from .models import ComprobantePago, RepresentanteUser, asignar_rol_portal
@@ -294,6 +294,30 @@ class PortalDashboardTests(PortalTestBase):
         self.assertEqual(
             float(resp.data['resumen_financiero']['total_deuda_usd']), 35.0
         )
+
+    def test_dashboard_actualiza_deuda_el_dia_que_comienza_el_recargo(self):
+        """Una sesión nueva del portal cotiza con la fecha actual: el día 20
+        muestra capital y desde el 21 incluye el recargo de la regla activa."""
+        self.mensualidad.monto_usd = Decimal('30.00')
+        self.mensualidad.fecha_vencimiento = date(2026, 11, 1)
+        self.mensualidad.save(update_fields=['monto_usd', 'fecha_vencimiento'])
+        ReglaRecargoPago.objects.create(
+            nombre='Recargo desde el 21', tipo='recargo',
+            modo_calculo='monto_fijo_usd', valor=Decimal('5.00'),
+            dia_aplicacion=21, vigente_desde=date(2026, 11, 21), activa=True,
+        )
+        self.auth_portal()
+
+        with mock.patch('django.utils.timezone.localdate', return_value=date(2026, 11, 20)):
+            antes = self.client.get('/api/portal/dashboard/').data['resumen_financiero']
+        with mock.patch('django.utils.timezone.localdate', return_value=date(2026, 11, 21)):
+            desde = self.client.get('/api/portal/dashboard/').data['resumen_financiero']
+
+        self.assertEqual(Decimal(str(antes['total_deuda_usd'])), Decimal('30.00'))
+        self.assertEqual(Decimal(antes['mensualidades_vencidas'][0]['monto_total']), Decimal('30.00'))
+        self.assertEqual(Decimal(str(desde['total_deuda_usd'])), Decimal('35.00'))
+        self.assertEqual(Decimal(desde['mensualidades_vencidas'][0]['monto_recargo']), Decimal('5.00'))
+        self.assertEqual(Decimal(desde['mensualidades_vencidas'][0]['monto_total']), Decimal('35.00'))
 
     def test_deuda_total_suma_a_todos_los_hijos_y_trae_el_desglose(self):
         hermana = crear_alumno(self.rep, 'E84000099', nombre='Ana')
