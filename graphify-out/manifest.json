@@ -5,8 +5,8 @@
     "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "octopus-api/academico/admin.py": {
-    "mtime": 1795104565.2104495,
-    "ast_hash": "35f3b567f10d525a8b5534f6df651b62",
+    "mtime": 1795204847.4866917,
+    "ast_hash": "b7ac8417a2a5900766799ca0674710aa",
     "semantic_hash": ""
   },
   "octopus-api/academico/apps.py": {
@@ -50,13 +50,13 @@
     "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "octopus-api/academico/models.py": {
-    "mtime": 1795203526.949601,
-    "ast_hash": "13c3fd2a653225c7c718ec0463f559c4",
+    "mtime": 1795206396.722504,
+    "ast_hash": "2e02ced73b8a2b32f032793653700da4",
     "semantic_hash": ""
   },
   "octopus-api/academico/serializers.py": {
-    "mtime": 1795104433.1340199,
-    "ast_hash": "671c5b67caddd9ba7318479c05bd9e5b",
+    "mtime": 1795204798.5653093,
+    "ast_hash": "596adc318fd2569a6293442a0afadd8a",
     "semantic_hash": ""
   },
   "octopus-api/academico/urls.py": {
@@ -65,8 +65,8 @@
     "semantic_hash": ""
   },
   "octopus-api/academico/views.py": {
-    "mtime": 1795202105.1939187,
-    "ast_hash": "93287fd06ae120359b54cf72065bc4cc",
+    "mtime": 1795206863.2714748,
+    "ast_hash": "c0d23fffe6ed847dfd7f1fe5f9a0c072",
     "semantic_hash": ""
   },
   "octopus-api/authentication/__init__.py": {
@@ -315,8 +315,8 @@
     "semantic_hash": ""
   },
   "octopus-api/config/settings.py": {
-    "mtime": 1792257343.160852,
-    "ast_hash": "1fb26ea9229297eb7a96ed8001027fda",
+    "mtime": 1795206918.248963,
+    "ast_hash": "6f6caf6f9ee5e2cf4cecf229ce3faf16",
     "semantic_hash": ""
   },
   "octopus-api/config/urls.py": {
@@ -1385,8 +1385,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/api/tokenStore.js": {
-    "mtime": 1793111569.4706314,
-    "ast_hash": "22535a3200913f2149f3b00897d33e04",
+    "mtime": 1795206435.8454852,
+    "ast_hash": "21797a8a69c98b32133b14c5b6710e21",
     "semantic_hash": ""
   },
   "octopus-frontend/src/components/AppProviders.jsx": {
@@ -1710,8 +1710,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/context/AuthContext.jsx": {
-    "mtime": 1793111569.4721158,
-    "ast_hash": "227f0d8aebc784dcd74e75148a9ee705",
+    "mtime": 1795206435.8474228,
+    "ast_hash": "aa653eafbf8cbffa026a30db6ee15bf4",
     "semantic_hash": ""
   },
   "octopus-frontend/src/context/AuthContextValue.jsx": {
@@ -1730,8 +1730,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/hooks/useAsistencia.js": {
-    "mtime": 1795104288.7507353,
-    "ast_hash": "803cff94117e6f0e3f595e39c9cc11d5",
+    "mtime": 1795204962.3741732,
+    "ast_hash": "1a158f2a5cd68c38cab6224d57b3f6c4",
     "semantic_hash": ""
   },
   "octopus-frontend/src/hooks/useAuditoria.js": {
@@ -1905,8 +1905,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/Asistencia.jsx": {
-    "mtime": 1795104288.7507353,
-    "ast_hash": "193e65612e6aa4fe468e9d43081debc4",
+    "mtime": 1795206903.3313272,
+    "ast_hash": "64898b547aff4cc5b5fd859002367212",
     "semantic_hash": ""
   },
   "octopus-frontend/src/pages/Auditoria.jsx": {
@@ -2546,8 +2546,8 @@
     "semantic_hash": ""
   },
   "NOTAS_TECNICAS.md": {
-    "mtime": 1795203784.9984725,
-    "ast_hash": "fce9192cf7ed205b0e96054e9e2634c8",
+    "mtime": 1795206505.7748609,
+    "ast_hash": "03b7852bf7fc65e33b59ee01e58d47f3",
     "semantic_hash": ""
   },
   "PRD_EXPANSION.md": {
@@ -2721,8 +2721,8 @@
     "semantic_hash": ""
   },
   "octopus-api/academico/tests.py": {
-    "mtime": 1794948742.0887089,
-    "ast_hash": "850674fee865b3753f11e57a22e56f0a",
+    "mtime": 1795206144.4065664,
+    "ast_hash": "c09eca83e402800b66470236194d1c87",
     "semantic_hash": ""
   },
   "octopus-api/academico/urls_portal.py": {
@@ -4095,8 +4095,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/portal-docente/api/academico.service.js": {
-    "mtime": 1787174895.5280046,
-    "ast_hash": "b07eddf2a3ef465395c860ef08d02dcc",
+    "mtime": 1795206352.8054206,
+    "ast_hash": "0a5a06a289df39002cc58a5c27aaaf63",
     "semantic_hash": ""
   },
   "octopus-frontend/src/portal-docente/api/comunicacion.service.js": {
@@ -4290,8 +4290,8 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/portal-docente/pages/DocenteMateriaDetalle.jsx": {
-    "mtime": 1794886912.2043002,
-    "ast_hash": "b9edf4a1abaed8b381d344c66afa07c8",
+    "mtime": 1795207047.921429,
+    "ast_hash": "506b3c2872911a0f8ac8354ac2cd0e68",
     "semantic_hash": ""
   },
   "octopus-frontend/src/portal-docente/pages/DocenteMaterias.jsx": {
@@ -6230,13 +6230,13 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/portal-docente/hooks/useAsistenciaClase.js": {
-    "mtime": 1791489987.7150948,
-    "ast_hash": "3c384c8e5400d7a188c24a77a693d03f",
+    "mtime": 1795207019.888378,
+    "ast_hash": "bd0716b35a19f64a009f40506a0a72a3",
     "semantic_hash": ""
   },
   "octopus-frontend/src/portal-docente/hooks/useAsistenciaClase.test.js": {
-    "mtime": 1791490785.822523,
-    "ast_hash": "836a0844595b47c7d2b5a7ef52fd5cec",
+    "mtime": 1795207094.4497962,
+    "ast_hash": "3eae8cdd062c526035316d9c09b2a7be",
     "semantic_hash": ""
   },
   "octopus-frontend/src/portal/components/BannerInstalarApp.jsx": {
@@ -6360,18 +6360,18 @@
     "semantic_hash": ""
   },
   "octopus-frontend/src/portal-docente/utils/asistenciaLocal.js": {
-    "mtime": 1791481110.3742247,
-    "ast_hash": "b596bc0bfc49b40b4c6bd5a6c604196d",
+    "mtime": 1795207037.76859,
+    "ast_hash": "7dda662395c70bd9a9e7da1ea61cf3b8",
     "semantic_hash": ""
   },
   "octopus-frontend/src/portal-docente/utils/colaAsistencia.js": {
-    "mtime": 1791489989.4779363,
-    "ast_hash": "4a29d003a816d63cbaf8611810a44e83",
+    "mtime": 1795207037.7717333,
+    "ast_hash": "dbac07e1feee84bff4ea0ea767abb41a",
     "semantic_hash": ""
   },
   "octopus-frontend/src/portal-docente/utils/colaAsistencia.test.js": {
-    "mtime": 1791481110.3762352,
-    "ast_hash": "63b470dd4d8367c6ce0bb3b3a0ec307a",
+    "mtime": 1795206447.7283363,
+    "ast_hash": "03ee10222bd525349260c32c5a4feb70",
     "semantic_hash": ""
   },
   "octopus-api/academico/migrations/0017_asistencia_actualizado_en.py": {
@@ -9413,6 +9413,16 @@
   "octopus-frontend/playwright-report/data/d41b8141827697e0e11755a121d12b61450889b0.png": {
     "mtime": 1795104643.75589,
     "ast_hash": "b2ad955b703076504d6b928d6404053c",
+    "semantic_hash": ""
+  },
+  "octopus-api/academico/migrations/0026_jornadaasistencia_asistencia_jornada_and_more.py": {
+    "mtime": 1795204925.926446,
+    "ast_hash": "6492df14e7d64908afc3889fca0d7575",
+    "semantic_hash": ""
+  },
+  "octopus-frontend/src/portal-docente/api/academico.service.test.js": {
+    "mtime": 1795206376.2324877,
+    "ast_hash": "873a601f5d6a47194adfc16767a369c9",
     "semantic_hash": ""
   }
 }

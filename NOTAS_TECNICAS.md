@@ -4627,3 +4627,19 @@ tasa). Deuda nueva (solo anotada):
    `GestionQrPanel.test.jsx`: el payload real de Cantina incluye ahora
    `client_request_id`. No se modificó por estar fuera del alcance de Fase 3;
    el build sí finaliza correctamente.
+
+## Fase 4 Control de Estudios — Asistencia robusta (2026-11-20)
+
+- **Media — administración del calendario lectivo:** las excepciones lectivas/no
+  lectivas ya tienen modelo y administración Django, pero todavía no existe una
+  pantalla dedicada en el panel React para mantenerlas. No bloquea el registro
+  ni los reportes; requiere acceso al admin hasta que se planifique esa UI.
+- **Media — verificación de concurrencia en SQLite:** el desarrollo local usa
+  SQLite, cuyo bloqueo no reproduce exactamente `SELECT FOR UPDATE`. La lógica
+  está protegida por constraint y transacción, pero la prueba de dos conexiones
+  simultáneas debe repetirse sobre PostgreSQL en staging antes de producción.
+- **Baja — lint histórico global:** `npm run lint -- --quiet` reporta 174 errores
+  preexistentes en módulos ajenos a asistencia (principalmente
+  `react-hooks/set-state-in-effect`, Fast Refresh e imports sin uso). Los archivos
+  modificados por esta fase pasan ESLint de forma aislada; no se corrigió deuda
+  fuera de alcance.
