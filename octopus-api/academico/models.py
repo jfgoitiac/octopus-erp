@@ -779,10 +779,33 @@ class HorarioClase(models.Model):
             # patrón de ordering/consulta por rango horario dentro del día.
             models.Index(fields=['dia_semana', 'hora_inicio']),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=('bloque', 'grado'),
+                condition=(models.Q(bloque__isnull=False) & models.Q(grado__isnull=False)),
+                name='academico_horario_bloque_grado_unico',
+            ),
+        ]
         verbose_name = 'Horario de Clase'
         verbose_name_plural = 'Horarios de Clases'
 
     def clean(self):
+        # BloqueHorario es la fuente canónica de día y horas para clases de
+        # una grilla. Los campos duplicados permanecen solo por compatibilidad
+        # con horarios legacy y consultas de solapamiento.
+        if self.bloque_id:
+            bloque = self.bloque
+            paquete = bloque.paquete
+            if bloque.tipo != 'clase':
+                raise ValidationError({'bloque': 'Solo se pueden asignar clases a bloques de tipo clase.'})
+            self.dia_semana = bloque.dia_semana
+            self.hora_inicio = bloque.hora_inicio
+            self.hora_fin = bloque.hora_fin
+            if not self.periodo_id:
+                self.periodo = paquete.periodo
+            if not self.grado_id and self.materia_id:
+                self.grado = self.materia.grado
+
         # Validar que la hora de fin sea posterior a la hora de inicio
         if self.hora_inicio and self.hora_fin:
             if self.hora_fin <= self.hora_inicio:
@@ -800,9 +823,17 @@ class HorarioClase(models.Model):
                 raise ValidationError({'bloque': 'El bloque pertenece a otro período escolar.'})
             if self.materia_id and self.materia.sede_id != paquete.sede_id:
                 raise ValidationError({'materia': 'La materia y el bloque pertenecen a sedes distintas.'})
+            if self.grado_id and not paquete.grados.filter(grado_id=self.grado_id).exists():
+                raise ValidationError({'grado': 'La sección no pertenece al paquete del bloque.'})
+        if self.materia_id and not self.materia.activa:
+            raise ValidationError({'materia': 'No se puede programar una materia inactiva.'})
 
     def save(self, *args, **kwargs):
         self.full_clean()
+        if self.bloque_id and kwargs.get('update_fields') is not None:
+            kwargs['update_fields'] = set(kwargs['update_fields']) | {
+                'dia_semana', 'hora_inicio', 'hora_fin', 'periodo', 'grado',
+            }
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -1061,7 +1092,6 @@ class PaqueteHorario(models.Model):
     def __str__(self):
         return f"{self.nombre} ({self.periodo_escolar}) — {self.get_estado_display()}"
 
-
 class PaqueteHorarioGrado(models.Model):
     """
     Un grado_seccion incluido dentro de un PaqueteHorario. La regla de
@@ -1094,6 +1124,19 @@ class PaqueteHorarioGrado(models.Model):
 
     def __str__(self):
         return f"{self.grado_seccion} — {self.paquete.nombre}"
+
+    def clean(self):
+        super().clean()
+        if self.grado_id:
+            if not self.paquete.periodo_id:
+                raise ValidationError({'paquete': 'El paquete debe tener un período normalizado.'})
+            if self.grado.periodo_id != self.paquete.periodo_id:
+                raise ValidationError({'grado': 'La sección pertenece a otro período.'})
+            self.grado_seccion = self.grado.nombre
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
 
 class BloqueHorario(models.Model):

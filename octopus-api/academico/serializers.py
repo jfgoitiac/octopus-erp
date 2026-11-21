@@ -378,7 +378,21 @@ class HorarioClaseSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         bloque = attrs.get('bloque', getattr(self.instance, 'bloque', None))
+        materia = attrs.get('materia', getattr(self.instance, 'materia', None))
+        grado = attrs.get('grado', getattr(self.instance, 'grado', None))
+        periodo = attrs.get('periodo', getattr(self.instance, 'periodo', None))
+        grado = grado or getattr(materia, 'grado', None)
         if bloque is not None:
+            if bloque.tipo != 'clase':
+                raise serializers.ValidationError({'bloque_id': 'Solo se pueden usar bloques de tipo clase.'})
+            if materia and not materia.activa:
+                raise serializers.ValidationError({'materia_id': 'No se puede programar una materia inactiva.'})
+            if materia and materia.sede_id != bloque.paquete.sede_id:
+                raise serializers.ValidationError({'materia_id': 'La materia y el bloque pertenecen a sedes distintas.'})
+            if periodo and bloque.paquete.periodo_id and bloque.paquete.periodo_id != periodo.id:
+                raise serializers.ValidationError({'bloque_id': 'El bloque pertenece a otro período escolar.'})
+            if grado and not bloque.paquete.grados.filter(grado_id=grado.id).exists():
+                raise serializers.ValidationError({'seccion_id': 'La sección no pertenece al paquete del bloque.'})
             attrs['dia_semana'] = bloque.dia_semana
             attrs['hora_inicio'] = bloque.hora_inicio
             attrs['hora_fin'] = bloque.hora_fin

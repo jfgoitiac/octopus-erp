@@ -577,10 +577,23 @@ class DocenteAsignarMateriasView(APIView):
     permission_classes = [IsAcademicoRead]
 
     def post(self, request, pk):
+        return Response(
+            {'error': 'Usa PUT para reemplazar la asignación completa o PATCH para agregar materias.'},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+    def put(self, request, pk):
         """
-        Recibe {"materias": [ids]} y asigna esas materias al docente,
-        desasignando las que tenía y ya no vienen en la lista.
+        Reemplaza de forma explícita la asignación completa del docente.
+        Una lista vacía desasigna todas sus materias.
         """
+        return self._asignar(request, pk, reemplazar=True)
+
+    def patch(self, request, pk):
+        """Modifica parcialmente con {"agregar": [...], "quitar": [...]}."""
+        return self._asignar(request, pk, reemplazar=False)
+
+    def _asignar(self, request, pk, *, reemplazar):
         if not IsAdminOrAbove().has_permission(request, self):
             return Response(
                 {'error': 'No tienes permisos para asignar materias.'},
@@ -593,30 +606,73 @@ class DocenteAsignarMateriasView(APIView):
         except Docente.DoesNotExist:
             return Response({'error': 'Docente no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
-        ids = request.data.get('materias', [])
+        if reemplazar:
+            ids = request.data.get('materias', [])
+            quitar_ids = []
+        else:
+            ids = request.data.get('agregar', [])
+            quitar_ids = request.data.get('quitar', [])
         if not isinstance(ids, list):
-            return Response({'error': 'materias debe ser una lista de ids.'}, status=status.HTTP_400_BAD_REQUEST)
+            campo = 'materias' if reemplazar else 'agregar'
+            return Response({'error': f'{campo} debe ser una lista de ids.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not isinstance(quitar_ids, list):
+            return Response({'error': 'quitar debe ser una lista de ids.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        materias = materia_queryset_para(request.user, Materia.objects).filter(id__in=ids)
-        if materias.count() != len(set(ids)):
+        try:
+            ids = [int(materia_id) for materia_id in ids]
+            quitar_ids = [int(materia_id) for materia_id in quitar_ids]
+        except (TypeError, ValueError):
+            return Response({'error': 'Todos los ids de materias deben ser enteros.'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(ids) != len(set(ids)) or len(quitar_ids) != len(set(quitar_ids)):
+            return Response({'error': 'La lista de materias contiene ids duplicados.'}, status=status.HTTP_400_BAD_REQUEST)
+        if set(ids) & set(quitar_ids):
+            return Response({'error': 'Una materia no puede agregarse y quitarse a la vez.'}, status=400)
+        if not docente.activo or not docente.user.is_active:
+            return Response({'error': 'No se pueden asignar materias a un docente inactivo.'}, status=400)
+
+        materias = list(materia_queryset_para(request.user, Materia.objects).filter(id__in=ids))
+        if len(materias) != len(ids):
             return Response(
                 {'error': 'Una o más materias no existen o pertenecen a otra sede.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        if any(not materia.activa for materia in materias):
+            return Response({'error': 'No se pueden asignar materias inactivas.'}, status=400)
         if any(m.sede_id != docente.sede_id for m in materias):
             return Response({'error': 'Docente y materias deben pertenecer a la misma sede.'}, status=400)
 
-        with transaction.atomic():
-            materias.update(docente=docente.user)
+        materias_quitar = list(
             materia_queryset_para(request.user, Materia.objects).filter(
-                docente=docente.user
-            ).exclude(id__in=ids).update(docente=None)
+                id__in=quitar_ids, docente=docente.user,
+            )
+        )
+        if len(materias_quitar) != len(quitar_ids):
+            return Response(
+                {'error': 'Solo puedes quitar materias activamente asignadas a este docente.'},
+                status=400,
+            )
+
+        with transaction.atomic():
+            Materia.objects.select_for_update().filter(id__in=ids).update(docente=docente.user)
+            if reemplazar:
+                materia_queryset_para(request.user, Materia.objects.select_for_update()).filter(
+                    docente=docente.user
+                ).exclude(id__in=ids).update(docente=None)
+            elif quitar_ids:
+                Materia.objects.select_for_update().filter(
+                    id__in=quitar_ids, docente=docente.user,
+                ).update(docente=None)
 
         crear_log(
             usuario=request.user,
             accion='Asignación de materias a docente',
             modulo='academico',
-            detalles={'docente_id': docente.id, 'materias': ids},
+            detalles={
+                'docente_id': docente.id,
+                'materias': ids,
+                'quitar': quitar_ids,
+                'modo': 'reemplazo' if reemplazar else 'adicion',
+            },
         )
 
         return Response(DocenteSerializer(docente).data)
@@ -1647,10 +1703,13 @@ class HorarioIntercambiarView(APIView):
                     return Response({'error': _mensaje_choque_horario(otro, mismo_docente, misma_aula, mismo_grado)}, status=status.HTTP_400_BAD_REQUEST)
 
             origen_bloque, destino_bloque = origen.bloque, destino.bloque
-            origen.bloque, origen.dia_semana, origen.hora_inicio, origen.hora_fin = destino_bloque, destino_bloque.dia_semana, destino_bloque.hora_inicio, destino_bloque.hora_fin
+            # Libera temporalmente un extremo para no violar el constraint
+            # único (bloque, grado) durante el estado intermedio del swap.
+            HorarioClase.objects.filter(pk=origen.pk).update(bloque=None)
             destino.bloque, destino.dia_semana, destino.hora_inicio, destino.hora_fin = origen_bloque, origen_bloque.dia_semana, origen_bloque.hora_inicio, origen_bloque.hora_fin
-            origen.save()
             destino.save()
+            origen.bloque, origen.dia_semana, origen.hora_inicio, origen.hora_fin = destino_bloque, destino_bloque.dia_semana, destino_bloque.hora_inicio, destino_bloque.hora_fin
+            origen.save()
 
         return Response(HorarioClaseSerializer([origen, destino], many=True).data)
 

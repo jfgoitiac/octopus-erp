@@ -14,6 +14,7 @@ from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from rest_framework.test import APIClient
 
@@ -2214,7 +2215,7 @@ class DocenteAsignarMateriasViewTests(TestCase):
     def test_asignar_materias_asigna_y_desasigna(self):
         self.client.force_authenticate(user=self.admin)
         url = f'/api/academico/docentes/{self.docente.id}/asignar-materias/'
-        response = self.client.post(
+        response = self.client.put(
             url, {'materias': [self.materia1.id, self.materia2.id]}, format='json'
         )
         self.assertEqual(response.status_code, 200)
@@ -2230,8 +2231,30 @@ class DocenteAsignarMateriasViewTests(TestCase):
         cajero = crear_usuario('cajero1', 'cajero')
         self.client.force_authenticate(user=cajero)
         url = f'/api/academico/docentes/{self.docente.id}/asignar-materias/'
-        response = self.client.post(url, {'materias': [self.materia1.id]}, format='json')
+        response = self.client.put(url, {'materias': [self.materia1.id]}, format='json')
         self.assertEqual(response.status_code, 403)
+
+    def test_post_ambiguo_es_rechazado(self):
+        self.client.force_authenticate(user=self.admin)
+        url = f'/api/academico/docentes/{self.docente.id}/asignar-materias/'
+        response = self.client.post(url, {'materias': [self.materia1.id]}, format='json')
+        self.assertEqual(response.status_code, 405)
+
+    def test_patch_agrega_y_quita_sin_desasignar_omisiones(self):
+        self.materia1.docente = self.profe
+        self.materia1.save(update_fields=['docente'])
+        self.client.force_authenticate(user=self.admin)
+        url = f'/api/academico/docentes/{self.docente.id}/asignar-materias/'
+        response = self.client.patch(url, {
+            'agregar': [self.materia2.id], 'quitar': [self.materia1.id],
+        }, format='json')
+        self.assertEqual(response.status_code, 200, response.content)
+        self.materia1.refresh_from_db()
+        self.materia2.refresh_from_db()
+        self.materia3.refresh_from_db()
+        self.assertIsNone(self.materia1.docente)
+        self.assertEqual(self.materia2.docente, self.profe)
+        self.assertEqual(self.materia3.docente, self.profe)
 
 
 # ─────────────────────────────────────────────
@@ -2283,6 +2306,93 @@ class PaqueteHorarioGradoUnicidadTests(TestCase):
         paquete_vacio = PaqueteHorario.objects.create(nombre='Paquete Vacío', periodo_escolar='2025-2026')
         resp = self.client.post(f'/api/academico/paquetes-horario/{paquete_vacio.id}/publicar/')
         self.assertEqual(resp.status_code, 400, resp.content)
+
+
+class HorarioIntegridadContextoTests(TestCase):
+    def setUp(self):
+        self.admin = crear_usuario('admin_integridad_horario', 'director')
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.admin)
+        grados = crear_contexto_asistencia('5to A', '5to B')
+        self.grado_a = grados['5to A']
+        self.grado_b = grados['5to B']
+        self.periodo = self.grado_a.periodo
+        self.paquete = PaqueteHorario.objects.create(
+            nombre='Paquete íntegro', periodo_escolar=self.periodo.nombre,
+            periodo=self.periodo, sede=self.periodo.sede,
+        )
+        PaqueteHorarioGrado.objects.create(
+            paquete=self.paquete, grado=self.grado_a, grado_seccion=self.grado_a.nombre,
+        )
+        self.bloque = BloqueHorario.objects.create(
+            paquete=self.paquete, dia_semana='martes', orden=1,
+            hora_inicio='07:00', hora_fin='07:45', tipo='clase',
+        )
+
+    def test_rechaza_materia_de_seccion_fuera_del_paquete(self):
+        materia = Materia.objects.create(
+            nombre='Materia cruzada', grado_seccion=self.grado_b.nombre,
+            grado=self.grado_b, periodo=self.periodo, sede=self.periodo.sede,
+        )
+        with self.assertRaises(ValidationError):
+            HorarioClase.objects.create(materia=materia, bloque=self.bloque)
+
+    def test_endpoint_cross_grado_responde_400_y_no_500(self):
+        materia = Materia.objects.create(
+            nombre='Materia cruzada API', grado_seccion=self.grado_b.nombre,
+            grado=self.grado_b, periodo=self.periodo, sede=self.periodo.sede,
+        )
+        response = self.client.post('/api/academico/horarios/', {
+            'materia_id': materia.id,
+            'bloque_id': self.bloque.id,
+            'periodo_id': self.periodo.id,
+            'seccion_id': self.grado_b.id,
+            'aula': '',
+        }, format='json')
+        self.assertEqual(response.status_code, 400, response.content)
+        self.assertIn('seccion_id', response.data)
+
+    def test_bloque_es_fuente_canónica_de_dia_y_horas(self):
+        materia = Materia.objects.create(
+            nombre='Materia válida', grado_seccion=self.grado_a.nombre,
+            grado=self.grado_a, periodo=self.periodo, sede=self.periodo.sede,
+        )
+        horario = HorarioClase.objects.create(
+            materia=materia, bloque=self.bloque, dia_semana='viernes',
+            hora_inicio='10:00', hora_fin='11:00',
+        )
+        self.assertEqual(horario.dia_semana, 'martes')
+        self.assertEqual(str(horario.hora_inicio), '07:00:00')
+        self.assertEqual(str(horario.hora_fin), '07:45:00')
+
+    def test_intercambio_normalizado_respeta_constraint_unico(self):
+        bloque_2 = BloqueHorario.objects.create(
+            paquete=self.paquete, dia_semana='martes', orden=2,
+            hora_inicio='07:45', hora_fin='08:30', tipo='clase',
+        )
+        materias = [
+            Materia.objects.create(
+                nombre=nombre, grado_seccion=self.grado_a.nombre,
+                grado=self.grado_a, periodo=self.periodo, sede=self.periodo.sede,
+            )
+            for nombre in ('Materia Uno', 'Materia Dos')
+        ]
+        origen = HorarioClase.objects.create(
+            materia=materias[0], bloque=self.bloque, dia_semana='martes',
+            hora_inicio='07:00', hora_fin='07:45',
+        )
+        destino = HorarioClase.objects.create(
+            materia=materias[1], bloque=bloque_2, dia_semana='martes',
+            hora_inicio='07:45', hora_fin='08:30',
+        )
+        response = self.client.post('/api/academico/horarios/intercambiar/', {
+            'origen_id': origen.id, 'destino_id': destino.id,
+        }, format='json')
+        self.assertEqual(response.status_code, 200, response.content)
+        origen.refresh_from_db()
+        destino.refresh_from_db()
+        self.assertEqual(origen.bloque_id, bloque_2.id)
+        self.assertEqual(destino.bloque_id, self.bloque.id)
 
 
 class DisponibilidadDocenteTests(TestCase):
