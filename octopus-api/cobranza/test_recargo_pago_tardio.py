@@ -455,6 +455,50 @@ class RecargoConFechaPagoRetroactivaTest(RecargoPagoTardioBase):
         self.assertTrue(m.pagado)
         self.assertEqual(m.fecha_pago.date(), date(2026, 7, 10))
 
+    def test_cotizacion_de_caja_usa_fecha_retroactiva_en_frontera_del_recargo(self):
+        self._regla(dia_aplicacion=21, valor=Decimal('5.00'))
+        mensualidad = self._mensualidad(7, 2026)
+
+        antes = self.client.get(
+            f'/api/cobranza/buscar/{self.representante.cedula}/',
+            {'fecha_referencia': '2026-07-20'},
+        )
+        self.assertEqual(antes.status_code, 200, antes.content)
+        fila_antes = next(
+            item for item in antes.data['alumnos'][0]['mensualidades_pendientes']
+            if item['id'] == mensualidad.id
+        )
+        self.assertEqual(fila_antes['monto_recargo'], '0.00')
+        self.assertEqual(fila_antes['saldo_a_pagar_hoy'], '30.00')
+        self.assertEqual(antes.data['alumnos'][0]['fecha_cotizacion'], '2026-07-20')
+
+        frontera = self.client.get(
+            f'/api/cobranza/buscar/{self.representante.cedula}/',
+            {'fecha_referencia': '2026-07-21'},
+        )
+        self.assertEqual(frontera.status_code, 200, frontera.content)
+        fila_frontera = next(
+            item for item in frontera.data['alumnos'][0]['mensualidades_pendientes']
+            if item['id'] == mensualidad.id
+        )
+        self.assertEqual(fila_frontera['monto_recargo'], '5.00')
+        self.assertEqual(fila_frontera['saldo_a_pagar_hoy'], '35.00')
+
+    def test_cotizacion_rechaza_fecha_invalida_y_futura(self):
+        invalida = self.client.get(
+            f'/api/cobranza/buscar/{self.representante.cedula}/',
+            {'fecha_referencia': '20-07-2026'},
+        )
+        self.assertEqual(invalida.status_code, 400)
+        self.assertIn('fecha_referencia', invalida.data)
+
+        futura = self.client.get(
+            f'/api/cobranza/buscar/{self.representante.cedula}/',
+            {'fecha_referencia': '2999-01-01'},
+        )
+        self.assertEqual(futura.status_code, 400)
+        self.assertIn('fecha_referencia', futura.data)
+
     def test_fecha_retroactiva_posterior_al_dia_de_aplicacion_si_carga_recargo(self):
         # Caso simétrico: el pago se recibió el 20/07/2026 — después del
         # día 15 — así que el recargo SÍ debe aplicar, evaluado con la

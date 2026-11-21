@@ -7,6 +7,7 @@ from django.db import transaction
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.http import FileResponse
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 import logging
 import json
 import uuid
@@ -293,8 +294,9 @@ class BuscarAlumnoCobranzaView(APIView):
 
     MES_NOMBRES = MES_NOMBRES
 
-    def _alumno_data(self, alumno):
+    def _alumno_data(self, alumno, fecha_cotizacion=None):
         hoy = timezone.localdate()
+        fecha_cotizacion = fecha_cotizacion or hoy
         if not alumno.activo:
             from .saldos_recargos_convenio import items_penalidades_convenio
             penalidades = items_penalidades_convenio(alumno_ids=[alumno.id], hoy=hoy)
@@ -308,6 +310,7 @@ class BuscarAlumnoCobranzaView(APIView):
                 'mensualidades_pendientes': [], 'mensualidades_futuras': [],
                 'cuotas_inscripcion_pendientes': [], 'cuotas_solvencia_pendientes': [],
                 'cuotas_proyecto_inversion_pendientes': [], 'detalle_deuda': [],
+                'fecha_cotizacion': fecha_cotizacion.isoformat(),
             }
 
         # Auto-crear los meses del año escolar activo que falten, mes actual
@@ -345,7 +348,8 @@ class BuscarAlumnoCobranzaView(APIView):
 
         def to_list_con_recargo_descuento(qs):
             """Igual que to_list(), pero agrega el recargo/descuento
-            PROSPECTIVO (evaluado HOY, con resolver_recargo/resolver_descuento
+            PROSPECTIVO (evaluado en la fecha de cotización, con
+            resolver_recargo/resolver_descuento
             — misma fuente de verdad que usa RegistrarPagoView al cobrar) para
             que el cajero vea en el preview el monto real a cobrar, no solo el
             saldo nominal. Antes de esta feature, la pantalla de cobro no
@@ -361,8 +365,8 @@ class BuscarAlumnoCobranzaView(APIView):
             for m in qs:
                 saldo = m.monto_usd - m.monto_pagado
                 fecha_vencimiento = fecha_vencimiento_mensualidad(m)
-                resultado_recargo = resolver_recargo(m, hoy, _cache_reglas=cache_reglas)
-                resultado_descuento = resolver_descuento(m, hoy, _cache_reglas=cache_reglas)
+                resultado_recargo = resolver_recargo(m, fecha_cotizacion, _cache_reglas=cache_reglas)
+                resultado_descuento = resolver_descuento(m, fecha_cotizacion, _cache_reglas=cache_reglas)
                 monto_recargo = resultado_recargo['monto_usd'] if resultado_recargo else Decimal('0.00')
                 monto_descuento = resultado_descuento['monto_descontado_usd'] if resultado_descuento else Decimal('0.00')
                 lineas.append({
@@ -453,6 +457,7 @@ class BuscarAlumnoCobranzaView(APIView):
         return {
             'penalidades_convenio': penalidades,
             'total_penalidades_convenio_usd': str(total_penalidades),
+            'fecha_cotizacion':               fecha_cotizacion.isoformat(),
             'id':                            alumno.id,
             'nombre':                        alumno.nombre,
             'nombre_completo':               f"{alumno.nombre} {alumno.apellido}",
@@ -483,6 +488,21 @@ class BuscarAlumnoCobranzaView(APIView):
     def get(self, request, cedula):
         from secretaria.models import Representante, Alumno
 
+        fecha_cotizacion = timezone.localdate()
+        fecha_param = request.query_params.get('fecha_referencia')
+        if fecha_param:
+            fecha_cotizacion = parse_date(fecha_param)
+            if fecha_cotizacion is None:
+                return Response(
+                    {'fecha_referencia': 'Usa una fecha válida en formato AAAA-MM-DD.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if fecha_cotizacion > timezone.localdate():
+                return Response(
+                    {'fecha_referencia': 'La fecha de cotización no puede ser futura.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
         # Intento 1: buscar como cédula de representante
         from .saldos_recargos_convenio import penalidades_pendientes
         anclas_penalidades = penalidades_pendientes().values_list('alumno_imputado_id', flat=True)
@@ -495,7 +515,7 @@ class BuscarAlumnoCobranzaView(APIView):
             ).select_related('representante')
             return Response({
                 'representante': self._rep_data(rep),
-                'alumnos':       [self._alumno_data(a) for a in alumnos],
+                'alumnos':       [self._alumno_data(a, fecha_cotizacion) for a in alumnos],
             })
 
         # Intento 2: buscar como cédula escolar de alumno
@@ -505,7 +525,7 @@ class BuscarAlumnoCobranzaView(APIView):
         if alumno:
             return Response({
                 'representante': self._rep_data(alumno.representante) if alumno.representante else None,
-                'alumnos':       [self._alumno_data(alumno)],
+                'alumnos':       [self._alumno_data(alumno, fecha_cotizacion)],
             })
 
         return Response({'representante': None, 'alumnos': []})
