@@ -782,3 +782,10 @@ incumplidos desde `EventoCiclo(convenio_incumplido)`; los cancelados sin evidenc
   ampliar el alcance de integridad de horarios.
 - Los horarios legacy sin `bloque_id` mantienen `dia_semana`, `hora_inicio` y
   `hora_fin` como fuente propia hasta completar su reconciliación manual.
+- Cierre de Fase 5: la suite completa de `academico` conserva siete pruebas
+  legacy que no envían el contexto normalizado requerido (`periodo_id`,
+  `seccion_id` o `bloque_id`). Las pruebas dirigidas de integridad pasan; la
+  actualización de esos fixtures se difiere para no reabrir las fases 3 y 4.
+- La suite frontend completa conserva un fallo ajeno en
+  `GestionQrPanel.test.jsx`: la expectativa no incluye el `client_request_id`
+  que actualmente genera el flujo de recarga de Cantina.
