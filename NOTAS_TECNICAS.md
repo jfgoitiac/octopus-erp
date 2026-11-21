@@ -3519,6 +3519,16 @@ anotados):
   decidir si `resolver_recargo` y el `Mensualidad.fecha_pago` deben usar
   `fecha_pago_retroactiva` cuando está presente (fallback a `timezone.now()`
   si no), y agregar el test que lo cubra.
+
+  **Resuelto (2026-11-21):** la confirmación ya evaluaba el recargo con
+  `fecha_pago_retroactiva`, pero la vista previa de caja todavía cotizaba a
+  hoy y podía conservar el badge/total con recargo. La búsqueda de cobranza
+  ahora acepta `fecha_referencia` opcional, devuelve `fecha_cotizacion` y usa
+  esa fecha para recargos/descuentos. `Cobranza.jsx` recotiza al activar o
+  cambiar el pago retroactivo, conserva selección/abonos manuales y bloquea
+  la confirmación si la recotización falla. Sin el parámetro, el contrato y
+  el cálculo normal continúan usando hoy. Hay cobertura de frontera día
+  20/21, fecha inválida/futura y actualización del resumen React.
 - **Duplicación de extracción de mensaje de error de Axios**:
   `CargarPagoRetroactivoModal.jsx` repite inline el mismo patrón
   `data?.error || data?.detail || Object.values(data).flat().join(' ')` que
