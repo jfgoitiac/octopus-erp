@@ -1,9 +1,18 @@
 import { ArrowLeftRight, AlertTriangle } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 
-const hora = (clase) => `${clase.dia_semana_label || clase.dia_semana} · ${clase.hora_inicio}–${clase.hora_fin}`;
+const hora = (clase, bloque) => {
+  const dia = bloque?.dia_semana_label || bloque?.dia_semana || clase.dia_semana_label || clase.dia_semana;
+  const inicio = bloque?.hora_inicio || clase.hora_inicio;
+  const fin = bloque?.hora_fin || clase.hora_fin;
+  return `${dia} · ${inicio}–${fin}`;
+};
 
-export const ModalConfirmarIntercambio = ({ origen, destino, saving, onClose, onConfirmar }) => (
+export const ModalConfirmarIntercambio = ({ origen, destino, bloques = [], saving, onClose, onConfirmar }) => {
+  const bloqueOrigen = bloques.find(item => String(item.id) === String(origen.bloque_id));
+  const bloqueDestino = bloques.find(item => String(item.id) === String(destino.bloque_id));
+
+  return (
   <Modal
     open
     onClose={onClose}
@@ -20,10 +29,11 @@ export const ModalConfirmarIntercambio = ({ origen, destino, saving, onClose, on
         <p className="text-sm" style={{ color: '#92400e' }}>El bloque elegido ya está ocupado. Esta propuesta evita crear dos clases en el mismo horario.</p>
       </div>
       <div className="grid grid-cols-1 gap-2 text-sm">
-        <div className="rounded-lg p-3" style={{ border: '0.5px solid var(--border-md)' }}><strong>{origen.materia?.nombre}</strong><p className="mt-1 text-xs" style={{ color: 'var(--ash)' }}>pasará a {hora(destino)}</p></div>
+        <div className="rounded-lg p-3" style={{ border: '0.5px solid var(--border-md)' }}><strong>{origen.materia?.nombre}</strong><p className="mt-1 text-xs" style={{ color: 'var(--ash)' }}>pasará a {hora(destino, bloqueDestino)}</p></div>
         <div className="flex justify-center"><ArrowLeftRight size={18} style={{ color: 'var(--pb)' }} /></div>
-        <div className="rounded-lg p-3" style={{ border: '0.5px solid var(--border-md)' }}><strong>{destino.materia?.nombre}</strong><p className="mt-1 text-xs" style={{ color: 'var(--ash)' }}>pasará a {hora(origen)}</p></div>
+        <div className="rounded-lg p-3" style={{ border: '0.5px solid var(--border-md)' }}><strong>{destino.materia?.nombre}</strong><p className="mt-1 text-xs" style={{ color: 'var(--ash)' }}>pasará a {hora(origen, bloqueOrigen)}</p></div>
       </div>
     </div>
   </Modal>
-);
+  );
+};

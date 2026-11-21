@@ -54,7 +54,10 @@ export const eliminarDocente = (id) =>
   apiClient.delete(`academico/docentes/${id}/`);
 
 export const asignarMateriasDocente = (id, materias) =>
-  apiClient.post(`academico/docentes/${id}/asignar-materias/`, { materias });
+  apiClient.put(`academico/docentes/${id}/asignar-materias/`, { materias });
+
+export const modificarMateriasDocente = (id, agregar = [], quitar = []) =>
+  apiClient.patch(`academico/docentes/${id}/asignar-materias/`, { agregar, quitar });
 
 // Lapsos
 export const getLapsos = (periodoOFiltros, signal) => {

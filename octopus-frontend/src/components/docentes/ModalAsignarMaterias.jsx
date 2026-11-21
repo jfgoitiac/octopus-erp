@@ -11,7 +11,6 @@ export const ModalAsignarMaterias = ({ docente, saving, onClose, onSave }) => {
 
   useEffect(() => {
     const controller = new AbortController();
-    setLoadingMaterias(true);
     getMaterias(undefined, controller.signal)
       .then(res => setMaterias(res.data || []))
       .catch((err) => {
@@ -67,7 +66,8 @@ export const ModalAsignarMaterias = ({ docente, saving, onClose, onSave }) => {
     >
       <form id="form-asignar-materias" onSubmit={handleSubmit} className="space-y-4">
         <p className="text-sm" style={{ color: 'var(--ash)' }}>
-          Selecciona las materias que dictará este docente.
+          Esta acción reemplazará explícitamente la asignación completa del docente.
+          Las materias desmarcadas quedarán sin docente.
         </p>
 
         <div className="space-y-1.5">

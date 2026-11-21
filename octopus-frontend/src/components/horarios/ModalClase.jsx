@@ -15,7 +15,7 @@ const buildInitialForm = (claseInicial, bloque) => {
     return {
       id:          claseInicial.id,
       materia_id:  claseInicial.materia?.id || '',
-      dia_semana:  claseInicial.dia_semana,
+      dia_semana:  bloque?.dia_semana || claseInicial.dia_semana,
       bloque_id:   claseInicial.bloque_id,
       aula:        claseInicial.aula || '',
     };
@@ -47,8 +47,10 @@ export const ModalClase = ({
   // Conflicto: otro horario ya ocupa este mismo bloque (ignorando la clase actual al editar)
   const conflicto = tieneConflicto && tieneConflicto(form);
 
-  const horaInicio = claseInicial?.hora_inicio || bloque?.hora_inicio;
-  const horaFin    = claseInicial?.hora_fin    || bloque?.hora_fin;
+  // BloqueHorario es la fuente canónica. Los campos de la clase solo sirven
+  // como compatibilidad visual para registros legacy todavía sin bloque.
+  const horaInicio = bloque?.hora_inicio || claseInicial?.hora_inicio;
+  const horaFin    = bloque?.hora_fin    || claseInicial?.hora_fin;
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -101,10 +103,10 @@ export const ModalClase = ({
 
         {/* Materia */}
         <div>
-          <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+          <label htmlFor="horario-materia" className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
             Materia
           </label>
-          <select className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={INPUT_STYLE}
+          <select id="horario-materia" className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={INPUT_STYLE}
             value={form.materia_id} onChange={set('materia_id')} required>
             {materias.length === 0 ? (
               <option value="" disabled>Sin materias registradas para este grado</option>
@@ -135,10 +137,10 @@ export const ModalClase = ({
 
         {/* Aula */}
         <div>
-          <label className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
+          <label htmlFor="horario-aula" className="block text-[11px] uppercase tracking-widest mb-1.5" style={{ color: 'var(--ash)' }}>
             Aula
           </label>
-          <input type="text" placeholder="Ej: Aula 3, Lab. Ciencias..."
+          <input id="horario-aula" type="text" placeholder="Ej: Aula 3, Lab. Ciencias..."
             className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={INPUT_STYLE}
             value={form.aula} onChange={set('aula')} />
         </div>

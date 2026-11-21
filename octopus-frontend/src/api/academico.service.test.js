@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { get, post } = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
+const { get, post, put, patch } = vi.hoisted(() => ({
+  get: vi.fn(), post: vi.fn(), put: vi.fn(), patch: vi.fn(),
+}));
 
 vi.mock('./apiClient', () => ({
-  default: { get, post, put: vi.fn(), delete: vi.fn() },
+  default: { get, post, put, patch, delete: vi.fn() },
 }));
 
 import {
@@ -12,12 +14,16 @@ import {
   getMaterias,
   getPeriodosEscolares,
   saveAsistencia,
+  asignarMateriasDocente,
+  modificarMateriasDocente,
 } from './academico.service';
 
 describe('contrato académico normalizado', () => {
   beforeEach(() => {
     get.mockReset();
     post.mockReset();
+    put.mockReset();
+    patch.mockReset();
   });
 
   it('filtra períodos y secciones por sede y período', () => {
@@ -67,5 +73,17 @@ describe('contrato académico normalizado', () => {
       fecha: '2026-11-19',
       registros: [{ alumno_id: 4, estado: 'presente' }],
     });
+  });
+
+  it('distingue reemplazo total de cambios parciales de materias docentes', () => {
+    asignarMateriasDocente(9, [1, 2]);
+    modificarMateriasDocente(9, [3], [1]);
+
+    expect(put).toHaveBeenCalledWith(
+      'academico/docentes/9/asignar-materias/', { materias: [1, 2] },
+    );
+    expect(patch).toHaveBeenCalledWith(
+      'academico/docentes/9/asignar-materias/', { agregar: [3], quitar: [1] },
+    );
   });
 });

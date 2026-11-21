@@ -188,7 +188,6 @@ const Horarios = () => {
     if (!materiaActiva) return abrirCelda(bloque);
     const ok = await guardar({
       materia_id: materiaActiva.id,
-      dia_semana: bloque.dia_semana,
       bloque_id: bloque.id,
       aula: '',
     });
@@ -198,7 +197,8 @@ const Horarios = () => {
 
   const editarClase = (clase) => {
     if (soloLectura) return;
-    setModal({ clase, bloque: null });
+    const bloque = bloques.find(item => String(item.id) === String(clase.bloque_id)) || null;
+    setModal({ clase, bloque });
   };
 
   const cerrarModal = () => setModal(null);
@@ -586,6 +586,7 @@ const Horarios = () => {
         <ModalConfirmarIntercambio
           origen={intercambioPendiente.origen}
           destino={intercambioPendiente.destino}
+          bloques={bloques}
           saving={saving}
           onClose={() => setIntercambioPendiente(null)}
           onConfirmar={confirmarIntercambio}

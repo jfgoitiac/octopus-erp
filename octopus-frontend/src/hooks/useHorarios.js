@@ -86,7 +86,6 @@ export function useHorarios(paqueteId, grado) {
       const payload = {
         ...contextoSeccion(grado),
         materia_id:    form.materia_id,
-        dia_semana:    form.dia_semana,
         bloque_id:     form.bloque_id,
         aula:          form.aula,
       };
