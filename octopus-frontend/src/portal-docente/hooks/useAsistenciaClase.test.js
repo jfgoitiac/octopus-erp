@@ -3,6 +3,7 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { useAsistenciaClase } from './useAsistenciaClase';
 import { getAsistencia, saveAsistencia } from '../api/academico.service';
 import { ESTADO } from '../../constants/asistencia';
+import { leerCola } from '../utils/asistenciaLocal';
 
 vi.mock('../api/academico.service', () => ({
   getAsistencia: vi.fn(),
@@ -38,7 +39,7 @@ describe('useAsistenciaClase — mismo comportamiento que tenía DocenteMateriaD
 
   it('normaliza el roster y cuenta por estado', async () => {
     const { result } = await montar();
-    expect(getAsistencia).toHaveBeenCalledWith('3A', '2026-10-07', expect.any(AbortSignal));
+    expect(getAsistencia).toHaveBeenCalledWith({ grado_seccion: '3A' }, '2026-10-07', expect.any(AbortSignal));
     expect(result.current.registros.map(r => r.estado)).toEqual([ESTADO.PRESENTE, ESTADO.AUSENTE, ESTADO.SIN_MARCAR]);
     expect(result.current.conteos).toEqual({ presentes: 1, ausentes: 1, justificados: 0, retardados: 0 });
   });
@@ -73,7 +74,7 @@ describe('useAsistenciaClase — mismo comportamiento que tenía DocenteMateriaD
     let ok;
     await act(async () => { ok = await result.current.guardarAsistencia(); });
     expect(ok).toBe(true);
-    expect(saveAsistencia).toHaveBeenCalledWith('3A', '2026-10-07', [
+    expect(saveAsistencia).toHaveBeenCalledWith({ grado_seccion: '3A', jornada_id: null, version: 0 }, '2026-10-07', [
       { alumno_id: 1, estado: 'P', observacion: '', actualizado_en: null },
       { alumno_id: 2, estado: 'A', observacion: 'Enfermo', actualizado_en: null },
       { alumno_id: 3, estado: 'R', observacion: '', actualizado_en: null },
@@ -114,7 +115,7 @@ describe('useAsistenciaClase — mismo comportamiento que tenía DocenteMateriaD
     let resultado;
     await act(async () => { resultado = await result.current.guardarAsistencia(); });
     expect(resultado).toBe('encolado');
-    const cola = JSON.parse(localStorage.getItem('docente_asistencia_cola'));
+    const cola = leerCola();
     expect(cola[0]).toMatchObject({ gradoSeccion: '3A', fecha: '2026-10-07' });
     expect(cola[0].registros[2]).toEqual({ alumno_id: 3, estado: 'P', observacion: '', actualizado_en: null });
     expect(result.current.dirtyAsistencia).toBe(false);

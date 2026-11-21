@@ -19,5 +19,6 @@ export const tokenStore = {
     clear: ()  => {
         _token = null;
         try { sessionStorage.removeItem(SESSION_KEY); } catch { /* sin persistencia */ }
+        try { window.dispatchEvent(new Event('octopus:session-cleared')); } catch { /* SSR/tests */ }
     },
 };

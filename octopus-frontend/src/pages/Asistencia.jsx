@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useCallback, useRef } from 'react';
-import { Users, Save, Loader2, GraduationCap, ChevronLeft, ChevronRight, CheckCheck } from 'lucide-react';
+import { useEffect, useMemo, useCallback, useRef, useState } from 'react';
+import { Users, Save, Loader2, GraduationCap, ChevronLeft, ChevronRight, CheckCheck, AlertTriangle } from 'lucide-react';
 import { ESTADO, CONFIGS_ESTADO } from '../constants/asistencia';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -17,6 +17,8 @@ import { useVistaAsistencia, VISTA } from '../components/asistencia/useVistaAsis
 import { PageHeader } from '../components/ui/PageHeader';
 import { PeriodoEscolarSelect } from '../components/academico/PeriodoEscolarSelect';
 import { useContextoAcademico } from '../hooks/useContextoAcademico';
+import { Modal } from '../components/ui/Modal';
+import { useNavigate } from 'react-router-dom';
 
 const INPUT_STYLE = { border: '0.5px solid var(--border-md)', background: '#fff', color: 'var(--jet)', fontSize: '16px' };
 // Sin `background` inline (a diferencia de INPUT_STYLE): así la clase
@@ -43,6 +45,7 @@ const TARJETA_STYLE = { border: '0.5px solid var(--border-md)' };
 const ALTURA_PANEL = 'h-[calc(100dvh-8.75rem)] md:h-[calc(100dvh-9.75rem)]';
 
 const Asistencia = () => {
+  const navigate = useNavigate();
   const contexto = useContextoAcademico();
   const {
     fecha, setFecha,
@@ -58,7 +61,9 @@ const Asistencia = () => {
     restaurarRegistro,
     guardar,
     sinMarcar,
+    jornada,
   } = useAsistencia({ periodoId: contexto.periodoId, sedeId: contexto.sedeId });
+  const [cambioPendiente, setCambioPendiente] = useState(null);
 
   const [vista, cambiarVista] = useVistaAsistencia('admin_asistencia_vista', { conResumen: true });
   const enTarjetas = vista === VISTA.TARJETAS;
@@ -69,13 +74,23 @@ const Asistencia = () => {
   const hoy = useMemo(() => startOfDay(new Date()), []);
   const esHoy = isSameDay(fecha, hoy);
 
+  const solicitarCambio = useCallback((accion) => {
+    if (dirty) setCambioPendiente(() => accion);
+    else accion();
+  }, [dirty]);
+
+  const confirmarCambio = useCallback(() => {
+    cambioPendiente?.();
+    setCambioPendiente(null);
+  }, [cambioPendiente]);
+
   const irADiaAnterior = useCallback(() => {
-    setFecha(prev => addDays(prev, -1));
-  }, [setFecha]);
+    solicitarCambio(() => setFecha(prev => addDays(prev, -1)));
+  }, [setFecha, solicitarCambio]);
 
   const irADiaSiguiente = useCallback(() => {
-    setFecha(prev => (isSameDay(prev, hoy) ? prev : addDays(prev, 1)));
-  }, [setFecha, hoy]);
+    solicitarCambio(() => setFecha(prev => (isSameDay(prev, hoy) ? prev : addDays(prev, 1))));
+  }, [setFecha, hoy, solicitarCambio]);
 
   // Bloquear cierre/recarga de pestaña con cambios sin guardar
   useEffect(() => {
@@ -88,6 +103,25 @@ const Asistencia = () => {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [dirty]);
 
+  // BrowserRouter no expone un blocker estable. La captura temprana evita
+  // que los enlaces del rail o la barra móvil desmonten la pantalla antes de
+  // que la persona decida qué hacer con el borrador.
+  useEffect(() => {
+    if (!dirty) return undefined;
+    const interceptarNavegacion = (evento) => {
+      if (evento.defaultPrevented || evento.button !== 0 || evento.metaKey || evento.ctrlKey || evento.shiftKey || evento.altKey) return;
+      const enlace = evento.target.closest?.('a[href]');
+      if (!enlace || enlace.target === '_blank' || enlace.hasAttribute('download')) return;
+      const destino = new URL(enlace.href, window.location.href);
+      if (destino.origin !== window.location.origin) return;
+      evento.preventDefault();
+      evento.stopPropagation();
+      setCambioPendiente(() => () => navigate(`${destino.pathname}${destino.search}${destino.hash}`));
+    };
+    document.addEventListener('click', interceptarNavegacion, true);
+    return () => document.removeEventListener('click', interceptarNavegacion, true);
+  }, [dirty, navigate]);
+
   return (
     <div className="animate-fadeIn pb-24 sm:pb-0">
       <PageHeader
@@ -96,7 +130,7 @@ const Asistencia = () => {
         acciones={enLista && (
           <button
             onClick={guardar}
-            disabled={saving || !dirty || !registros.length || sinMarcar > 0}
+            disabled={saving || !dirty || !registros.length || sinMarcar > 0 || !jornada.esLectiva}
             className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-all disabled:opacity-50 min-h-[44px]"
             style={{ background: 'var(--pb)' }}
           >
@@ -112,9 +146,9 @@ const Asistencia = () => {
           id="asistencia-periodo"
           periodos={contexto.periodos}
           value={contexto.periodoId}
-          onChange={contexto.setPeriodoId}
+          onChange={(valor) => solicitarCambio(() => contexto.setPeriodoId(valor))}
           loading={contexto.loadingPeriodos}
-          disabled={dirty}
+          disabled={false}
         />
         <div>
           <label
@@ -138,7 +172,7 @@ const Asistencia = () => {
             <DatePicker
               id="filtro-fecha"
               selected={fecha}
-              onChange={setFecha}
+              onChange={(valor) => solicitarCambio(() => setFecha(valor))}
               locale={es}
               dateFormat="dd/MM/yyyy"
               maxDate={new Date()}
@@ -177,7 +211,7 @@ const Asistencia = () => {
             id="filtro-grado"
             value={grado}
             onChange={() => {}}
-            onGradoSeleccionado={gradoSeleccionado => seleccionarGrado(String(gradoSeleccionado?.id || ''), gradoSeleccionado)}
+            onGradoSeleccionado={gradoSeleccionado => solicitarCambio(() => seleccionarGrado(String(gradoSeleccionado?.id || ''), gradoSeleccionado))}
             normalizado
             filtros={contexto.filtrosGrado}
             incluirVacio
@@ -186,6 +220,13 @@ const Asistencia = () => {
           />
         </div>
       </div>
+
+      {grado && !jornada.esLectiva && (
+        <div role="status" className="mb-4 flex min-w-0 items-start gap-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900 sm:p-4">
+          <AlertTriangle className="mt-0.5 shrink-0" size={18} aria-hidden="true" />
+          <p className="min-w-0">Esta fecha no está marcada como jornada lectiva. Puedes consultar la lista, pero no registrar asistencia.</p>
+        </div>
+      )}
 
       {grado && (
         <div
@@ -307,7 +348,7 @@ const Asistencia = () => {
         >
           <button
             onClick={guardar}
-            disabled={saving || sinMarcar > 0}
+            disabled={saving || sinMarcar > 0 || !jornada.esLectiva}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium text-white disabled:opacity-50"
             style={{ background: 'var(--pb)' }}
           >
@@ -318,6 +359,31 @@ const Asistencia = () => {
       )}
       </>
       )}
+
+      <Modal
+        open={Boolean(cambioPendiente)}
+        onClose={() => setCambioPendiente(null)}
+        titulo="Cambios sin guardar"
+        size="sm"
+        bodyClassName="p-4 sm:p-6"
+        footer={(
+          <>
+            <button type="button" onClick={() => setCambioPendiente(null)} className="min-h-11 w-full rounded-xl border border-[var(--border)] px-4 py-2 text-sm font-medium sm:w-auto">
+              Seguir editando
+            </button>
+            <button type="button" onClick={confirmarCambio} className="min-h-11 w-full rounded-xl bg-[var(--red)] px-4 py-2 text-sm font-medium text-white sm:w-auto">
+              Descartar y continuar
+            </button>
+          </>
+        )}
+      >
+        <div className="flex min-w-0 items-start gap-3">
+          <AlertTriangle className="mt-0.5 shrink-0 text-[var(--yellow-dark)]" size={22} aria-hidden="true" />
+          <p className="min-w-0 text-sm leading-6 text-[var(--jet-mid)]">
+            Si cambias el período, la fecha o la sección, se perderán las marcas que todavía no has guardado.
+          </p>
+        </div>
+      </Modal>
     </div>
   );
 };

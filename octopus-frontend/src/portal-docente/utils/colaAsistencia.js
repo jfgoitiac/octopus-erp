@@ -26,13 +26,21 @@ export async function enviarPendientes() {
   try {
     for (const envio of [...leerCola()]) {
       try {
-        await saveAsistencia(envio.gradoSeccion, envio.fecha, envio.registros);
-        quitarDeCola(envio.gradoSeccion, envio.fecha);
-        borrarBorrador(envio.gradoSeccion, envio.fecha);
+        await saveAsistencia(
+          {
+            grado_seccion: envio.gradoSeccion,
+            jornada_id: envio.jornada_id ?? null,
+            version: envio.version ?? 0,
+          },
+          envio.fecha,
+          envio.registros,
+        );
+        quitarDeCola(envio.gradoSeccion, envio.fecha, envio.claveScope);
+        borrarBorrador(envio.claveScope ?? envio.gradoSeccion, envio.fecha);
         toast.success(`Asistencia de ${describir(envio)} enviada.`);
       } catch (err) {
         if (esErrorDeRed(err)) break;
-        quitarDeCola(envio.gradoSeccion, envio.fecha);
+        quitarDeCola(envio.gradoSeccion, envio.fecha, envio.claveScope);
         if (err.response?.status === 409) {
           toast.warning(`Mientras no tenías conexión, otra persona modificó la asistencia de ${describir(envio)}. No se pisó su cambio: ábrela, revisa y recupera tu pase si hace falta.`);
           continue;
@@ -47,9 +55,9 @@ export async function enviarPendientes() {
 }
 
 /** true si la asistencia de esa sección y fecha está esperando conexión. */
-export function usePendienteEnvio(gradoSeccion, fechaStr) {
+export function usePendienteEnvio(claveScope, fechaStr) {
   return useSyncExternalStore(
     suscribirCola,
-    () => leerCola().some(e => e.gradoSeccion === gradoSeccion && e.fecha === fechaStr),
+    () => leerCola().some(e => (e.claveScope ?? e.gradoSeccion) === claveScope && e.fecha === fechaStr),
   );
 }

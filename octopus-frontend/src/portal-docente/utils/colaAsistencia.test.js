@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { enviarPendientes, esErrorDeRed } from './colaAsistencia';
-import { claveBorrador, encolarEnvio, leerCola } from './asistenciaLocal';
+import { claveBorrador, encolarEnvio, leerCola, purgarDatosAsistenciaLocal } from './asistenciaLocal';
 import { saveAsistencia } from '../api/academico.service';
 import { toast } from 'react-toastify';
 
@@ -36,7 +36,11 @@ describe('colaAsistencia', () => {
     encolarEnvio(ENVIO);
 
     await enviarPendientes();
-    expect(saveAsistencia).toHaveBeenCalledWith('3A', '2026-10-07', ENVIO.registros);
+    expect(saveAsistencia).toHaveBeenCalledWith(
+      { grado_seccion: '3A', jornada_id: null, version: 0 },
+      '2026-10-07',
+      ENVIO.registros,
+    );
     expect(leerCola()).toHaveLength(0);
     expect(localStorage.getItem(claveBorrador('3A', '2026-10-07'))).toBeNull();
     expect(toast.success).toHaveBeenCalledWith('Asistencia de 3A del 7 de octubre enviada.');
@@ -59,5 +63,18 @@ describe('colaAsistencia', () => {
     expect(leerCola()).toHaveLength(0);
     expect(localStorage.getItem(claveBorrador('3A', '2026-10-07'))).not.toBeNull();
     expect(toast.error.mock.calls[0][0]).toMatch(/Sin permisos/);
+  });
+
+  it('purga borradores, cola vigente y claves legacy al cerrar sesión', () => {
+    localStorage.setItem(claveBorrador('3A', '2026-10-07'), '{"guardadoEn":1,"registros":[]}');
+    localStorage.setItem('docente_asistencia_borrador:legacy', '{}');
+    localStorage.setItem('docente_asistencia_cola', '[]');
+    encolarEnvio(ENVIO);
+
+    purgarDatosAsistenciaLocal();
+
+    expect(leerCola()).toHaveLength(0);
+    expect([...Array(localStorage.length)].map((_, i) => localStorage.key(i)))
+      .not.toEqual(expect.arrayContaining([expect.stringMatching(/^docente_asistencia/)]));
   });
 });

@@ -189,10 +189,21 @@ const DocenteMateriaDetalle = () => {
     guardarAsistencia: guardarEnServidor,
     conteos,
     sinMarcar,
-  } = useAsistenciaClase(materia?.grado_seccion, fechaAsistencia, tab === 'asistencia');
+  } = useAsistenciaClase(materia ? {
+    grado_seccion: materia.grado_seccion,
+    seccion_id: materia.grado_id || materia.seccion_id,
+    periodo_id: materia.periodo_id,
+    sede: materia.sede,
+  } : null, fechaAsistencia, tab === 'asistencia');
+
+  const claveAsistencia = materia
+    ? [materia.sede, materia.periodo_id, materia.grado_id || materia.seccion_id]
+      .filter(valor => valor !== undefined && valor !== null && valor !== '')
+      .join(':') || materia.grado_seccion
+    : '';
 
   const borrador = useBorradorAsistencia({
-    gradoSeccion: materia?.grado_seccion,
+    gradoSeccion: claveAsistencia,
     fecha: fechaAsistencia,
     registros,
     dirty: dirtyAsistencia,
@@ -200,7 +211,7 @@ const DocenteMateriaDetalle = () => {
     onAplicar: aplicarCambios,
   });
 
-  const pendienteEnvio = usePendienteEnvio(materia?.grado_seccion, format(fechaAsistencia, 'yyyy-MM-dd'));
+  const pendienteEnvio = usePendienteEnvio(claveAsistencia, format(fechaAsistencia, 'yyyy-MM-dd'));
 
   // Guardar = enviar al servidor y, si salió bien, borrar el borrador local.
   // Si quedó en cola por falta de conexión, el borrador se conserva.

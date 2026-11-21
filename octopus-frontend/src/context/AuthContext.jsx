@@ -4,6 +4,7 @@ import axios from 'axios';
 import axiosInstance from '../api/apiClient';
 import { tokenStore } from '../api/tokenStore';
 import { AuthContext } from './AuthContextValue';
+import { purgarDatosAsistenciaLocal } from '../portal-docente/utils/asistenciaLocal';
 export { AuthContext } from './AuthContextValue';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000';
@@ -77,6 +78,12 @@ export const AuthProvider = ({ children }) => {
         silentRefresh();
     }, []);
 
+    useEffect(() => {
+        const limpiarDatosAcademicos = () => purgarDatosAsistenciaLocal();
+        window.addEventListener('octopus:session-cleared', limpiarDatosAcademicos);
+        return () => window.removeEventListener('octopus:session-cleared', limpiarDatosAcademicos);
+    }, []);
+
     const login = async (username, password) => {
         const res = await axiosInstance.post('token/', { username, password });
         // El refresh token llega como cookie HttpOnly — el backend ya la establecio.
@@ -90,6 +97,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     const logout = () => {
+        purgarDatosAsistenciaLocal();
         tokenStore.clear();
         setUser(null);
         // Opcional: llamar al backend para invalidar el refresh token si se implementa blacklisting

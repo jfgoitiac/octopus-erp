@@ -29,6 +29,7 @@ export function useAsistencia({ periodoId = '', sedeId = '' } = {}) {
   const [loading, setLoading]   = useState(false);
   const [saving, setSaving]     = useState(false);
   const [dirty, setDirty]       = useState(false);
+  const [jornada, setJornada]   = useState({ id: null, version: 0, esLectiva: true });
 
   const abortRef = useRef(null);
 
@@ -40,6 +41,7 @@ export function useAsistencia({ periodoId = '', sedeId = '' } = {}) {
     setGradoNombre('');
     setRegistros([]);
     setDirty(false);
+    setJornada({ id: null, version: 0, esLectiva: true });
   }, [periodoId, sedeId]);
 
   const fetchAsistencia = useCallback(async () => {
@@ -56,6 +58,11 @@ export function useAsistencia({ periodoId = '', sedeId = '' } = {}) {
       const res = await getAsistencia({ seccion_id: grado, ...(periodoId ? { periodo_id: periodoId } : {}) }, fechaStr, controller.signal);
       if (controller.signal.aborted) return;
       setRegistros((res.data || []).map(normalizeRegistro));
+      setJornada({
+        id: res.headers?.['x-asistencia-jornada-id'] || res.data?.[0]?.jornada_id || null,
+        version: Number(res.headers?.['x-asistencia-version'] ?? res.data?.[0]?.jornada_version ?? 0),
+        esLectiva: res.headers?.['x-asistencia-fecha-lectiva'] !== 'false',
+      });
     } catch (err) {
       if (err.code === 'ERR_CANCELED' || controller.signal.aborted) return;
       toast.error('No se pudo cargar la asistencia.');
@@ -124,11 +131,21 @@ export function useAsistencia({ periodoId = '', sedeId = '' } = {}) {
     try {
       const fechaStr = format(fecha, 'yyyy-MM-dd');
       const res = await saveAsistencia(
-        { seccion_id: grado, ...(periodoId ? { periodo_id: periodoId } : {}) },
+        {
+          seccion_id: grado,
+          ...(periodoId ? { periodo_id: periodoId } : {}),
+          jornada_id: jornada.id ? Number(jornada.id) : null,
+          version: jornada.version,
+        },
         fechaStr,
         aPayloadAsistencia(registros),
       );
       setRegistros(prev => aplicarVersiones(prev, res.data?.guardadas));
+      setJornada({
+        id: res.data?.jornada?.id ?? jornada.id,
+        version: Number(res.data?.jornada?.version ?? jornada.version + 1),
+        esLectiva: true,
+      });
       toast.success('Asistencia guardada correctamente.');
       setDirty(false);
       return true;
@@ -137,6 +154,9 @@ export function useAsistencia({ periodoId = '', sedeId = '' } = {}) {
       // se muestra su versión en esas filas y queda pendiente volver a guardar.
       if (esConflictoAsistencia(err)) {
         setRegistros(prev => aplicarConflictos(prev, err.response.data?.conflictos, normalizeRegistro));
+        if (err.response.data?.jornada) {
+          setJornada(prev => ({ ...prev, ...err.response.data.jornada }));
+        }
         toast.warning(err.response.data?.error);
         return false;
       }
@@ -146,7 +166,7 @@ export function useAsistencia({ periodoId = '', sedeId = '' } = {}) {
     } finally {
       setSaving(false);
     }
-  }, [grado, fecha, registros, sinMarcar, periodoId]);
+  }, [grado, fecha, registros, sinMarcar, periodoId, jornada]);
 
   const conteos = useMemo(
     () => registros.reduce(
@@ -177,5 +197,6 @@ export function useAsistencia({ periodoId = '', sedeId = '' } = {}) {
     restaurarRegistro,
     guardar,
     sinMarcar,
+    jornada,
   };
 }

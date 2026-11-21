@@ -41,11 +41,21 @@ export const saveNotas = (materiaId, lapsoId, notas) =>
   apiClient.post('academico/notas/', { materia_id: materiaId, lapso_id: lapsoId, notas });
 
 // Asistencia
-export const getAsistencia = (gradoSeccion, fecha, signal) =>
-  apiClient.get(`academico/asistencia/?grado_seccion=${encodeURIComponent(gradoSeccion)}&fecha=${fecha}`, { signal });
+export const getAsistencia = (gradoOContexto, fecha, signal) => {
+  const params = new URLSearchParams(
+    typeof gradoOContexto === 'object'
+      ? { ...gradoOContexto, fecha }
+      : { grado_seccion: gradoOContexto, fecha },
+  );
+  return apiClient.get(`academico/asistencia/?${params.toString()}`, { signal });
+};
 
-export const saveAsistencia = (gradoSeccion, fecha, registros) =>
-  apiClient.post('academico/asistencia/', { grado_seccion: gradoSeccion, fecha, registros });
+export const saveAsistencia = (gradoOContexto, fecha, registros) => {
+  const contexto = typeof gradoOContexto === 'object'
+    ? gradoOContexto
+    : { grado_seccion: gradoOContexto };
+  return apiClient.post('academico/asistencia/', { ...contexto, fecha, registros });
+};
 
 // Material de Estudio
 export const getMateriales = (materiaId, signal) =>

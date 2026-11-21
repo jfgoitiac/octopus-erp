@@ -28,11 +28,25 @@ export function normalizeRegistro(r) {
  * `activo` replica la condición original `tab === 'asistencia'`: solo se
  * consulta la API cuando la pestaña está visible.
  */
-export function useAsistenciaClase(gradoSeccion, fecha, activo) {
+export function useAsistenciaClase(gradoOContexto, fecha, activo) {
+  const gradoSeccion = typeof gradoOContexto === 'object' ? gradoOContexto?.grado_seccion : gradoOContexto;
+  const seccionId = typeof gradoOContexto === 'object' ? gradoOContexto?.seccion_id : undefined;
+  const periodoId = typeof gradoOContexto === 'object' ? gradoOContexto?.periodo_id : undefined;
+  const sedeId = typeof gradoOContexto === 'object' ? gradoOContexto?.sede : undefined;
+  const contextoBase = useMemo(() => ({
+    grado_seccion: gradoSeccion,
+    ...(seccionId ? { seccion_id: seccionId } : {}),
+    ...(periodoId ? { periodo_id: periodoId } : {}),
+    ...(sedeId ? { sede: sedeId } : {}),
+  }), [gradoSeccion, seccionId, periodoId, sedeId]);
+  const claveScope = [sedeId, periodoId, seccionId]
+    .filter(valor => valor !== undefined && valor !== null && valor !== '')
+    .join(':') || gradoSeccion;
   const [registros, setRegistros] = useState([]);
   const [loadingAsistencia, setLoadingAsistencia] = useState(false);
   const [savingAsistencia, setSavingAsistencia] = useState(false);
   const [dirtyAsistencia, setDirtyAsistencia] = useState(false);
+  const [jornada, setJornada] = useState({ id: null, version: 0, esLectiva: true });
   const abortAsistenciaRef = useRef(null);
 
   const fetchAsistencia = useCallback(async () => {
@@ -45,16 +59,21 @@ export function useAsistenciaClase(gradoSeccion, fecha, activo) {
     setDirtyAsistencia(false);
     try {
       const fechaStr = format(fecha, 'yyyy-MM-dd');
-      const res = await getAsistencia(gradoSeccion, fechaStr, controller.signal);
+      const res = await getAsistencia(contextoBase, fechaStr, controller.signal);
       if (controller.signal.aborted) return;
       setRegistros((res.data || []).map(normalizeRegistro));
+      setJornada({
+        id: res.headers?.['x-asistencia-jornada-id'] || res.data?.[0]?.jornada_id || null,
+        version: Number(res.headers?.['x-asistencia-version'] ?? res.data?.[0]?.jornada_version ?? 0),
+        esLectiva: res.headers?.['x-asistencia-fecha-lectiva'] !== 'false',
+      });
     } catch (err) {
       if (err.code === 'ERR_CANCELED' || controller.signal.aborted) return;
       toast.error('No se pudo cargar la asistencia.');
     } finally {
       if (!controller.signal.aborted) setLoadingAsistencia(false);
     }
-  }, [gradoSeccion, fecha]);
+  }, [gradoSeccion, fecha, contextoBase]);
 
   useEffect(() => { if (activo) fetchAsistencia(); }, [activo, fetchAsistencia]);
 
@@ -114,8 +133,17 @@ export function useAsistenciaClase(gradoSeccion, fecha, activo) {
     setSavingAsistencia(true);
     try {
       const fechaStr = format(fecha, 'yyyy-MM-dd');
-      const res = await saveAsistencia(gradoSeccion, fechaStr, aPayloadAsistencia(registros));
+      const res = await saveAsistencia(
+        { ...contextoBase, jornada_id: jornada.id ? Number(jornada.id) : null, version: jornada.version },
+        fechaStr,
+        aPayloadAsistencia(registros),
+      );
       setRegistros(prev => aplicarVersiones(prev, res.data?.guardadas));
+      setJornada(prev => ({
+        ...prev,
+        id: res.data?.jornada?.id ?? prev.id,
+        version: Number(res.data?.jornada?.version ?? prev.version + 1),
+      }));
       toast.success('Asistencia guardada correctamente.');
       setDirtyAsistencia(false);
       return true;
@@ -124,13 +152,21 @@ export function useAsistenciaClase(gradoSeccion, fecha, activo) {
       // su versión en esas filas y queda pendiente volver a guardar.
       if (esConflictoAsistencia(err)) {
         setRegistros(prev => aplicarConflictos(prev, err.response.data?.conflictos, normalizeRegistro));
+        if (err.response.data?.jornada) setJornada(prev => ({ ...prev, ...err.response.data.jornada }));
         toast.warning(err.response.data?.error);
         return false;
       }
       if (esErrorDeRed(err)) {
         // La versión viaja en la cola: si al reconectar alguien ya la cambió,
         // el servidor la rechaza en vez de pisar ese cambio (ver colaAsistencia).
-        encolarEnvio({ gradoSeccion, fecha: format(fecha, 'yyyy-MM-dd'), registros: aPayloadAsistencia(registros) });
+        encolarEnvio({
+          gradoSeccion,
+          claveScope,
+          fecha: format(fecha, 'yyyy-MM-dd'),
+          registros: aPayloadAsistencia(registros),
+          jornada_id: jornada.id ? Number(jornada.id) : null,
+          version: jornada.version,
+        });
         toast.warning('Sin conexión: la asistencia quedó guardada en este dispositivo y se enviará sola al volver la señal.');
         setDirtyAsistencia(false);
         return 'encolado';
@@ -167,5 +203,6 @@ export function useAsistenciaClase(gradoSeccion, fecha, activo) {
     guardarAsistencia,
     conteos,
     sinMarcar,
+    jornada,
   };
 }
