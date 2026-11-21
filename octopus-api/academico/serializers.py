@@ -277,7 +277,7 @@ class AsistenciaSerializer(serializers.ModelSerializer):
 
     class Meta:
         model  = Asistencia
-        fields = ['id', 'alumno_id', 'alumno_nombre', 'fecha', 'presente', 'justificada', 'estado', 'observacion', 'actualizado_en', 'periodo_id', 'grado_id', 'sede_id']
+        fields = ['id', 'alumno_id', 'alumno_nombre', 'fecha', 'presente', 'justificada', 'estado', 'observacion', 'actualizado_en', 'periodo_id', 'grado_id', 'sede_id', 'jornada_id']
 
     def get_alumno_nombre(self, obj):
         return f"{obj.alumno.nombre} {obj.alumno.apellido}"
@@ -322,6 +322,8 @@ class AsistenciaBulkSerializer(serializers.Serializer):
     grado_seccion = serializers.CharField(max_length=50)
     periodo_id     = serializers.IntegerField(required=False, allow_null=True)
     seccion_id     = serializers.IntegerField(required=False, allow_null=True)
+    jornada_id     = serializers.IntegerField(required=False, allow_null=True)
+    version        = serializers.IntegerField(min_value=0)
     registros     = AsistenciaRegistroSerializer(many=True)
 
 

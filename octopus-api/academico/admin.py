@@ -4,6 +4,7 @@ from .models import (
     Nota, Asistencia, Materia, Lapso, HorarioClase, IncidenteDisciplinario, MaterialEstudio, EventoCalendario,
     PlanEvaluacion, BloqueEvaluacion, ItemEvaluacion, NotaItemEvaluacion, Docente,
     PeriodoEscolar, GradoSeccion, IncidenciaMigracionAcademica,
+    DiaCalendarioEscolar, JornadaAsistencia,
 )
 
 
@@ -19,6 +20,18 @@ class GradoSeccionAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'codigo', 'periodo', 'activo')
     list_filter = ('activo', 'periodo__sede', 'periodo')
     search_fields = ('nombre', 'codigo')
+
+
+@admin.register(DiaCalendarioEscolar)
+class DiaCalendarioEscolarAdmin(admin.ModelAdmin):
+    list_display = ('fecha', 'periodo', 'es_lectivo', 'motivo')
+    list_filter = ('es_lectivo', 'periodo__sede', 'periodo')
+
+
+@admin.register(JornadaAsistencia)
+class JornadaAsistenciaAdmin(admin.ModelAdmin):
+    list_display = ('fecha', 'grado', 'periodo', 'sede', 'version', 'creada_por')
+    list_filter = ('sede', 'periodo', 'fecha')
 
 
 @admin.register(IncidenciaMigracionAcademica)

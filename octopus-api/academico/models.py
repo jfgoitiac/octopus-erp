@@ -595,6 +595,80 @@ class NotaItemEvaluacion(models.Model):
 # ─────────────────────────────────────────────
 # ASISTENCIA
 # ─────────────────────────────────────────────
+class DiaCalendarioEscolar(models.Model):
+    """Excepción al calendario lectivo base (lunes a viernes)."""
+
+    periodo = models.ForeignKey(
+        PeriodoEscolar, on_delete=models.CASCADE, related_name='dias_calendario'
+    )
+    fecha = models.DateField()
+    es_lectivo = models.BooleanField(default=False)
+    motivo = models.CharField(max_length=160, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=('periodo', 'fecha'), name='academico_calendario_periodo_fecha_unico'
+            ),
+        ]
+        ordering = ['fecha']
+
+    def clean(self):
+        super().clean()
+        if self.periodo_id and self.fecha:
+            if not self.periodo.fecha_inicio <= self.fecha <= self.periodo.fecha_fin:
+                raise ValidationError({'fecha': 'La fecha debe pertenecer al período escolar.'})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
+class JornadaAsistencia(models.Model):
+    """Cabecera diaria que congela el contexto y versiona el pase de lista."""
+
+    sede = models.ForeignKey(
+        'multisede.Sede', on_delete=models.PROTECT, related_name='jornadas_asistencia'
+    )
+    periodo = models.ForeignKey(
+        PeriodoEscolar, on_delete=models.PROTECT, related_name='jornadas_asistencia'
+    )
+    grado = models.ForeignKey(
+        GradoSeccion, on_delete=models.PROTECT, related_name='jornadas_asistencia'
+    )
+    fecha = models.DateField(db_index=True)
+    version = models.PositiveIntegerField(default=0)
+    creada_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
+        related_name='jornadas_asistencia_creadas',
+    )
+    creada_en = models.DateTimeField(auto_now_add=True)
+    actualizada_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=('sede', 'periodo', 'grado', 'fecha'),
+                name='academico_jornada_asistencia_contexto_unico',
+            ),
+        ]
+        ordering = ['-fecha', 'grado__nombre']
+
+    def clean(self):
+        super().clean()
+        if self.grado_id and self.periodo_id and self.grado.periodo_id != self.periodo_id:
+            raise ValidationError({'grado': 'La sección no pertenece al período indicado.'})
+        if self.periodo_id and self.sede_id and self.periodo.sede_id != self.sede_id:
+            raise ValidationError({'sede': 'La sede no coincide con el período indicado.'})
+        if self.periodo_id and self.fecha:
+            if not self.periodo.fecha_inicio <= self.fecha <= self.periodo.fecha_fin:
+                raise ValidationError({'fecha': 'La fecha debe pertenecer al período escolar.'})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
 class Asistencia(models.Model):
     ESTADOS = [('P', 'Presente'), ('A', 'Ausente'), ('J', 'Justificado'), ('R', 'Retardado')]
 
@@ -634,6 +708,10 @@ class Asistencia(models.Model):
     sede = models.ForeignKey(
         'multisede.Sede', on_delete=models.PROTECT, null=True, blank=True,
         related_name='asistencias_academicas',
+    )
+    jornada = models.ForeignKey(
+        JornadaAsistencia, on_delete=models.PROTECT, null=True, blank=True,
+        related_name='registros',
     )
 
     class Meta:

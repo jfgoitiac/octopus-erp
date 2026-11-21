@@ -27,6 +27,7 @@ from .models import (
     AlertaRendimiento, Asistencia, BloqueEvaluacion, Docente, HorarioClase, IncidenteDisciplinario,
     ConfiguracionCalificacion, ItemEvaluacion, Lapso, Materia, MaterialEstudio, Nota,
     NotaItemEvaluacion, PlanEvaluacion, CierreLapso, VersionPlanEvaluacion,
+    PeriodoEscolar, GradoSeccion, JornadaAsistencia, DiaCalendarioEscolar,
 )
 from .serializers import estado_a_booleanos
 from .services import (
@@ -69,6 +70,25 @@ def crear_alumno(cedula_escolar, grado_seccion='1er Grado A'):
     )
 
 
+def crear_contexto_asistencia(*grados):
+    sede, _ = Sede.objects.get_or_create(nombre='Sede Académica de Pruebas')
+    periodo, _ = PeriodoEscolar.objects.get_or_create(
+        sede=sede,
+        nombre='2026',
+        defaults={
+            'fecha_inicio': date(2026, 1, 1),
+            'fecha_fin': date(2026, 12, 31),
+            'estado': 'activo',
+        },
+    )
+    return {
+        nombre: GradoSeccion.objects.get_or_create(
+            periodo=periodo,
+            nombre=nombre,
+            defaults={'codigo': f'TEST-{indice}', 'activo': True},
+        )[0]
+        for indice, nombre in enumerate(grados, start=1)
+    }
 class EstadoABooleanosTests(TestCase):
     """La lógica de mapeo estado -> (presente, justificada) es el contrato
     que mantiene retrocompatibilidad con reportes que leen los booleanos."""
@@ -88,6 +108,7 @@ class EstadoABooleanosTests(TestCase):
 
 class AsistenciaBulkEstadoTests(TestCase):
     def setUp(self):
+        crear_contexto_asistencia('1er Grado A')
         self.client = APIClient()
         self.secretaria = crear_usuario('secre1', 'secretaria')
         self.alumno = crear_alumno('E84000001')
@@ -97,6 +118,7 @@ class AsistenciaBulkEstadoTests(TestCase):
         resp = self.client.post('/api/academico/asistencia/', {
             'fecha': '2026-07-27',
             'grado_seccion': '1er Grado A',
+            'version': 0,
             'registros': [
                 {'alumno_id': self.alumno.id, 'estado': 'R', 'observacion': 'Llegó 10 min tarde'},
             ],
@@ -112,6 +134,7 @@ class AsistenciaBulkEstadoTests(TestCase):
         resp = self.client.post('/api/academico/asistencia/', {
             'fecha': '2026-07-27',
             'grado_seccion': '1er Grado A',
+            'version': 0,
             'registros': [{'alumno_id': self.alumno.id, 'observacion': 'sin estado'}],
         }, format='json')
         self.assertEqual(resp.status_code, 400)
@@ -119,6 +142,7 @@ class AsistenciaBulkEstadoTests(TestCase):
 
 class AsistenciaDocenteScopingTests(TestCase):
     def setUp(self):
+        crear_contexto_asistencia('2do Grado B', '3er Grado C')
         self.client = APIClient()
         self.docente = crear_usuario('docente1', 'docente')
         self.alumno_propio = crear_alumno('E84000002', grado_seccion='2do Grado B')
@@ -133,6 +157,7 @@ class AsistenciaDocenteScopingTests(TestCase):
         resp = self.client.post('/api/academico/asistencia/', {
             'fecha': '2026-07-27',
             'grado_seccion': '2do Grado B',
+            'version': 0,
             'registros': [{'alumno_id': self.alumno_propio.id, 'estado': 'P'}],
         }, format='json')
         self.assertEqual(resp.status_code, 200, resp.content)
@@ -141,6 +166,7 @@ class AsistenciaDocenteScopingTests(TestCase):
         resp = self.client.post('/api/academico/asistencia/', {
             'fecha': '2026-07-27',
             'grado_seccion': '3er Grado C',
+            'version': 0,
             'registros': [{'alumno_id': self.alumno_ajeno.id, 'estado': 'P'}],
         }, format='json')
         self.assertEqual(resp.status_code, 403)
@@ -150,6 +176,7 @@ class AsistenciaDocenteScopingTests(TestCase):
         resp = self.client.post('/api/academico/asistencia/', {
             'fecha': '2026-07-27',
             'grado_seccion': '2do Grado B',
+            'version': 0,
             'registros': [
                 {'alumno_id': self.alumno_propio.id, 'estado': 'P'},
                 {'alumno_id': self.alumno_ajeno.id, 'estado': 'A'},
@@ -169,6 +196,7 @@ class AsistenciaSincroniaPanelDocenteTests(TestCase):
     FECHA = '2026-10-08'
 
     def setUp(self):
+        crear_contexto_asistencia(self.GRADO)
         self.docente = crear_usuario('docente_sync', 'docente')
         self.secretaria = crear_usuario('secre_sync', 'secretaria')
         self.alumno = crear_alumno('E84000010', grado_seccion=self.GRADO)
@@ -183,8 +211,11 @@ class AsistenciaSincroniaPanelDocenteTests(TestCase):
         return resp.json()[0]
 
     def _guardar(self, cliente, estado, actualizado_en, observacion=''):
+        fila = self._leer(cliente)
         return cliente.post(self.URL, {
             'fecha': self.FECHA, 'grado_seccion': self.GRADO,
+            'jornada_id': fila.get('jornada_id'),
+            'version': fila.get('jornada_version', 0),
             'registros': [{'alumno_id': self.alumno.id, 'estado': estado,
                            'observacion': observacion, 'actualizado_en': actualizado_en}],
         }, format='json')
@@ -222,9 +253,79 @@ class AsistenciaSincroniaPanelDocenteTests(TestCase):
         self._guardar(self.c_secre, 'P', None)
         resp = self.c_docente.post(self.URL, {
             'fecha': self.FECHA, 'grado_seccion': self.GRADO,
+            'version': self._leer(self.c_docente).get('jornada_version', 0),
             'registros': [{'alumno_id': self.alumno.id, 'estado': 'A'}],
         }, format='json')
         self.assertEqual(resp.status_code, 200)
+
+
+class AsistenciaJornadaRobustaTests(TestCase):
+    URL = '/api/academico/asistencia/'
+    GRADO = '5to Grado A'
+    FECHA = '2026-10-08'
+
+    def setUp(self):
+        contexto = crear_contexto_asistencia(self.GRADO)
+        self.seccion = contexto[self.GRADO]
+        self.usuario = crear_usuario('secre-jornada', 'secretaria')
+        self.alumno = crear_alumno('E84000020', grado_seccion=self.GRADO)
+        self.otro = crear_alumno('E84000021', grado_seccion=self.GRADO)
+        self.client = APIClient()
+        self.client.force_authenticate(user=self.usuario)
+
+    def payload(self, **extra):
+        datos = {
+            'fecha': self.FECHA,
+            'grado_seccion': self.GRADO,
+            'seccion_id': self.seccion.pk,
+            'periodo_id': self.seccion.periodo_id,
+            'version': 0,
+            'registros': [{'alumno_id': self.alumno.pk, 'estado': 'P'}],
+        }
+        datos.update(extra)
+        return datos
+
+    def test_version_de_jornada_es_obligatoria(self):
+        datos = self.payload()
+        datos.pop('version')
+        self.assertEqual(self.client.post(self.URL, datos, format='json').status_code, 400)
+
+    def test_version_vencida_devuelve_409_sin_pisar(self):
+        primero = self.client.post(self.URL, self.payload(), format='json')
+        self.assertEqual(primero.status_code, 200, primero.content)
+        jornada = primero.json()['jornada']
+        respuesta = self.client.post(
+            self.URL,
+            self.payload(jornada_id=jornada['id'], version=0,
+                         registros=[{'alumno_id': self.alumno.pk, 'estado': 'A'}]),
+            format='json',
+        )
+        self.assertEqual(respuesta.status_code, 409)
+        self.assertEqual(Asistencia.objects.get(alumno=self.alumno).estado, 'P')
+
+    def test_bulk_invalido_no_crea_ninguna_fila(self):
+        respuesta = self.client.post(
+            self.URL,
+            self.payload(registros=[
+                {'alumno_id': self.alumno.pk, 'estado': 'P'},
+                {'alumno_id': 999999, 'estado': 'A'},
+            ]),
+            format='json',
+        )
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertFalse(Asistencia.objects.exists())
+        self.assertFalse(JornadaAsistencia.objects.exists())
+
+    def test_dia_no_lectivo_configurado_se_rechaza(self):
+        DiaCalendarioEscolar.objects.create(
+            periodo=self.seccion.periodo,
+            fecha=date.fromisoformat(self.FECHA),
+            es_lectivo=False,
+            motivo='Consejo docente',
+        )
+        respuesta = self.client.post(self.URL, self.payload(), format='json')
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertIn('no es una jornada lectiva', respuesta.json()['error'])
 
 
 class IncidenteDisciplinarioTests(TestCase):
@@ -2458,6 +2559,7 @@ class AsistenciaRosterTests(TestCase):
     """GET de asistencia: roster alfabético con número de lista y foto."""
 
     def setUp(self):
+        crear_contexto_asistencia('4to Grado A')
         self.client = APIClient()
         self.client.force_authenticate(user=crear_usuario('secre-roster', 'secretaria'))
         rep = Representante.objects.create(

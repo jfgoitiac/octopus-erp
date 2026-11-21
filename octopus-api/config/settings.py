@@ -187,7 +187,12 @@ CORS_ALLOWED_ORIGINS = [
 CORS_ALLOW_CREDENTIALS = True
 
 # El frontend lee de aquí el nombre de los PDF descargados (Recibo_<N°>.pdf).
-CORS_EXPOSE_HEADERS = ['Content-Disposition']
+CORS_EXPOSE_HEADERS = [
+    'Content-Disposition',
+    'X-Asistencia-Jornada-Id',
+    'X-Asistencia-Version',
+    'X-Asistencia-Fecha-Lectiva',
+]
 
 # Configuración de CSRF necesaria para permitir peticiones desde el frontend
 _csrf_extra = os.environ.get('DJANGO_CSRF_ORIGINS', '').split()

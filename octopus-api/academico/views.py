@@ -1,5 +1,5 @@
 from collections import defaultdict
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -17,6 +17,8 @@ from .filters import AsistenciaFilter, IncidenteFilter, NotaFilter
 from .models import (
     AlertaRendimiento,
     Asistencia,
+    DiaCalendarioEscolar,
+    JornadaAsistencia,
     BloqueEvaluacion,
     BloqueHorario,
     Docente,
@@ -883,8 +885,42 @@ class NotasGradoView(APIView):
 # ─────────────────────────────────────────────
 # ASISTENCIA
 # ─────────────────────────────────────────────
+def _contar_dias_lectivos(periodo, desde, hasta):
+    if not periodo:
+        return 0
+    inicio = max(desde, periodo.fecha_inicio)
+    fin = min(hasta, periodo.fecha_fin, timezone.localdate())
+    if fin < inicio:
+        return 0
+    excepciones = {
+        item.fecha: item.es_lectivo
+        for item in DiaCalendarioEscolar.objects.filter(
+            periodo=periodo, fecha__gte=inicio, fecha__lte=fin,
+        )
+    }
+    total = 0
+    cursor = inicio
+    while cursor <= fin:
+        total += int(excepciones.get(cursor, cursor.weekday() < 5))
+        cursor += timedelta(days=1)
+    return total
+
+
 class AsistenciaView(APIView):
     permission_classes = [IsAcademicoRead]
+
+    @staticmethod
+    def _fecha_lectiva(periodo, fecha):
+        excepcion = DiaCalendarioEscolar.objects.filter(periodo=periodo, fecha=fecha).first()
+        return excepcion.es_lectivo if excepcion else fecha.weekday() < 5
+
+    @staticmethod
+    def _respuesta_con_jornada(data, jornada, fecha_lectiva=True, status_code=status.HTTP_200_OK):
+        respuesta = Response(data, status=status_code)
+        respuesta['X-Asistencia-Jornada-Id'] = str(jornada.pk) if jornada else ''
+        respuesta['X-Asistencia-Version'] = str(jornada.version) if jornada else '0'
+        respuesta['X-Asistencia-Fecha-Lectiva'] = 'true' if fecha_lectiva else 'false'
+        return respuesta
 
     def get(self, request):
         """
@@ -900,18 +936,40 @@ class AsistenciaView(APIView):
         fecha = request.query_params.get('fecha')
         seccion_id = request.query_params.get('seccion_id') or request.query_params.get('grado_id')
         periodo_id = request.query_params.get('periodo_id')
+        seccion = None
+        periodo = None
         if seccion_id:
             seccion = GradoSeccion.objects.select_related('periodo').filter(pk=seccion_id).first()
             if not seccion or not sede_permitida(request.user, seccion.periodo.sede_id):
                 return Response({'error': 'Sección no encontrada o no autorizada.'}, status=404)
             grado = seccion.nombre
             periodo_id = periodo_id or seccion.periodo_id
+            periodo = seccion.periodo
 
         if not grado or not fecha:
             return Response(
                 {'error': 'Se requieren los parámetros grado_seccion y fecha.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        try:
+            fecha_obj = date.fromisoformat(fecha)
+        except (TypeError, ValueError):
+            return Response(
+                {'error': 'La fecha debe usar el formato YYYY-MM-DD.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not seccion:
+            candidatas = GradoSeccion.objects.select_related('periodo').filter(
+                nombre=grado, periodo__estado='activo', activo=True,
+            )
+            seccion = next(
+                (item for item in candidatas if sede_permitida(request.user, item.periodo.sede_id)),
+                None,
+            )
+            if seccion:
+                periodo = seccion.periodo
+                periodo_id = periodo.pk
 
         if not IsDocenteAsignadoOrSecretariaOrAbove().has_permission(request, self):
             return Response(
@@ -928,9 +986,9 @@ class AsistenciaView(APIView):
             'alumno__sede',
         ).select_related('alumno')
         if periodo_id:
-            asistencias_qs = asistencias_qs.filter(periodo_id=periodo_id)
+            asistencias_qs = asistencias_qs.filter(Q(periodo_id=periodo_id) | Q(periodo_id__isnull=True))
         if seccion_id:
-            asistencias_qs = asistencias_qs.filter(grado_id=seccion_id)
+            asistencias_qs = asistencias_qs.filter(Q(grado_id=seccion_id) | Q(grado_id__isnull=True))
         if _get_rol(request) == 'docente' and not request.user.is_superuser:
             asistencias_qs = asistencias_qs.filter(alumno_id__in=alumnos.values('id'))
         # Aplicar filtros adicionales vía query params (presente, justificada, etc.)
@@ -961,7 +1019,16 @@ class AsistenciaView(APIView):
             fila['alumno_genero'] = alumno.genero
             resultado.append(fila)
 
-        return Response(resultado)
+        jornada = None
+        if seccion and periodo:
+            jornada = JornadaAsistencia.objects.filter(
+                sede_id=periodo.sede_id, periodo=periodo, grado=seccion, fecha=fecha_obj,
+            ).first()
+        for fila in resultado:
+            fila['jornada_id'] = jornada.pk if jornada else None
+            fila['jornada_version'] = jornada.version if jornada else 0
+        fecha_lectiva = self._fecha_lectiva(periodo, fecha_obj) if periodo else fecha_obj.weekday() < 5
+        return self._respuesta_con_jornada(resultado, jornada, fecha_lectiva)
 
     def _grado_seccion_objetivo(self, request):
         # GET envía grado_seccion por query params; POST lo envía en el body.
@@ -1000,6 +1067,8 @@ class AsistenciaView(APIView):
         grado     = datos['grado_seccion']
         periodo_id = datos.get('periodo_id')
         seccion_id = datos.get('seccion_id')
+        jornada_id = datos.get('jornada_id')
+        version = datos['version']
         registros = datos['registros']
 
         seccion = None
@@ -1015,6 +1084,37 @@ class AsistenciaView(APIView):
             periodo = PeriodoEscolar.objects.filter(pk=periodo_id).first()
             if not periodo or not sede_permitida(request.user, periodo.sede_id):
                 return Response({'error': 'Período no encontrado o no autorizado.'}, status=404)
+
+        if not seccion:
+            candidatas = GradoSeccion.objects.select_related('periodo').filter(
+                nombre=grado, periodo__estado='activo', activo=True,
+            )
+            seccion = next(
+                (item for item in candidatas if sede_permitida(request.user, item.periodo.sede_id)),
+                None,
+            )
+            if not seccion:
+                return Response(
+                    {'error': 'No se pudo resolver una sección activa y autorizada.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            periodo = seccion.periodo
+
+        if fecha > timezone.localdate():
+            return Response(
+                {'error': 'No se puede registrar asistencia en una fecha futura.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not periodo.fecha_inicio <= fecha <= periodo.fecha_fin:
+            return Response(
+                {'error': 'La fecha no pertenece al período escolar seleccionado.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not self._fecha_lectiva(periodo, fecha):
+            return Response(
+                {'error': 'La fecha seleccionada no es una jornada lectiva.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # Prefetch de todos los alumnos del payload en una sola query (antes:
         # 1 query por fila con Alumno.objects.get() dentro del loop).
@@ -1051,9 +1151,36 @@ class AsistenciaView(APIView):
             )
 
         guardadas = []
-        errores   = []
 
         with transaction.atomic():
+            # Serializar por sección también protege la primera creación,
+            # cuando todavía no existe una JornadaAsistencia que bloquear.
+            seccion = GradoSeccion.objects.select_for_update().select_related('periodo').get(pk=seccion.pk)
+            jornada, _ = JornadaAsistencia.objects.select_for_update().get_or_create(
+                sede_id=periodo.sede_id,
+                periodo=periodo,
+                grado=seccion,
+                fecha=fecha,
+                defaults={'creada_por': request.user},
+            )
+
+            if jornada_id is not None and jornada_id != jornada.pk:
+                return self._respuesta_con_jornada(
+                    {'error': 'La jornada cambió mientras tenías la lista abierta.',
+                     'jornada': {'id': jornada.pk, 'version': jornada.version}},
+                    jornada,
+                    status_code=status.HTTP_409_CONFLICT,
+                )
+            if version != jornada.version:
+                actuales = Asistencia.objects.filter(jornada=jornada).select_related('alumno')
+                return self._respuesta_con_jornada(
+                    {'error': 'Otra persona actualizó esta jornada. Se cargó la versión actual para que la revises.',
+                     'jornada': {'id': jornada.pk, 'version': jornada.version},
+                     'conflictos': AsistenciaSerializer(actuales, many=True).data},
+                    jornada,
+                    status_code=status.HTTP_409_CONFLICT,
+                )
+
             # Bloquea los registros existentes del día para que la verificación
             # de versión y el guardado no se intercalen con otro request.
             existentes = {
@@ -1081,10 +1208,7 @@ class AsistenciaView(APIView):
 
             for item in registros:
                 alumno_id = item['alumno_id']
-                alumno = alumnos_map.get(alumno_id)
-                if alumno is None:
-                    errores.append({'alumno_id': alumno_id, 'error': 'Alumno no encontrado.'})
-                    continue
+                alumno = alumnos_map[alumno_id]
 
                 asistencia, _ = Asistencia.objects.update_or_create(
                     alumno=alumno,
@@ -1098,6 +1222,7 @@ class AsistenciaView(APIView):
                         'periodo': periodo,
                         'grado': seccion,
                         'sede_id': periodo.sede_id if periodo else alumno.sede_id,
+                        'jornada': jornada,
                     }
                 )
                 # update_or_create no cachea la relación FK cuando toma la rama
@@ -1106,10 +1231,14 @@ class AsistenciaView(APIView):
                 asistencia.alumno = alumno
                 guardadas.append(AsistenciaSerializer(asistencia).data)
 
-        return Response({
+            jornada.version += 1
+            jornada.save(update_fields=['version', 'actualizada_en'])
+
+        return self._respuesta_con_jornada({
             'guardadas': guardadas,
-            'errores':   errores,
-        }, status=status.HTTP_200_OK)
+            'errores': [],
+            'jornada': {'id': jornada.pk, 'version': jornada.version},
+        }, jornada)
 
 
 # ─────────────────────────────────────────────
@@ -1164,7 +1293,20 @@ class ResumenAsistenciaView(APIView):
         dias_presentes    = asistencias.filter(presente=True).count()
         ausencias         = asistencias.filter(presente=False).count()
         ausencias_justif  = asistencias.filter(presente=False, justificada=True).count()
-        porcentaje        = round((dias_presentes / total_dias * 100), 2) if total_dias > 0 else 0
+        retardos          = asistencias.filter(estado='R').count()
+        periodo_id = asistencias.exclude(periodo_id=None).values_list('periodo_id', flat=True).first()
+        periodo = PeriodoEscolar.objects.filter(pk=periodo_id).first()
+        if not periodo and alumno.sede_id:
+            periodo = PeriodoEscolar.objects.filter(
+                sede_id=alumno.sede_id,
+                fecha_inicio__lte=date(anio, mes, 28),
+                fecha_fin__gte=date(anio, mes, 1),
+            ).order_by('-fecha_inicio').first()
+        siguiente_mes = date(anio + (mes == 12), 1 if mes == 12 else mes + 1, 1)
+        fin_mes = siguiente_mes - timedelta(days=1)
+        dias_esperados = _contar_dias_lectivos(periodo, date(anio, mes, 1), fin_mes)
+        porcentaje = round((dias_presentes / dias_esperados * 100), 2) if dias_esperados else 0
+        cobertura = round((total_dias / dias_esperados * 100), 2) if dias_esperados else 0
 
         return Response({
             'alumno_id':            alumno.id,
@@ -1173,8 +1315,11 @@ class ResumenAsistenciaView(APIView):
             'anio':                 anio,
             'total_dias':           total_dias,
             'dias_presentes':       dias_presentes,
+            'dias_lectivos_esperados': dias_esperados,
+            'cobertura_captura':    cobertura,
             'ausencias':            ausencias,
             'ausencias_justificadas': ausencias_justif,
+            'retardos':             retardos,
             'porcentaje_asistencia': porcentaje,
         })
 
