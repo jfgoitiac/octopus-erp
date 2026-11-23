@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { CheckCircle, XCircle, Copy } from 'lucide-react';
 import { etiquetaEstadoCalificacion, esResultadoProvisional, normalizarCalificacion, valorVisibleCalificacion } from '../../utils/calificaciones';
+import { TablaScroll } from '../ui/TablaScroll';
 
 const CAMPOS_EVAL = ['evaluacion_1', 'evaluacion_2', 'evaluacion_3', 'evaluacion_4'];
 const CABECERAS   = ['Alumno', 'Eval 1', 'Eval 2', 'Eval 3', 'Eval 4', 'Definitiva', 'Aprobado'];
@@ -76,7 +77,7 @@ export function TablaNotas({ notas, loading, lapsoActivo, onNotaChange }) {
         </div>
       )}
 
-      <div className="overflow-x-auto">
+      <TablaScroll>
         <table className="w-full text-left border-collapse min-w-[640px]">
           <thead>
             <tr>
@@ -190,7 +191,7 @@ export function TablaNotas({ notas, loading, lapsoActivo, onNotaChange }) {
             }
           </tbody>
         </table>
-      </div>
+      </TablaScroll>
     </div>
   );
 }

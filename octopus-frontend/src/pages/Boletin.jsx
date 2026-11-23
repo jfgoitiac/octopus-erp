@@ -6,19 +6,21 @@ import { mostrarCedula } from '../utils/cedulaEscolar';
 import { PageHeader } from '../components/ui/PageHeader';
 import { Card } from '../components/ui/Card';
 import { Tabla } from '../components/ui/Tabla';
-import { esResultadoProvisional, etiquetaEstadoCalificacion, normalizarCalificacion, valorVisibleCalificacion } from '../utils/calificaciones';
+import { esResultadoProvisional, etiquetaEstadoCalificacion, normalizarCalificacion, resumenProgresoCalificacion, usaEvaluacionesLegacy, valorVisibleCalificacion } from '../utils/calificaciones';
 import { PeriodoEscolarSelect } from '../components/academico/PeriodoEscolarSelect';
 import { useContextoAcademico } from '../hooks/useContextoAcademico';
 
-const BOLETIN_COLUMNAS = [
-  { key: 'materia', label: 'Materia' },
-  { key: 'eval1', label: 'Eval 1', align: 'center' },
-  { key: 'eval2', label: 'Eval 2', align: 'center' },
-  { key: 'eval3', label: 'Eval 3', align: 'center' },
-  { key: 'eval4', label: 'Eval 4', align: 'center' },
-  { key: 'definitiva', label: 'Definitiva', align: 'center' },
-  { key: 'aprobado', label: 'Aprobado', align: 'center' },
-];
+const columnasBoletin = (materias = []) => {
+  const incluyeLegacy = materias.some(usaEvaluacionesLegacy);
+  return [
+    { key: 'materia', label: 'Materia' },
+    ...(incluyeLegacy ? [1, 2, 3, 4].map(numero => ({
+      key: `eval${numero}`, label: `Eval ${numero}`, align: 'center',
+    })) : [{ key: 'progreso', label: 'Progreso', align: 'center' }]),
+    { key: 'resultado', label: 'Resultado', align: 'center' },
+    { key: 'estado', label: 'Estado', align: 'center' },
+  ];
+};
 
 const inputStyle = {
   border: '0.5px solid var(--border-md)',
@@ -92,6 +94,8 @@ const Boletin = () => {
     setShowDropdown, handleChangeBusqueda, handleChangeLapso,
     handleSelectAlumno, handleVistaPrev,
   } = useBoletin({ periodoId: contexto.periodoId, sedeId: contexto.sedeId });
+  const columnas = columnasBoletin(boletin?.materias);
+  const incluyeLegacy = columnas.some(columna => columna.key === 'eval1');
 
   const searchRef = useRef(null);
 
@@ -257,7 +261,7 @@ const Boletin = () => {
           </div>
 
           {/* Tabla de materias */}
-          <Tabla columnas={BOLETIN_COLUMNAS}>
+          <Tabla columnas={columnas} minWidth={incluyeLegacy ? 760 : 520}>
             {[
               ...(boletin.materias || []).map((materia) => {
                 const m = normalizarCalificacion(materia);
@@ -268,11 +272,17 @@ const Boletin = () => {
                   <td className="px-4 py-3 text-sm font-medium" style={{ color: 'var(--jet)' }}>
                     {m.materia_nombre}
                   </td>
-                  {[m.evaluacion_1, m.evaluacion_2, m.evaluacion_3, m.evaluacion_4].map((v, j) => (
-                    <td key={j} className="px-4 py-3 text-sm text-center" style={{ color: 'var(--ash)' }}>
-                      {v ?? '—'}
+                  {incluyeLegacy ? (
+                    [m.evaluacion_1, m.evaluacion_2, m.evaluacion_3, m.evaluacion_4].map((v, j) => (
+                      <td key={j} className="px-4 py-3 text-sm text-center" style={{ color: 'var(--ash)' }}>
+                        {usaEvaluacionesLegacy(m) ? (v ?? '—') : 'No aplica'}
+                      </td>
+                    ))
+                  ) : (
+                    <td className="px-4 py-3 text-sm text-center tabular-nums" style={{ color: 'var(--ash)' }}>
+                      {resumenProgresoCalificacion(m)}
                     </td>
-                  ))}
+                  )}
                   <td className="px-4 py-3 text-center">
                     <span
                       className="block text-sm font-bold"
@@ -301,7 +311,7 @@ const Boletin = () => {
                   <td className="px-4 py-3 text-sm font-bold" style={{ color: 'var(--pb)' }}>
                     Promedio General
                   </td>
-                  <td colSpan={4} />
+                  <td colSpan={incluyeLegacy ? 4 : 1} />
                   <td className="px-4 py-3 text-center text-sm font-bold" style={{ color: 'var(--pb)' }}>
                     {promedioGeneral}
                   </td>

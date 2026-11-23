@@ -60,3 +60,13 @@ export const etiquetaEstadoCalificacion = (estado) => ({
   cerrado: 'Definitiva',
 }[estado] ?? 'Pendiente');
 
+export const usaEvaluacionesLegacy = (calificacion) => (
+  normalizarCalificacion(calificacion).fuente === 'legacy'
+);
+
+export const resumenProgresoCalificacion = (calificacion) => {
+  const progreso = normalizarCalificacion(calificacion).progreso;
+  if (!progreso || !progreso.esperados) return '—';
+  return `${progreso.evaluados}/${progreso.esperados} (${progreso.porcentaje ?? 0}%)`;
+};
+

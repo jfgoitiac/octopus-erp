@@ -3,9 +3,32 @@ import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { mostrarCedula } from './cedulaEscolar';
-import { esResultadoProvisional, normalizarCalificacion, valorVisibleCalificacion } from './calificaciones';
+import { esResultadoProvisional, normalizarCalificacion, resumenProgresoCalificacion, usaEvaluacionesLegacy, valorVisibleCalificacion } from './calificaciones';
 
 const BRAND = '#003366';
+
+export function construirTablaBoletin(materias = [], promedio = null) {
+  const normalizadas = materias.map(normalizarCalificacion);
+  const incluyeLegacy = normalizadas.some(usaEvaluacionesLegacy);
+  const head = incluyeLegacy
+    ? ['Materia', 'Eval 1', 'Eval 2', 'Eval 3', 'Eval 4', 'Resultado', 'Estado']
+    : ['Materia', 'Progreso', 'Resultado', 'Estado'];
+  const body = normalizadas.map((m) => {
+    const valor = valorVisibleCalificacion(m);
+    const resultado = valor == null ? '—' : `${valor}${esResultadoProvisional(m) ? ' (provisional)' : ''}`;
+    const estado = m.aprobado === true ? 'Aprobado' : m.aprobado === false ? 'Reprobado' : 'Pendiente';
+    return incluyeLegacy
+      ? [m.materia_nombre, ...[m.evaluacion_1, m.evaluacion_2, m.evaluacion_3, m.evaluacion_4]
+        .map(v => usaEvaluacionesLegacy(m) ? (v ?? '—') : 'No aplica'), resultado, estado]
+      : [m.materia_nombre, resumenProgresoCalificacion(m), resultado, estado];
+  });
+  if (promedio != null) {
+    body.push(incluyeLegacy
+      ? [{ content: 'Promedio General', styles: { fontStyle: 'bold' } }, '', '', '', '', { content: promedio, styles: { fontStyle: 'bold' } }, '']
+      : [{ content: 'Promedio General', styles: { fontStyle: 'bold' } }, '', { content: promedio, styles: { fontStyle: 'bold' } }, '']);
+  }
+  return { head, body, incluyeLegacy };
+}
 
 export function generarBoletinPDF(boletin) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
@@ -80,33 +103,12 @@ export function generarBoletinPDF(boletin) {
 
   // ── Tabla de materias ──
   const promedio = boletin.promedio_general ?? boletin.resumen?.promedio_general ?? null;
-  const materiaRows = (boletin.materias || []).map((materia) => {
-    const m = normalizarCalificacion(materia);
-    const valor = valorVisibleCalificacion(m);
-    return [
-      m.materia_nombre,
-      m.evaluacion_1 ?? '—',
-      m.evaluacion_2 ?? '—',
-      m.evaluacion_3 ?? '—',
-      m.evaluacion_4 ?? '—',
-      valor == null ? '—' : `${valor}${esResultadoProvisional(m) ? ' (provisional)' : ''}`,
-      m.aprobado === true ? 'Aprobado' : m.aprobado === false ? 'Reprobado' : 'Pendiente',
-    ];
-  });
-
-  if (promedio != null) {
-    materiaRows.push([
-      { content: 'Promedio General', styles: { fontStyle: 'bold' } },
-      '', '', '', '',
-      { content: promedio, styles: { fontStyle: 'bold' } },
-      '',
-    ]);
-  }
+  const tabla = construirTablaBoletin(boletin.materias || [], promedio);
 
   autoTable(doc, {
     startY: tablaStartY,
-    head: [['Materia', 'Eval 1', 'Eval 2', 'Eval 3', 'Eval 4', 'Definitiva', 'Aprobado']],
-    body: materiaRows,
+    head: [tabla.head],
+    body: tabla.body,
     styles: { fontSize: 8, cellPadding: 2.5 },
     headStyles: { fillColor: BRAND, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
     alternateRowStyles: { fillColor: [245, 245, 245] },
@@ -116,8 +118,8 @@ export function generarBoletinPDF(boletin) {
       2: { halign: 'center' },
       3: { halign: 'center' },
       4: { halign: 'center' },
-      5: { halign: 'center', fontStyle: 'bold' },
-      6: { halign: 'center' },
+      [tabla.incluyeLegacy ? 5 : 2]: { halign: 'center', fontStyle: 'bold' },
+      [tabla.incluyeLegacy ? 6 : 3]: { halign: 'center' },
     },
     margin: { left: 14, right: 14 },
   });
