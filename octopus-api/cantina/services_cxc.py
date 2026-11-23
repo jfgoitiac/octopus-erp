@@ -483,7 +483,12 @@ def registrar_abono_desde_tarjeta(*, representante, tarjeta_id, monto_usd, cajer
     with transaction.atomic():
         titular = lock_titular(representante)
         try:
-            tarjeta = TarjetaPrepago.objects.select_for_update().select_related(
+            # PostgreSQL no permite FOR UPDATE sobre el lado nullable del
+            # OUTER JOIN hacia ``alumno``. El saldo concurrente que debemos
+            # proteger vive exclusivamente en TarjetaPrepago; limitar el lock
+            # a ``self`` conserva la atomicidad sin intentar bloquear las
+            # relaciones opcionales precargadas.
+            tarjeta = TarjetaPrepago.objects.select_for_update(of=('self',)).select_related(
                 'alumno__representante'
             ).get(pk=tarjeta_id)
         except TarjetaPrepago.DoesNotExist:

@@ -1,8 +1,10 @@
 """Tests de cuentas por cobrar (CxC) a representantes — PROMPT_CANTINA_CXC.md §3 y §5 (Agente A)."""
 from datetime import date, timedelta
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.db.models import QuerySet
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
@@ -139,6 +141,23 @@ class PagoDeudaConTarjetaTests(CxcBase):
         self.assertEqual(abono.tasa_aplicada, Decimal('40.0000'))
         self.assertEqual(abono.monto_ves, Decimal('200.00'))
         self.assertTrue(MovimientoTarjeta.objects.filter(tarjeta=self.tarjeta, tipo='pago_deuda').exists())
+
+    def test_lock_de_tarjeta_no_incluye_relaciones_nullable_en_postgresql(self):
+        llamadas = []
+        seleccionar_original = QuerySet.select_for_update
+
+        def registrar_lock(queryset, *args, **kwargs):
+            llamadas.append(kwargs.copy())
+            return seleccionar_original(queryset, *args, **kwargs)
+
+        with patch.object(QuerySet, 'select_for_update', autospec=True, side_effect=registrar_lock):
+            resp = self.client_cajero.post(
+                f'{BASE}representantes/{self.rep.id}/pago-tarjeta/',
+                {'tarjeta_id': self.tarjeta.id, 'monto_usd': '2.00'}, format='json',
+            )
+
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertIn({'of': ('self',)}, llamadas)
 
     def test_deuda_dos_cincuenta_descuenta_exactamente_dos_cincuenta_usd(self):
         CargoCantina.objects.filter(pk=self.cargo.pk).update(monto_usd=Decimal('2.50'))
