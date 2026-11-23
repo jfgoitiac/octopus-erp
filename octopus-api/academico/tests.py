@@ -29,6 +29,8 @@ from .models import (
     ConfiguracionCalificacion, ItemEvaluacion, Lapso, Materia, MaterialEstudio, Nota,
     NotaItemEvaluacion, PlanEvaluacion, CierreLapso, VersionPlanEvaluacion,
     PeriodoEscolar, GradoSeccion, JornadaAsistencia, DiaCalendarioEscolar,
+    BloqueHorario, DisponibilidadDocente, GeneracionHorarioSnapshot,
+    PaqueteHorario, PaqueteHorarioGrado,
 )
 from .serializers import estado_a_booleanos
 from .services import (
@@ -1405,6 +1407,9 @@ class MateriaDocenteAsignacionTests(TestCase):
         self.admin = crear_usuario('admin_materia', 'director')
         self.docente = crear_usuario('docente_asignable', 'docente')
         self.no_docente = crear_usuario('cajero_no_docente', 'cajero')
+        contexto = crear_contexto_asistencia('5to Grado A')
+        self.grado = contexto['5to Grado A']
+        self.periodo = self.grado.periodo
         self.materia = Materia.objects.create(
             nombre='Física', grado_seccion='5to Grado A', activa=True,
         )
@@ -1414,6 +1419,8 @@ class MateriaDocenteAsignacionTests(TestCase):
         resp = self.client.post('/api/academico/materias/', {
             'nombre': 'Química', 'grado_seccion': '5to Grado A',
             'docente_id': self.docente.id,
+            'periodo_id': self.periodo.id,
+            'seccion_id': self.grado.id,
         }, format='json')
         self.assertEqual(resp.status_code, 201, resp.content)
         materia = Materia.objects.get(id=resp.data['id'])
@@ -1576,22 +1583,48 @@ class HorarioManualChoqueTests(TestCase):
         self.otro_docente = crear_usuario('otro_docente_horario_manual', 'docente')
         self.grado_a = 'Grado Manual A'
         self.grado_b = 'Grado Manual B'
+        contexto = crear_contexto_asistencia(self.grado_a, self.grado_b)
+        self.seccion_a = contexto[self.grado_a]
+        self.seccion_b = contexto[self.grado_b]
+        self.periodo = self.seccion_a.periodo
+        self.paquete = PaqueteHorario.objects.create(
+            nombre='Paquete manual', periodo_escolar=self.periodo.nombre,
+            periodo=self.periodo, sede=self.periodo.sede,
+        )
+        PaqueteHorarioGrado.objects.create(
+            paquete=self.paquete, grado=self.seccion_a, grado_seccion=self.grado_a,
+        )
+        PaqueteHorarioGrado.objects.create(
+            paquete=self.paquete, grado=self.seccion_b, grado_seccion=self.grado_b,
+        )
+        self.bloque_conflicto = BloqueHorario.objects.create(
+            paquete=self.paquete, dia_semana='lunes', orden=1,
+            hora_inicio='07:00', hora_fin='08:00', tipo='clase',
+        )
+        self.bloque_libre = BloqueHorario.objects.create(
+            paquete=self.paquete, dia_semana='lunes', orden=2,
+            hora_inicio='09:00', hora_fin='10:00', tipo='clase',
+        )
         self.materia_a = Materia.objects.create(
             nombre='Materia Manual A', grado_seccion=self.grado_a,
             docente=self.docente, horas_academicas=1, activa=True,
+            sede=self.periodo.sede, periodo=self.periodo, grado=self.seccion_a,
         )
         self.materia_b = Materia.objects.create(
             nombre='Materia Manual B', grado_seccion=self.grado_b,
             docente=self.docente, horas_academicas=1, activa=True,
+            sede=self.periodo.sede, periodo=self.periodo, grado=self.seccion_b,
         )
         self.materia_c = Materia.objects.create(
             nombre='Materia Manual C', grado_seccion=self.grado_b,
             docente=self.otro_docente, horas_academicas=1, activa=True,
+            sede=self.periodo.sede, periodo=self.periodo, grado=self.seccion_b,
         )
         # Bloque existente: materia_a, lunes 07:00-08:00, aula "101".
         self.horario_existente = HorarioClase.objects.create(
             materia=self.materia_a, dia_semana='lunes',
             hora_inicio='07:00', hora_fin='08:00', aula='101',
+            bloque=self.bloque_conflicto, periodo=self.periodo, grado=self.seccion_a,
         )
         self.client.force_authenticate(user=self.admin)
 
@@ -1604,6 +1637,9 @@ class HorarioManualChoqueTests(TestCase):
             'hora_inicio': '07:30',
             'hora_fin':    '08:30',
             'aula':        '202',
+            'periodo_id': self.periodo.id,
+            'seccion_id': self.seccion_b.id,
+            'bloque_id': self.bloque_conflicto.id,
         }, format='json')
         self.assertEqual(resp.status_code, 400, resp.content)
         self.assertIn('error', resp.data)
@@ -1621,6 +1657,9 @@ class HorarioManualChoqueTests(TestCase):
             'hora_inicio': '07:15',
             'hora_fin':    '07:45',
             'aula':        '101',
+            'periodo_id': self.periodo.id,
+            'seccion_id': self.seccion_b.id,
+            'bloque_id': self.bloque_conflicto.id,
         }, format='json')
         self.assertEqual(resp.status_code, 400, resp.content)
         self.assertIn('error', resp.data)
@@ -1636,6 +1675,9 @@ class HorarioManualChoqueTests(TestCase):
             'hora_inicio': '09:00',
             'hora_fin':    '10:00',
             'aula':        '202',
+            'periodo_id': self.periodo.id,
+            'seccion_id': self.seccion_b.id,
+            'bloque_id': self.bloque_libre.id,
         }, format='json')
         self.assertEqual(resp.status_code, 201, resp.content)
 
@@ -1934,18 +1976,35 @@ class HorarioSinDocenteNiAulaRechazaChoqueDeGradoTests(TestCase):
         self.client = APIClient()
         self.admin = crear_usuario('admin_horario_grado_bug', 'director')
         self.grado = 'Grado Choque Sin Docente'
+        contexto = crear_contexto_asistencia(self.grado)
+        self.seccion = contexto[self.grado]
+        self.periodo = self.seccion.periodo
+        self.paquete = PaqueteHorario.objects.create(
+            nombre='Paquete choque de grado', periodo_escolar=self.periodo.nombre,
+            periodo=self.periodo, sede=self.periodo.sede,
+        )
+        PaqueteHorarioGrado.objects.create(
+            paquete=self.paquete, grado=self.seccion, grado_seccion=self.grado,
+        )
+        self.bloque = BloqueHorario.objects.create(
+            paquete=self.paquete, dia_semana='lunes', orden=1,
+            hora_inicio='07:00', hora_fin='08:00', tipo='clase',
+        )
         # Ambas materias del MISMO grado, SIN docente asignado.
         self.materia_x = Materia.objects.create(
             nombre='Materia X', grado_seccion=self.grado,
-            horas_academicas=1, activa=True,
+            horas_academicas=1, activa=True, sede=self.periodo.sede,
+            periodo=self.periodo, grado=self.seccion,
         )
         self.materia_y = Materia.objects.create(
             nombre='Materia Y', grado_seccion=self.grado,
-            horas_academicas=1, activa=True,
+            horas_academicas=1, activa=True, sede=self.periodo.sede,
+            periodo=self.periodo, grado=self.seccion,
         )
         HorarioClase.objects.create(
             materia=self.materia_x, dia_semana='lunes',
             hora_inicio='07:00', hora_fin='08:00', aula='',
+            bloque=self.bloque, periodo=self.periodo, grado=self.seccion,
         )
         self.client.force_authenticate(user=self.admin)
 
@@ -1960,6 +2019,9 @@ class HorarioSinDocenteNiAulaRechazaChoqueDeGradoTests(TestCase):
             'hora_inicio': '07:30',
             'hora_fin':    '08:30',
             'aula':        '',
+            'periodo_id': self.periodo.id,
+            'seccion_id': self.seccion.id,
+            'bloque_id': self.bloque.id,
         }, format='json')
         self.assertEqual(resp.status_code, 400, resp.content)
         self.assertIn('error', resp.data)
@@ -1980,17 +2042,42 @@ class HorariosPaqueteAislaChoquesTests(TestCase):
         self.client = APIClient()
         self.admin = crear_usuario('admin_aislamiento_choques', 'director')
         self.grado = '5to A - aislamiento'
+        self.sede = Sede.objects.create(nombre='Sede aislamiento de horarios')
+        self.periodo_anterior = PeriodoEscolar.objects.create(
+            sede=self.sede, nombre='2025-2026', fecha_inicio=date(2025, 9, 1),
+            fecha_fin=date(2026, 7, 31), estado='cerrado',
+        )
+        self.periodo_actual = PeriodoEscolar.objects.create(
+            sede=self.sede, nombre='2026-2027', fecha_inicio=date(2026, 9, 1),
+            fecha_fin=date(2027, 7, 31), estado='activo',
+        )
+        self.seccion_anterior = GradoSeccion.objects.create(
+            periodo=self.periodo_anterior, nombre=self.grado, codigo='5A-ANT',
+        )
+        self.seccion_actual = GradoSeccion.objects.create(
+            periodo=self.periodo_actual, nombre=self.grado, codigo='5A-ACT',
+        )
         self.materia_anterior = Materia.objects.create(
             nombre='Historia anterior', grado_seccion=self.grado, horas_academicas=1,
+            sede=self.sede, periodo=self.periodo_anterior, grado=self.seccion_anterior,
         )
         self.materia_actual = Materia.objects.create(
             nombre='Historia actual', grado_seccion=self.grado, horas_academicas=1,
+            sede=self.sede, periodo=self.periodo_actual, grado=self.seccion_actual,
         )
         self.paquete_anterior = PaqueteHorario.objects.create(
             nombre='Horario 2025-2026', periodo_escolar='2025-2026',
+            sede=self.sede, periodo=self.periodo_anterior,
         )
         self.paquete_actual = PaqueteHorario.objects.create(
             nombre='Horario 2026-2027', periodo_escolar='2026-2027',
+            sede=self.sede, periodo=self.periodo_actual,
+        )
+        PaqueteHorarioGrado.objects.create(
+            paquete=self.paquete_anterior, grado=self.seccion_anterior, grado_seccion=self.grado,
+        )
+        PaqueteHorarioGrado.objects.create(
+            paquete=self.paquete_actual, grado=self.seccion_actual, grado_seccion=self.grado,
         )
         self.bloque_anterior = BloqueHorario.objects.create(
             paquete=self.paquete_anterior, dia_semana='lunes', orden=1,
@@ -2003,6 +2090,7 @@ class HorariosPaqueteAislaChoquesTests(TestCase):
         HorarioClase.objects.create(
             materia=self.materia_anterior, bloque=self.bloque_anterior,
             dia_semana='lunes', hora_inicio='07:00', hora_fin='08:00',
+            periodo=self.periodo_anterior, grado=self.seccion_anterior,
         )
         self.client.force_authenticate(user=self.admin)
 
@@ -2010,6 +2098,8 @@ class HorariosPaqueteAislaChoquesTests(TestCase):
         respuesta = self.client.post('/api/academico/horarios/', {
             'materia_id': self.materia_actual.id,
             'bloque_id': self.bloque_actual.id,
+            'periodo_id': self.periodo_actual.id,
+            'seccion_id': self.seccion_actual.id,
             'aula': '',
         }, format='json')
         self.assertEqual(respuesta.status_code, 201, respuesta.content)
@@ -2019,13 +2109,27 @@ class HorariosPaqueteAislaChoquesTests(TestCase):
         self.materia_anterior.docente = profesor
         self.materia_anterior.save(update_fields=['docente'])
         self.materia_actual.docente = profesor
-        self.materia_actual.save(update_fields=['docente'])
+        seccion_mismo_periodo = GradoSeccion.objects.create(
+            periodo=self.periodo_anterior, nombre='5to B - aislamiento', codigo='5B-ANT',
+        )
+        self.materia_actual.periodo = self.periodo_anterior
+        self.materia_actual.grado = seccion_mismo_periodo
+        self.materia_actual.grado_seccion = seccion_mismo_periodo.nombre
+        self.materia_actual.save(update_fields=['docente', 'periodo', 'grado', 'grado_seccion'])
         self.paquete_actual.periodo_escolar = self.paquete_anterior.periodo_escolar
-        self.paquete_actual.save(update_fields=['periodo_escolar'])
+        self.paquete_actual.periodo = self.periodo_anterior
+        self.paquete_actual.save(update_fields=['periodo_escolar', 'periodo'])
+        PaqueteHorarioGrado.objects.filter(paquete=self.paquete_actual).delete()
+        PaqueteHorarioGrado.objects.create(
+            paquete=self.paquete_actual, grado=seccion_mismo_periodo,
+            grado_seccion=seccion_mismo_periodo.nombre,
+        )
 
         respuesta = self.client.post('/api/academico/horarios/', {
             'materia_id': self.materia_actual.id,
             'bloque_id': self.bloque_actual.id,
+            'periodo_id': self.periodo_anterior.id,
+            'seccion_id': seccion_mismo_periodo.id,
             'aula': '',
         }, format='json')
 

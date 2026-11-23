@@ -48,14 +48,15 @@ describe('GestionQrPanel', () => {
     await user.type(screen.getByLabelText('Monto recibido'), '10');
     await user.click(screen.getByRole('button', { name: 'Confirmar recarga' }));
 
-    await waitFor(() => expect(recargarTarjetaCajero).toHaveBeenCalledWith({
+    await waitFor(() => expect(recargarTarjetaCajero).toHaveBeenCalledWith(expect.objectContaining({
       tarjeta: 7,
       metodo_pago: 'efectivo',
       monto_usd: '10.00',
       banco_receptor: null,
       referencia: '',
       numero_lote: '',
-    }));
+      client_request_id: expect.any(String),
+    })));
     expect(await screen.findByText('Recarga completada')).toBeInTheDocument();
     expect(screen.getByText('$15.00')).toBeInTheDocument();
   });
