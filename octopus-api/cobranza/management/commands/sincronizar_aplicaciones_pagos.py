@@ -156,6 +156,27 @@ class Command(BaseCommand):
             deudas_vinculadas = ' | '.join(
                 f'{deuda._meta.label}#{deuda.pk}' for deuda in deudas_m2m
             )
+            deudas_estado = ' | '.join(
+                (
+                    f'{deuda._meta.label}#{deuda.pk}:'
+                    f'nominal=${deuda.monto_usd or ZERO},'
+                    f'pagado=${deuda.monto_pagado or ZERO},'
+                    f'saldo=${max((deuda.monto_usd or ZERO) - (deuda.monto_pagado or ZERO), ZERO)},'
+                    f'estado={"PAGADA" if deuda.pagado else "ABIERTA"}'
+                )
+                for deuda in deudas_m2m
+            )
+            pagos_relacionados_deudas = ' | '.join(
+                (
+                    f'{deuda._meta.label}#{deuda.pk}=>['
+                    + ';'.join(
+                        f'pago#{rel.pk}/factura={rel.factura_id or "N/A"}/monto=${rel.monto_usd}'
+                        for rel in deuda.pagos.filter(estatus='completado').order_by('fecha_pago', 'id')
+                    )
+                    + ']'
+                )
+                for deuda in deudas_m2m
+            )
             aplicaciones_existentes = ' | '.join(
                 f'{a.content_type.app_label}.{a.content_type.model}#{a.object_id}=${a.monto_abonado_usd}'
                 for a in aplicaciones_op.select_related('content_type')
@@ -203,6 +224,8 @@ class Command(BaseCommand):
                     'vuelto_usd': str(vuelto),
                     'disponible_sin_aplicar_usd': str(disponible_sin_aplicar),
                     'deudas_vinculadas': deudas_vinculadas,
+                    'deudas_estado': deudas_estado,
+                    'pagos_relacionados_deudas': pagos_relacionados_deudas,
                     'aplicaciones_existentes': aplicaciones_existentes,
                 })
 
@@ -261,7 +284,8 @@ class Command(BaseCommand):
                 'metodos_pago', 'referencias', 'total_operacion_usd',
                 'total_aplicado_existente_usd', 'recargos_usd',
                 'excedente_usd', 'vuelto_usd', 'disponible_sin_aplicar_usd',
-                'deudas_vinculadas', 'aplicaciones_existentes',
+                'deudas_vinculadas', 'deudas_estado',
+                'pagos_relacionados_deudas', 'aplicaciones_existentes',
             ]
             with ruta.open('w', newline='', encoding='utf-8-sig') as archivo:
                 escritor = csv.DictWriter(archivo, fieldnames=campos)

@@ -165,4 +165,6 @@ class SincronizarAplicacionesPagosTest(TestCase):
         self.assertEqual(revisar['total_aplicado_existente_usd'], '30.00')
         self.assertEqual(revisar['disponible_sin_aplicar_usd'], '0.00')
         self.assertIn('cobranza.Mensualidad', revisar['deudas_vinculadas'])
+        self.assertIn('estado=ABIERTA', revisar['deudas_estado'])
+        self.assertIn(f'pago#{pago.pk}', revisar['pagos_relacionados_deudas'])
         self.assertIn('cobranza.mensualidad', revisar['aplicaciones_existentes'])
