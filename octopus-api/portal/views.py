@@ -42,6 +42,7 @@ from .serializers import (
     PortalPerfilSerializer,
     PortalSolicitarResetSerializer,
     PortalTokenSerializer,
+    PagoDeudaTarjetaPortalSerializer,
     RecargaTarjetaPortalSerializer,
     TarjetaCantinaPortalSerializer,
 )
@@ -2009,3 +2010,58 @@ class PortalCuentaCantinaView(APIView):
             'cargos': cargos,
             'abonos': abonos,
         })
+
+
+class PortalPagoDeudaTarjetaView(APIView):
+    """Lista tarjetas propias activas y paga la CxC con saldo USD de una de ellas.
+
+    El representante se deriva exclusivamente del JWT del portal. El payload no
+    acepta representante ni alumno, evitando que un id externo cambie el titular
+    de la deuda o permita usar una tarjeta ajena.
+    """
+    authentication_classes = [PortalJWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from cantina.models import TarjetaPrepago
+
+        representante = _get_representante(request)
+        tarjetas = (
+            TarjetaPrepago.objects.filter(
+                alumno__representante=representante,
+                alumno__activo=True,
+                estado='activa',
+            )
+            .select_related('alumno')
+            .order_by('alumno__apellido', 'alumno__nombre', 'id')
+        )
+        return Response([{
+            'id': tarjeta.id,
+            'serial': tarjeta.serial,
+            'saldo': str(tarjeta.saldo),
+            'alumno_id': tarjeta.alumno_id,
+            'alumno_nombre': f'{tarjeta.alumno.nombre} {tarjeta.alumno.apellido}',
+        } for tarjeta in tarjetas])
+
+    def post(self, request):
+        from cantina import services_cxc
+
+        serializer = PagoDeudaTarjetaPortalSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        representante = _get_representante(request)
+        abono = services_cxc.registrar_abono_desde_tarjeta(
+            representante=representante,
+            tarjeta_id=serializer.validated_data['tarjeta_id'],
+            monto_usd=serializer.validated_data['monto_usd'],
+            cajero=request.user,
+        )
+        abono.tarjeta_origen.refresh_from_db(fields=['saldo'])
+        return Response({
+            'operacion_uuid': str(abono.operacion_uuid),
+            'monto_usd': str(abono.monto_usd),
+            'saldo_deuda_usd': str(services_cxc.saldo_titular(representante)),
+            'tarjeta': {
+                'id': abono.tarjeta_origen_id,
+                'saldo': str(abono.tarjeta_origen.saldo),
+            },
+        }, status=status.HTTP_201_CREATED)

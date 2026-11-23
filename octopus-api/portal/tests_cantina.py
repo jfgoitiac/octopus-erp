@@ -478,3 +478,93 @@ class PortalCuentaCantinaTests(PortalCantinaTestBase):
         self.auth_portal(cedula=self.rep2.cedula, password='otra-clave-456')
         resp2 = self.client.get(self.URL)
         self.assertEqual(Decimal(resp2.data['saldo_usd']), Decimal('7.00'))
+
+
+class PortalPagoDeudaTarjetaTests(PortalCantinaTestBase):
+    URL = '/api/portal/cantina/pago-tarjeta/'
+
+    def _cargo(self, rep, alumno, monto):
+        venta = VentaCantina.objects.create(
+            alumno=alumno,
+            cajero=self.user,
+            metodo_pago='credito_representante',
+            area='cantina',
+            representante=rep,
+            total_usd=Decimal(monto),
+            tasa_aplicada=Decimal('40.0000'),
+            total_ves=Decimal(monto) * 40,
+        )
+        return CargoCantina.objects.create(
+            representante=rep,
+            alumno=alumno,
+            venta=venta,
+            area='cantina',
+            monto_usd=Decimal(monto),
+        )
+
+    def test_requiere_autenticacion(self):
+        self.assertEqual(self.client.get(self.URL).status_code, 401)
+        self.assertEqual(self.client.post(self.URL, {}, format='json').status_code, 401)
+
+    def test_lista_solo_tarjetas_activas_de_hijos_propios(self):
+        alumno_inactivo = crear_alumno(
+            self.rep, 'E84000003', nombre='Inactivo', apellido='Propio', activo=False,
+        )
+        TarjetaPrepago.objects.create(
+            alumno=alumno_inactivo, serial='L001-0003', codigo='CANT-CCCCCCCCCC',
+            estado='activa', saldo=Decimal('9.00'),
+        )
+        alumno_bloqueado = crear_alumno(
+            self.rep, 'E84000004', nombre='Bloqueado', apellido='Propio',
+        )
+        TarjetaPrepago.objects.create(
+            alumno=alumno_bloqueado, serial='L001-0004', codigo='CANT-DDDDDDDDDD',
+            estado='bloqueada', saldo=Decimal('8.00'),
+        )
+
+        self.auth_portal()
+        resp = self.client.get(self.URL)
+
+        self.assertEqual(resp.status_code, 200, resp.content)
+        self.assertEqual([item['id'] for item in resp.data], [self.tarjeta.id])
+        self.assertNotContains(resp, self.tarjeta2.serial)
+
+    def test_paga_deuda_propia_con_monto_usd_exacto_y_actualiza_saldos(self):
+        cargo = self._cargo(self.rep, self.alumno, '7.00')
+        self.auth_portal()
+
+        resp = self.client.post(self.URL, {
+            'tarjeta_id': self.tarjeta.id,
+            'monto_usd': '5.00',
+            # Un titular enviado por el cliente nunca se usa: manda el JWT.
+            'representante_id': self.rep2.id,
+        }, format='json')
+
+        self.assertEqual(resp.status_code, 201, resp.content)
+        cargo.refresh_from_db()
+        self.tarjeta.refresh_from_db()
+        self.assertEqual(cargo.saldo_usd, Decimal('2.00'))
+        self.assertEqual(self.tarjeta.saldo, Decimal('0.00'))
+        self.assertEqual(Decimal(resp.data['monto_usd']), Decimal('5.00'))
+        self.assertEqual(Decimal(resp.data['saldo_deuda_usd']), Decimal('2.00'))
+        self.assertEqual(Decimal(resp.data['tarjeta']['saldo']), Decimal('0.00'))
+
+    def test_no_puede_usar_tarjeta_de_otro_representante(self):
+        self.tarjeta2.saldo = Decimal('5.00')
+        self.tarjeta2.save(update_fields=['saldo'])
+        cargo_propio = self._cargo(self.rep, self.alumno, '3.00')
+        cargo_ajeno = self._cargo(self.rep2, self.alumno2, '4.00')
+        self.auth_portal()
+
+        resp = self.client.post(self.URL, {
+            'tarjeta_id': self.tarjeta2.id,
+            'monto_usd': '2.00',
+        }, format='json')
+
+        self.assertEqual(resp.status_code, 400, resp.content)
+        self.tarjeta2.refresh_from_db()
+        cargo_propio.refresh_from_db()
+        cargo_ajeno.refresh_from_db()
+        self.assertEqual(self.tarjeta2.saldo, Decimal('5.00'))
+        self.assertEqual(cargo_propio.saldo_usd, Decimal('3.00'))
+        self.assertEqual(cargo_ajeno.saldo_usd, Decimal('4.00'))

@@ -71,6 +71,7 @@ from .views import (
     PortalConsumosCantinaView,
     PortalRecargarTarjetaView,
     PortalCuentaCantinaView,
+    PortalPagoDeudaTarjetaView,
 )
 
 urlpatterns = [
@@ -156,4 +157,5 @@ urlpatterns = [
     path('cantina/recargar/', PortalRecargarTarjetaView.as_view(), name='portal_cantina_recargar'),
     # Cuenta por cobrar de cantina/librería del representante (solo lectura)
     path('cantina/cuenta/', PortalCuentaCantinaView.as_view(), name='portal_cantina_cuenta'),
+    path('cantina/pago-tarjeta/', PortalPagoDeudaTarjetaView.as_view(), name='portal_cantina_pago_tarjeta'),
 ]

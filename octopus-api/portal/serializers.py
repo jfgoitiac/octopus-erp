@@ -357,6 +357,12 @@ class TarjetaCantinaPortalSerializer(serializers.Serializer):
     dias_en_negativo = serializers.IntegerField()
 
 
+class PagoDeudaTarjetaPortalSerializer(serializers.Serializer):
+    """Entrada mínima del pago interno: el titular siempre sale del JWT."""
+    tarjeta_id = serializers.IntegerField(min_value=1)
+    monto_usd = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal('0.01'))
+
+
 class DetalleConsumoPortalSerializer(serializers.ModelSerializer):
     """Línea de una compra de cantina/librería: qué producto y cuántas unidades."""
     producto_nombre = serializers.CharField(source='producto.nombre', read_only=True)
