@@ -56,6 +56,11 @@ test.beforeEach(async ({ page }) => {
     else if (path.includes('/academico/rendimiento/')) body = { por_lapso: [] };
     else if (path.endsWith('/avisos/')) body = { no_leidos: 0, resultados: [] };
     else if (path.endsWith('/cantina/cuenta/')) body = { saldo_usd: '18.50', por_area: [{ area: 'cantina', area_display: 'Cantina', saldo_usd: '18.50' }], cargos: [], abonos: [] };
+    else if (path.endsWith('/cantina/pago-tarjeta/')) {
+      body = route.request().method() === 'POST'
+        ? { operacion_uuid: '11111111-1111-1111-1111-111111111111', monto_usd: '18.50', saldo_deuda_usd: '0.00', tarjeta: { id: 7, saldo: '13.50' } }
+        : [{ id: 7, alumno_nombre: 'Sofía González', serial: 'T-007', saldo: '32.00' }];
+    }
     else if (path.endsWith('/cantina/saldo/')) body = [{ alumno_id: 1, alumno_nombre: 'Sofía González', tiene_tarjeta: true, saldo: '32.00', estado: 'activa', estado_display: 'Activa' }];
     else if (path.endsWith('/cantina/consumos/')) body = consumos;
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
@@ -93,4 +98,27 @@ test('cantina conserva saldo y consumos sin mostrar recargas', async ({ page }) 
 
   const dimensiones = await page.evaluate(() => ({ anchoDocumento: document.documentElement.scrollWidth, anchoVista: document.documentElement.clientWidth }));
   expect(dimensiones.anchoDocumento).toBeLessThanOrEqual(dimensiones.anchoVista);
+});
+
+test('paga la deuda con tarjeta en USD sin desbordar el modal', async ({ page }) => {
+  await page.goto('/portal/cantina');
+
+  await page.getByRole('button', { name: 'Pagar con tarjeta prepago' }).click();
+  await expect(page.getByRole('heading', { name: 'Pagar deuda' })).toBeVisible();
+  await expect(page.getByText('Deuda total USD')).toBeVisible();
+  await expect(page.getByText('Saldo disponible USD')).toBeVisible();
+  await expect(page.getByText(/La tasa BCV no cambia el monto debitado/i)).toBeVisible();
+  await expect(page.getByLabel('Monto a abonar (USD)')).toHaveValue('18.50');
+
+  const dimensiones = await page.evaluate(() => ({
+    anchoDocumento: document.documentElement.scrollWidth,
+    anchoVista: document.documentElement.clientWidth,
+    confirmarVisible: Boolean([...document.querySelectorAll('button')]
+      .find((boton) => boton.textContent?.includes('Confirmar pago'))?.getBoundingClientRect().height),
+  }));
+  expect(dimensiones.anchoDocumento).toBeLessThanOrEqual(dimensiones.anchoVista);
+  expect(dimensiones.confirmarVisible).toBe(true);
+
+  await page.getByRole('button', { name: 'Confirmar pago' }).click();
+  await expect(page.getByRole('heading', { name: 'Pagar deuda' })).toHaveCount(0);
 });

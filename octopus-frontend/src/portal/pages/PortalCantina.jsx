@@ -8,6 +8,7 @@ import SaldoTarjetaCard from '../components/SaldoTarjetaCard';
 import EstadoCuentaConsumos from '../components/EstadoCuentaConsumos';
 import DetalleConsumoModal from '../components/DetalleConsumoModal';
 import CuentaCantinaCard from '../components/CuentaCantinaCard';
+import PagarCuentaCantinaModal from '../components/PagarCuentaCantinaModal';
 
 const PortalCantina = () => {
   // La lista ya fue solicitada por PortalLayout; compartirla evita repetir el
@@ -28,6 +29,8 @@ const PortalCantina = () => {
   // Cuenta por cobrar de cantina/librería (es del representante, no de un alumno)
   const [cuenta, setCuenta] = useState(null);
   const [loadingCuenta, setLoadingCuenta] = useState(true);
+  const [modalPagoAbierto, setModalPagoAbierto] = useState(false);
+  const [versionDatos, setVersionDatos] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -45,7 +48,7 @@ const PortalCantina = () => {
     };
     cargarCuenta();
     return () => controller.abort();
-  }, []);
+  }, [versionDatos]);
 
   useEffect(() => {
     if (dashboardData) sincronizarConLista(alumnos);
@@ -74,7 +77,7 @@ const PortalCantina = () => {
 
     cargarSaldo();
     return () => controller.abort();
-  }, [alumnoActivo]);
+  }, [alumnoActivo, versionDatos]);
 
   // Cargar consumos cuando cambia el alumno activo o la página.
   useEffect(() => {
@@ -112,7 +115,12 @@ const PortalCantina = () => {
       </div>
 
       {/* Cuenta de cantina y librería (deuda del representante) */}
-      <CuentaCantinaCard cuenta={cuenta} loading={loadingCuenta} onVerConsumo={setConsumoAbierto} />
+      <CuentaCantinaCard
+        cuenta={cuenta}
+        loading={loadingCuenta}
+        onVerConsumo={setConsumoAbierto}
+        onPagarConTarjeta={() => setModalPagoAbierto(true)}
+      />
 
       {/* Selector de estudiante */}
       {loadingAlumnos ? (
@@ -159,6 +167,12 @@ const PortalCantina = () => {
       </div>
 
       <DetalleConsumoModal consumo={consumoAbierto} onClose={() => setConsumoAbierto(null)} />
+      <PagarCuentaCantinaModal
+        open={modalPagoAbierto}
+        deuda={cuenta?.saldo_usd}
+        onClose={() => setModalPagoAbierto(false)}
+        onPagado={() => setVersionDatos((actual) => actual + 1)}
+      />
 
     </div>
   );

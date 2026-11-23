@@ -1,4 +1,4 @@
-import { ChevronRight, HandCoins, Receipt } from 'lucide-react';
+import { ChevronRight, CreditCard, HandCoins, Receipt } from 'lucide-react';
 import SkeletonCard, { SkeletonLine } from './SkeletonCard';
 import { fmtFecha as formatFecha } from '../utils/fechas';
 import { fmtMonto } from '../utils/montos';
@@ -13,7 +13,7 @@ const usd = (valor) => `REF. ${fmtMonto(valor)}`;
  *   loading: boolean
  *   onVerConsumo: (consumo) => void
  */
-const CuentaCantinaCard = ({ cuenta, loading, onVerConsumo }) => {
+const CuentaCantinaCard = ({ cuenta, loading, onVerConsumo, onPagarConTarjeta }) => {
   if (loading) {
     return (
       <div className="space-y-3">
@@ -50,7 +50,7 @@ const CuentaCantinaCard = ({ cuenta, loading, onVerConsumo }) => {
         </div>
         <p className={`text-3xl font-bold ${hayDeuda ? 'text-[var(--red)]' : 'text-[var(--jet)]'}`}>{usd(saldo)}</p>
         <p className="text-xs text-[var(--ash)] mt-1">
-          {hayDeuda ? 'Deuda pendiente. Cancélala en la cantina o librería del colegio.' : 'No tienes deuda pendiente.'}
+          {hayDeuda ? 'Deuda pendiente. Puedes abonarla con el saldo de una tarjeta prepago.' : 'No tienes deuda pendiente.'}
         </p>
         <dl className="mt-3 grid grid-cols-1 gap-1 sm:grid-cols-2 sm:gap-3">
           {(cuenta.por_area || []).map((a) => (
@@ -60,6 +60,16 @@ const CuentaCantinaCard = ({ cuenta, loading, onVerConsumo }) => {
             </div>
           ))}
         </dl>
+        {hayDeuda && onPagarConTarjeta && (
+          <button
+            type="button"
+            onClick={onPagarConTarjeta}
+            className="mt-4 inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-[var(--portal-primary)] px-4 py-2.5 text-sm font-semibold text-white sm:w-auto"
+          >
+            <CreditCard size={17} aria-hidden="true" />
+            Pagar con tarjeta prepago
+          </button>
+        )}
       </div>
 
       {/* Consumos pendientes */}

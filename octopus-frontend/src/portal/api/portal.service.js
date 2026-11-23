@@ -121,6 +121,17 @@ export const cambiarContrasena = (data) =>
 export const getCuentaCantina = (signal) =>
   portalClient.get('cantina/cuenta/', signal ? { signal } : undefined);
 
+/** Tarjetas activas propias que pueden aplicarse a la deuda CxC del representante. */
+export const getTarjetasPagoCuentaCantina = (signal) =>
+  portalClient.get('cantina/pago-tarjeta/', signal ? { signal } : undefined);
+
+/**
+ * Abona la deuda CxC con saldo prepago. El representante se deriva del JWT;
+ * nunca se envía un id de representante desde el navegador.
+ */
+export const pagarCuentaCantinaConTarjeta = (payload, signal) =>
+  portalClient.post('cantina/pago-tarjeta/', payload, signal ? { signal } : undefined);
+
 /**
  * Obtiene el saldo y estado de la tarjeta de cantina de los hijos del
  * representante. Si se pasa alumnoId, el backend filtra y devuelve un
