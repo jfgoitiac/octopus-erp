@@ -17,7 +17,7 @@ from rest_framework.test import APIClient
 from notificaciones.models import NotificacionLog
 from secretaria.models import Alumno, ConfiguracionSistema, Representante
 
-from .models import AplicacionPago, Mensualidad, Pago
+from .models import AplicacionPago, LineaRecargoPago, Mensualidad, Pago
 from .recibo_cobranza import (
     DIAS_VIGENCIA_ENLACE, datos_recibo, firmar_enlace_recibo, generar_pdf_recibo, fmt_bs,
 )
@@ -64,6 +64,25 @@ class ReciboBase(TestCase):
             fecha_inicio_inscripciones=date.today(), fecha_fin_inscripciones=date.today(),
             fecha_inicio_ano_escolar=date.today(), fecha_fin_ano_escolar=date.today(), **kw
         )
+
+    def _pago_con_recargo(self):
+        from django.contrib.contenttypes.models import ContentType
+        pago = self._pago(monto_usd=Decimal('35.00'))
+        mensualidad = Mensualidad.objects.create(
+            alumno=self.alumno, mes=9, anio=2026, monto_usd=Decimal('30.00'),
+            monto_pagado=Decimal('30.00'), pagado=True,
+        )
+        mensualidad.pagos.add(pago)
+        AplicacionPago.objects.create(
+            pago=pago, content_type=ContentType.objects.get_for_model(mensualidad),
+            object_id=mensualidad.id, monto_nominal_usd=Decimal('30.00'),
+            monto_abonado_usd=Decimal('30.00'), saldo_resultante_usd=Decimal('0.00'),
+        )
+        LineaRecargoPago.objects.create(
+            pago=pago, mensualidad=mensualidad, nombre='Recargo por mora',
+            monto_usd=Decimal('5.00'), fecha_referencia=date(2026, 9, 20),
+        )
+        return pago
 
 
 class MotorReciboTests(ReciboBase):
@@ -143,6 +162,25 @@ class MotorReciboTests(ReciboBase):
         self.assertIn('ABONO', texto)
         self.assertIn('$ 20.00', texto)
 
+    def test_aplicacion_con_recargo_genera_pdf_y_muestra_el_recargo(self):
+        pago = self._pago_con_recargo()
+
+        datos = datos_recibo(pago)
+        texto = _texto(generar_pdf_recibo(pago).getvalue())
+
+        self.assertFalse(datos['es_abono_parcial'])
+        self.assertTrue(any(
+            item['concepto'] == 'RECARGO POR PAGO TARDÍO'
+            for item in datos['items']
+        ))
+        self.assertTrue(any(
+            item['descripcion'] == 'Recargo por mora'
+            for item in datos['items']
+        ))
+        self.assertIn('RECARGO POR PAGO', texto)
+        self.assertIn('RECARGO POR MORA', texto)
+        self.assertIn(fmt_bs(Decimal('200.00')), texto)
+
     def test_muchas_lineas_no_rompen_el_pdf(self):
         pago = self._pago(monto_usd=Decimal('45.00') * 30)
         for mes in range(1, 13):
@@ -166,6 +204,18 @@ class ReciboEndpointsTests(ReciboBase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp['Content-Type'], 'application/pdf')
         self.assertIn(f'Recibo_{pago.factura_id}.pdf', resp['Content-Disposition'])
+
+    def test_panel_devuelve_pdf_para_pago_con_recargo(self):
+        pago = self._pago_con_recargo()
+        self.client.force_authenticate(user=self.cajero)
+
+        resp = self.client.get(f'/api/cobranza/recibo/{pago.id}/')
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp['Content-Type'], 'application/pdf')
+        texto = _texto(b''.join(resp.streaming_content))
+        self.assertIn('RECARGO POR PAGO', texto)
+        self.assertIn('RECARGO POR MORA', texto)
 
     def test_panel_sin_sesion_devuelve_401(self):
         pago = self._pago()

@@ -146,7 +146,11 @@ def datos_recibo(pago):
             })
         nota_abono = ' '.join(
             f"Abono: ${it['monto_abonado_usd']:.2f}; saldo pendiente: ${it['saldo_pendiente_usd']:.2f}."
-            for it in items if it['es_parcial']
+            # Las líneas de recargo conviven con las aplicaciones, pero no
+            # representan un abono y por tanto no tienen estos campos. Un
+            # acceso directo a ``es_parcial`` hacía fallar todo el PDF con
+            # KeyError justo después de cobrar una mensualidad con mora.
+            for it in items if it.get('es_parcial', False)
         )
     elif desglose:
         items = [{
