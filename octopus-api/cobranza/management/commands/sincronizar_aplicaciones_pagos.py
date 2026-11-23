@@ -128,6 +128,7 @@ class Command(BaseCommand):
                 ) for p in hermanos
             ), ZERO)
             diferencia = (recibido - vuelto) - (aplicado + recargos + excedente)
+            disponible_sin_aplicar = diferencia
             tolerancia = Decimal('0.01') + Decimal('0.005') * len(hermanos)
 
             if aplicaciones_op.exists() and abs(diferencia) > tolerancia:
@@ -152,6 +153,13 @@ class Command(BaseCommand):
                 'cuotas_solvencia_pagadas', 'proyectos_inversion_pagados',
             ):
                 deudas_m2m.extend(list(getattr(principal, campo).all()))
+            deudas_vinculadas = ' | '.join(
+                f'{deuda._meta.label}#{deuda.pk}' for deuda in deudas_m2m
+            )
+            aplicaciones_existentes = ' | '.join(
+                f'{a.content_type.app_label}.{a.content_type.model}#{a.object_id}=${a.monto_abonado_usd}'
+                for a in aplicaciones_op.select_related('content_type')
+            )
             aplicaciones_claves = set(
                 aplicaciones_op.values_list('content_type_id', 'object_id')
             )
@@ -177,6 +185,25 @@ class Command(BaseCommand):
                         (deuda.monto_usd or ZERO) - (deuda.monto_pagado or ZERO)
                     ),
                     'motivo': motivo,
+                    'alumno_id': principal.alumno_id,
+                    'alumno': str(principal.alumno),
+                    'representante': principal.representante_nombre or '',
+                    'representante_documento': principal.representante_documento or '',
+                    'fecha_pago': principal.fecha_pago.isoformat(),
+                    'metodos_pago': ' | '.join(
+                        f'{p.metodo_pago}=${p.monto_usd}' for p in hermanos
+                    ),
+                    'referencias': ' | '.join(
+                        f'{p.metodo_pago}:{p.referencia or "SIN-REFERENCIA"}' for p in hermanos
+                    ),
+                    'total_operacion_usd': str(recibido),
+                    'total_aplicado_existente_usd': str(aplicado),
+                    'recargos_usd': str(recargos),
+                    'excedente_usd': str(excedente),
+                    'vuelto_usd': str(vuelto),
+                    'disponible_sin_aplicar_usd': str(disponible_sin_aplicar),
+                    'deudas_vinculadas': deudas_vinculadas,
+                    'aplicaciones_existentes': aplicaciones_existentes,
                 })
 
         self.stdout.write(
@@ -229,7 +256,12 @@ class Command(BaseCommand):
             campos = [
                 'clasificacion', 'pago_id', 'factura_id', 'operacion_uuid',
                 'deuda', 'monto_recibido_usd', 'monto_aplicado_usd',
-                'saldo_almacenado_usd', 'motivo',
+                'saldo_almacenado_usd', 'motivo', 'alumno_id', 'alumno',
+                'representante', 'representante_documento', 'fecha_pago',
+                'metodos_pago', 'referencias', 'total_operacion_usd',
+                'total_aplicado_existente_usd', 'recargos_usd',
+                'excedente_usd', 'vuelto_usd', 'disponible_sin_aplicar_usd',
+                'deudas_vinculadas', 'aplicaciones_existentes',
             ]
             with ruta.open('w', newline='', encoding='utf-8-sig') as archivo:
                 escritor = csv.DictWriter(archivo, fieldnames=campos)

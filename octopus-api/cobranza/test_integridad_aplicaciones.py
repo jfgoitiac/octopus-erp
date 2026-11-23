@@ -1,6 +1,8 @@
+import csv
 from datetime import date
 from decimal import Decimal
 from io import StringIO
+from tempfile import TemporaryDirectory
 
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
@@ -138,3 +140,29 @@ class SincronizarAplicacionesPagosTest(TestCase):
         self.assertIn('sin AplicacionPago', salida.getvalue())
         otra.refresh_from_db()
         self.assertFalse(otra.pagado)
+
+    def test_csv_forense_incluye_identidad_y_disponible_sin_aplicar(self):
+        pago = Pago.objects.get()
+        otra = Mensualidad.objects.create(
+            alumno=self.mensualidad.alumno, mes=5, anio=2026,
+            monto_usd=Decimal('30.00'),
+        )
+        otra.pagos.add(pago)
+
+        with TemporaryDirectory() as temporal:
+            ruta = f'{temporal}/auditoria.csv'
+            call_command(
+                'sincronizar_aplicaciones_pagos', '--output', ruta,
+                stdout=StringIO(),
+            )
+            with open(ruta, encoding='utf-8-sig', newline='') as archivo:
+                filas = list(csv.DictReader(archivo))
+
+        revisar = next(f for f in filas if f['deuda'].endswith(f'#{otra.pk}'))
+        self.assertEqual(revisar['alumno_id'], str(self.mensualidad.alumno_id))
+        self.assertIn('Alumno', revisar['alumno'])
+        self.assertEqual(revisar['total_operacion_usd'], '30.00')
+        self.assertEqual(revisar['total_aplicado_existente_usd'], '30.00')
+        self.assertEqual(revisar['disponible_sin_aplicar_usd'], '0.00')
+        self.assertIn('cobranza.Mensualidad', revisar['deudas_vinculadas'])
+        self.assertIn('cobranza.mensualidad', revisar['aplicaciones_existentes'])
