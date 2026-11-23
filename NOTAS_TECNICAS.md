@@ -4653,3 +4653,13 @@ tasa). Deuda nueva (solo anotada):
   `react-hooks/set-state-in-effect`, Fast Refresh e imports sin uso). Los archivos
   modificados por esta fase pasan ESLint de forma aislada; no se corrigió deuda
   fuera de alcance.
+
+## Cantina CxC — fuente de tasa en prueba heredada (2026-11-22)
+
+- **Baja — expectativa desalineada:**
+  `AbonoEnBolivaresTasaBcvTests.test_abono_en_bolivares_convierte_con_la_tasa_bcv`
+  crea una `TasaCantina` manual de 99, pero espera que el abono use la tasa BCV
+  de 40. La implementación vigente de `tasa_cantina_activa` prioriza esa tasa
+  manual. No se cambió la precedencia ni el test porque el pago CxC con tarjeta
+  prepago debe quedar aislado y no alterar los demás métodos; conviene decidir
+  explícitamente cuál fuente debe dominar y alinear contrato, código y prueba.
