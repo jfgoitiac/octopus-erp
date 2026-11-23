@@ -811,6 +811,19 @@ class PagoCreateSerializer(serializers.Serializer):
                 )
             montos_mensualidades = data.get('montos_mensualidades') or {}
             mensualidades_por_id = {m.id: m for m in mensualidades_bloqueadas}
+            # El monto que envía caja para una mensualidad incluye su saldo
+            # nominal y, cuando corresponde, el recargo por mora (o resta el
+            # descuento por pronto pago). La validación anterior comparaba
+            # únicamente contra ``monto_usd - monto_pagado`` y rechazaba como
+            # excedente un pago correcto de, por ejemplo, 35 USD para una
+            # mensualidad de 30 USD con 5 USD de recargo.
+            #
+            # Se usa la misma fecha efectiva y los mismos resolutores que
+            # RegistrarPagoView para que cotización, validación y cobro tengan
+            # una sola definición del total exigible.
+            from .descuentos import resolver_descuento
+            from .recargos import resolver_recargo
+            fecha_cobro = data.get('fecha_pago') or timezone.now()
             for clave, monto_abonado in montos_mensualidades.items():
                 try:
                     mensualidad_id = int(clave)
@@ -820,10 +833,20 @@ class PagoCreateSerializer(serializers.Serializer):
                 if not mensualidad:
                     continue
                 saldo = mensualidad.monto_usd - mensualidad.monto_pagado
-                if Decimal(str(monto_abonado)) > saldo + Decimal('0.01'):
+                resultado_recargo = resolver_recargo(mensualidad, fecha_cobro)
+                resultado_descuento = resolver_descuento(mensualidad, fecha_cobro)
+                monto_recargo = (
+                    resultado_recargo['monto_usd'] if resultado_recargo else Decimal('0.00')
+                )
+                monto_descuento = (
+                    resultado_descuento['monto_descontado_usd']
+                    if resultado_descuento else Decimal('0.00')
+                )
+                total_exigible = saldo + monto_recargo - monto_descuento
+                if Decimal(str(monto_abonado)) > total_exigible + Decimal('0.01'):
                     raise serializers.ValidationError(
                         f"El abono de {mensualidad.get_mes_display()} {mensualidad.anio} "
-                        f"excede el saldo pendiente (${saldo})."
+                        f"excede el total pendiente (${total_exigible}, incluyendo ajustes)."
                     )
 
         if todos_cuota_inscripcion_ids:

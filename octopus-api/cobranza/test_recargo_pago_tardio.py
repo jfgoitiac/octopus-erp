@@ -262,6 +262,18 @@ class IndependenciaDeDiaLimitePagoTest(RecargoPagoTardioBase):
 
 class ConsistenciaMorosaPortalCajaTest(RecargoPagoTardioBase):
 
+    def _cliente_caja(self):
+        banco = BancoInstitucional.objects.create(nombre='Banco Test Recargo', activo=True)
+        TasaCambio.objects.create(valor_bs=Decimal('40.00'))
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        user = User.objects.create_superuser(
+            username='cajero_recargo', password='clave123456', email='c@test.com'
+        )
+        client = APIClient()
+        client.force_authenticate(user=user)
+        return client, banco
+
     def test_morosos_y_portal_reportan_el_mismo_monto(self):
         self._regla(dia_aplicacion=15, valor=Decimal('2.00'))
         m = self._mensualidad(7, 2026)
@@ -322,6 +334,45 @@ class ConsistenciaMorosaPortalCajaTest(RecargoPagoTardioBase):
             self.assertEqual(linea.nombre, cotizacion['nombre'])
         else:
             self.assertIsNone(linea)
+
+    def test_caja_acepta_total_nominal_mas_recargo_en_monto_mensualidad(self):
+        self._regla(dia_aplicacion=1, valor=Decimal('5.00'))
+        mensualidad = self._mensualidad(7, 2026, monto='30.00')
+        client, banco = self._cliente_caja()
+        payload = {
+            "alumnos": [{"alumno_id": self.alumno.id, "mensualidad_ids": [mensualidad.id]}],
+            "concepto": "mensualidad",
+            "montos_mensualidades": {str(mensualidad.id): "35.00"},
+            "pagos": [{
+                "metodo_pago": "zelle", "monto_usd": "35.00",
+                "referencia": "ZL-REC-005", "banco_receptor_id": banco.id,
+            }],
+        }
+
+        response = client.post('/api/cobranza/registrar-pago/', payload, format='json')
+
+        self.assertEqual(response.status_code, 201, response.content)
+        linea = LineaRecargoPago.objects.get(mensualidad=mensualidad)
+        self.assertEqual(linea.monto_usd, Decimal('5.00'))
+
+    def test_caja_rechaza_monto_superior_al_nominal_mas_recargo(self):
+        self._regla(dia_aplicacion=1, valor=Decimal('5.00'))
+        mensualidad = self._mensualidad(7, 2026, monto='30.00')
+        client, banco = self._cliente_caja()
+        payload = {
+            "alumnos": [{"alumno_id": self.alumno.id, "mensualidad_ids": [mensualidad.id]}],
+            "concepto": "mensualidad",
+            "montos_mensualidades": {str(mensualidad.id): "36.00"},
+            "pagos": [{
+                "metodo_pago": "zelle", "monto_usd": "36.00",
+                "referencia": "ZL-REC-006", "banco_receptor_id": banco.id,
+            }],
+        }
+
+        response = client.post('/api/cobranza/registrar-pago/', payload, format='json')
+
+        self.assertEqual(response.status_code, 400, response.content)
+        self.assertIn('excede el total pendiente', str(response.data))
 
 
 class SnapshotInmutableTest(RecargoPagoTardioBase):
