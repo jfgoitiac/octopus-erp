@@ -506,10 +506,20 @@ def registrar_abono_desde_tarjeta(*, representante, tarjeta_id, monto_usd, cajer
         if monto > deuda:
             raise ValidationError({'monto_usd': f'El monto excede la deuda pendiente (${deuda:.2f}).'})
 
+        # La tasa es solo un snapshot informativo para recibos. El monto que
+        # se distribuye y descuenta de la tarjeta sigue siendo ``monto`` USD;
+        # cambiar la BCV nunca modifica el débito ni las aplicaciones.
+        tasa_obj = tasa_cantina_activa()
+        if tasa_obj is None or tasa_obj.valor_bs <= 0:
+            raise ValidationError({'tasa': 'No se ha registrado ninguna tasa de cambio.'})
+        tasa_referencia = tasa_obj.valor_bs
+
         abono = AbonoCantina.objects.create(
             operacion_uuid=uuid.uuid4(), representante=titular, area=cargos[0].area,
             apertura=None, metodo_pago='tarjeta_prepago', monto_usd=monto,
-            tasa_aplicada=Decimal('1.0000'), monto_ves=monto, fecha_pago=timezone.now(),
+            tasa_aplicada=tasa_referencia,
+            monto_ves=(monto * tasa_referencia).quantize(CENTAVO),
+            fecha_pago=timezone.now(),
             motivo='Pago con saldo de tarjeta prepagada', cajero=cajero,
             tarjeta_origen=tarjeta,
         )

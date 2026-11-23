@@ -136,7 +136,95 @@ class PagoDeudaConTarjetaTests(CxcBase):
         abono = AbonoCantina.objects.get()
         self.assertEqual(abono.metodo_pago, 'tarjeta_prepago')
         self.assertEqual(abono.tarjeta_origen, self.tarjeta)
+        self.assertEqual(abono.tasa_aplicada, Decimal('40.0000'))
+        self.assertEqual(abono.monto_ves, Decimal('200.00'))
         self.assertTrue(MovimientoTarjeta.objects.filter(tarjeta=self.tarjeta, tipo='pago_deuda').exists())
+
+    def test_deuda_dos_cincuenta_descuenta_exactamente_dos_cincuenta_usd(self):
+        CargoCantina.objects.filter(pk=self.cargo.pk).update(monto_usd=Decimal('2.50'))
+        self.cargo.refresh_from_db()
+        resp = self.client_cajero.post(
+            f'{BASE}representantes/{self.rep.id}/pago-tarjeta/',
+            {'tarjeta_id': self.tarjeta.id, 'monto_usd': '2.50'}, format='json',
+        )
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.tarjeta.refresh_from_db()
+        self.cargo.refresh_from_db()
+        self.assertEqual(self.tarjeta.saldo, Decimal('7.50'))
+        self.assertEqual(self.cargo.monto_pagado, Decimal('2.50'))
+        self.assertEqual(self.cargo.saldo_usd, Decimal('0.00'))
+        self.assertEqual(self.cargo.estado, 'pagado')
+        movimiento = MovimientoTarjeta.objects.get(tipo='pago_deuda')
+        self.assertEqual(movimiento.monto, Decimal('2.50'))
+        # El recibo conserva el equivalente VES como dato informativo, sin
+        # que ese valor intervenga en el débito USD.
+        import pdfplumber
+        from .views_cxc import generar_pdf_recibo_abono
+
+        recibo = generar_pdf_recibo_abono([AbonoCantina.objects.get()])
+        with pdfplumber.open(recibo) as pdf:
+            texto = '\n'.join(p.extract_text() or '' for p in pdf.pages)
+        self.assertIn('$ 2.50', texto)
+        self.assertIn('Bs. 100.00', texto)
+        self.assertIn('Tasa aplicada: Bs. 40.0000', texto)
+
+    def test_varias_deudas_aplica_primero_a_la_mas_antigua_y_parcial_a_la_ultima(self):
+        reciente = self.crear_cargo('4.00')
+        resp = self.client_cajero.post(
+            f'{BASE}representantes/{self.rep.id}/pago-tarjeta/',
+            {'tarjeta_id': self.tarjeta.id, 'monto_usd': '8.00'}, format='json',
+        )
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.cargo.refresh_from_db()
+        reciente.refresh_from_db()
+        self.assertEqual(self.cargo.monto_pagado, Decimal('7.00'))
+        self.assertEqual(reciente.monto_pagado, Decimal('1.00'))
+
+    def test_saldo_insuficiente_para_toda_la_deuda_realiza_abono_parcial(self):
+        self.tarjeta.saldo = Decimal('3.00')
+        self.tarjeta.save(update_fields=['saldo'])
+        resp = self.client_cajero.post(
+            f'{BASE}representantes/{self.rep.id}/pago-tarjeta/',
+            {'tarjeta_id': self.tarjeta.id, 'monto_usd': '3.00'}, format='json',
+        )
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.tarjeta.refresh_from_db()
+        self.cargo.refresh_from_db()
+        self.assertEqual(self.tarjeta.saldo, Decimal('0.00'))
+        self.assertEqual(self.cargo.saldo_usd, Decimal('4.00'))
+
+    def test_saldo_suficiente_liquida_todas_las_deudas_alcanzadas(self):
+        segundo = self.crear_cargo('3.00')
+        resp = self.client_cajero.post(
+            f'{BASE}representantes/{self.rep.id}/pago-tarjeta/',
+            {'tarjeta_id': self.tarjeta.id, 'monto_usd': '10.00'}, format='json',
+        )
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.cargo.refresh_from_db()
+        segundo.refresh_from_db()
+        self.tarjeta.refresh_from_db()
+        self.assertEqual(self.cargo.estado, 'pagado')
+        self.assertEqual(segundo.estado, 'pagado')
+        self.assertEqual(self.tarjeta.saldo, Decimal('0.00'))
+
+    def test_cambiar_tasa_bcv_no_afecta_debito_usd_y_actualiza_equivalente_informativo(self):
+        TasaCambio.objects.create(valor_bs=Decimal('999.0000'))
+        resp = self.client_cajero.post(
+            f'{BASE}representantes/{self.rep.id}/pago-tarjeta/',
+            {'tarjeta_id': self.tarjeta.id, 'monto_usd': '2.50'}, format='json',
+        )
+        self.assertEqual(resp.status_code, 201, resp.data)
+        abono = AbonoCantina.objects.get()
+        self.assertEqual(abono.monto_usd, Decimal('2.50'))
+        self.assertEqual(abono.tasa_aplicada, Decimal('999.0000'))
+        self.assertEqual(abono.monto_ves, Decimal('2497.50'))
+        self.tarjeta.refresh_from_db()
+        self.cargo.refresh_from_db()
+        self.assertEqual(self.tarjeta.saldo, Decimal('7.50'))
+        self.assertEqual(self.cargo.monto_pagado, Decimal('2.50'))
+        # El cierre solo agrega abonos ligados a su apertura; el pago interno
+        # con tarjeta queda fuera de VES efectivamente cobrados por caja.
+        self.assertIsNone(abono.apertura_id)
 
     def test_anular_pago_devuelve_saldo_y_reabre_deuda(self):
         pago = self.client_cajero.post(
@@ -151,7 +239,10 @@ class PagoDeudaConTarjetaTests(CxcBase):
         self.cargo.refresh_from_db()
         self.assertEqual(self.tarjeta.saldo, Decimal('10.00'))
         self.assertEqual(self.cargo.saldo_usd, Decimal('7.00'))
-        self.assertTrue(MovimientoTarjeta.objects.filter(tarjeta=self.tarjeta, tipo='reverso_pago_deuda').exists())
+        reverso = MovimientoTarjeta.objects.get(tarjeta=self.tarjeta, tipo='reverso_pago_deuda')
+        self.assertEqual(reverso.monto, Decimal('5.00'))
+        self.assertEqual(reverso.saldo_antes, Decimal('5.00'))
+        self.assertEqual(reverso.saldo_despues, Decimal('10.00'))
 
     def test_rechaza_tarjeta_de_otro_representante(self):
         otro = Representante.objects.create(cedula='V-555', nombre='Otro', apellido='Titular')
