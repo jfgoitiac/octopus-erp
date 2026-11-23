@@ -290,12 +290,6 @@ EMAIL_HOST_USER   = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.environ.get('PORTAL_EMAIL_FROM', 'noreply@octopus.edu.ve')
 
-# Advertir si director email no está configurado
-if not PORTAL_EMAIL_DIRECTOR:
-    import warnings
-    warnings.warn('PORTAL_EMAIL_DIRECTOR no está configurado. La alerta de día 15 al director no se enviará.', RuntimeWarning)
-
-
 # ──────────────────────────────────────────────────────────────────────────────
 # CONFIGURACIÓN DE AUDITORÍA — django-simple-history
 # ──────────────────────────────────────────────────────────────────────────────
