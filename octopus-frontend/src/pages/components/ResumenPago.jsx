@@ -223,8 +223,12 @@ const ResumenPago = ({
                     <div className="mb-4">
                         <div className="flex justify-between text-[10px] mb-1" style={{ color: 'var(--ash)' }}>
                             <span>{pct}% cubierto</span>
-                            {saldoVES > 0 && <span className="font-medium" style={{ color: 'var(--red)' }}>Falta: Bs. {fmt(saldoVES)}</span>}
                             {saldoVES === 0 && sobranteVES === 0 && <span className="font-medium" style={{ color: '#16a34a' }}>✓ Completo</span>}
+                            {saldoVES > 0 && (
+                                <span className="font-medium text-right" style={{ color: 'var(--yellow-dark, #92400e)' }}>
+                                    Abono parcial · queda Bs. {fmt(saldoVES)} pendiente
+                                </span>
+                            )}
                         </div>
                         <div className="w-full rounded-full h-2 overflow-hidden" style={{ background: 'var(--border)' }}>
                             <div className="h-full transition-all duration-500 rounded-full"

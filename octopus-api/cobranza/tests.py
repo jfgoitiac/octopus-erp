@@ -2568,7 +2568,7 @@ class RecargoConAbonoParcialTest(AbonoParcialMensualidadBase):
         defaults = dict(
             nombre='Recargo por pago tardío', tipo='recargo',
             modo_calculo='monto_fijo_usd', valor=Decimal('2.00'),
-            dia_aplicacion=1, activa=True,
+            dia_aplicacion=1, vigente_desde=date(2025, 1, 1), activa=True,
         )
         defaults.update(kwargs)
         return ReglaRecargoPago.objects.create(**defaults)
@@ -2588,7 +2588,9 @@ class RecargoConAbonoParcialTest(AbonoParcialMensualidadBase):
         # Segundo abono, completa el saldo — el recargo YA fue cobrado en el
         # primer abono y no debe volver a generarse (una sola vez por
         # mensualidad, no una vez por cada abono parcial).
-        payload_2 = self._payload(m, '20.00', referencia='ZL-RECARGO-002')
+        # El primer pago de 10 cubrió 2 de recargo y 8 de capital; faltan 22
+        # de capital. El total efectivamente recibido siempre debe cuadrar.
+        payload_2 = self._payload(m, '22.00', referencia='ZL-RECARGO-002')
         resp2 = self.client.post('/api/cobranza/registrar-pago/', payload_2, format='json')
         self.assertEqual(resp2.status_code, 201, resp2.content)
 
@@ -2596,6 +2598,27 @@ class RecargoConAbonoParcialTest(AbonoParcialMensualidadBase):
 
         m.refresh_from_db()
         self.assertTrue(m.pagado)
+
+    def test_transferencia_menor_al_total_se_aplica_y_deja_saldo(self):
+        self._regla(valor=Decimal('5.00'))
+        m = self._mensualidad(6, 2025, monto='30.00')
+
+        # El total exigible es 35 (30 de capital + 5 de recargo), pero el
+        # representante transfirió 30. La selección conserva el total de 35;
+        # el dinero realmente recibido limita lo que puede aplicarse.
+        payload = self._payload(m, '35.00', referencia='ZL-PARCIAL-RECARGO-001')
+        payload['pagos'][0]['monto_usd'] = '30.00'
+        resp = self.client.post('/api/cobranza/registrar-pago/', payload, format='json')
+
+        self.assertEqual(resp.status_code, 201, resp.content)
+        m.refresh_from_db()
+        self.assertEqual(m.monto_pagado, Decimal('25.00'))
+        self.assertEqual(m.monto_usd - m.monto_pagado, Decimal('5.00'))
+        self.assertFalse(m.pagado)
+        self.assertEqual(
+            LineaRecargoPago.objects.get(mensualidad=m).monto_usd,
+            Decimal('5.00'),
+        )
 
 
 class RegistrarPagoInscripcionAbonoTest(TestCase):

@@ -10,7 +10,6 @@ import { useTasaBCV } from '../hooks/useTasaBCV';
 import { useTasaPorFecha } from '../hooks/useTasaPorFecha';
 import { imprimirReciboPago, enviarReciboPorWhatsApp } from '../utils/reciboCobranza';
 import WhatsAppIcon from '../components/ui/WhatsAppIcon';
-import { fmt } from '../utils/formato';
 import { esDivisa, esBolivares, requiereBanco } from '../utils/metodosPago';
 import { today } from '../constants/reportes';
 import CobranzaStep1 from './components/CobranzaStep1';
@@ -568,10 +567,9 @@ const Cobranza = () => {
             toast.error('Los adelantos y pagos parciales requieren Efectivo USD o Zelle como método de pago.');
             return;
         }
-        if (deudaVES > 0 && pagoVES < deudaVES - 0.01) {
-            toast.error(`Monto insuficiente. Se requieren al menos Bs. ${fmt(deudaVES)}.`);
-            return;
-        }
+        // Un comprobante puede cubrir solo una parte de la deuda seleccionada.
+        // El backend distribuye el dinero realmente recibido entre recargos y
+        // capital y conserva el resto como saldo pendiente.
         const sinBanco = lineas.some(l => requiereBanco(l.metodo_pago) && !l.banco_receptor_id);
         if (sinBanco) { toast.error('Selecciona el banco receptor para todos los métodos de pago.'); return; }
         const posInvalido = lineas.some(l => l.metodo_pago === 'punto_de_venta' &&

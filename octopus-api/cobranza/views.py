@@ -769,6 +769,26 @@ class RegistrarPagoView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Bolsa real disponible para aplicar a deudas estructuradas. El monto
+        # seleccionado en pantalla puede ser mayor que lo efectivamente
+        # recibido (p. ej. deuda de 35 USD = 30 de mensualidad + 5 de recargo,
+        # pero el representante transfirió 30). Nunca se debe aplicar más
+        # deuda que el dinero neto recibido ni rechazar el abono por no cubrir
+        # el total. El excedente declarado se reserva y no entra en esta bolsa.
+        total_recibido_usd = sum((p.monto_usd for p in pagos_creados), Decimal('0.00'))
+        vuelto_en_usd_aplicar = max(
+            vuelto_usd,
+            (vuelto_ves / tasa_valor).quantize(Decimal('0.01')) if tasa_valor else Decimal('0.00'),
+        )
+        excedente_en_usd_aplicar = max(
+            excedente_usd,
+            (excedente_ves / tasa_valor).quantize(Decimal('0.01')) if tasa_valor else Decimal('0.00'),
+        )
+        disponible_deuda_usd = max(
+            total_recibido_usd - vuelto_en_usd_aplicar - excedente_en_usd_aplicar,
+            Decimal('0.00'),
+        )
+
         # Mensualidades del mes en curso/atrasadas y adelantos de meses futuros
         # comparten el mismo tratamiento: ambas son filas de Mensualidad que hay
         # que marcar como pagadas. Se procesa alumno por alumno (cada hermano
@@ -821,9 +841,20 @@ class RegistrarPagoView(APIView):
                     LineaRecargoPago.objects.select_for_update().filter(mensualidad_id=m.id)
                 )
                 resultado = resolver_recargo(m, fecha_cobro, lineas_cobradas=lineas_recargo_previas)
-                if resultado:
-                    recargos_por_mensualidad[m.id] = resultado
-                    deuda_cobrada_usd += resultado['monto_usd']
+                recargo_aplicado = Decimal('0.00')
+                if resultado and disponible_deuda_usd > 0:
+                    # Los recargos ya devengados se atienden antes del capital.
+                    # Solo se crea snapshot por lo realmente cobrado; la parte
+                    # no cubierta continúa pendiente en resolver_recargo() y,
+                    # si la regla es recurrente, se suma al próximo período.
+                    recargo_aplicado = min(resultado['monto_usd'], disponible_deuda_usd)
+                    if recargo_aplicado > 0:
+                        recargos_por_mensualidad[m.id] = {
+                            **resultado,
+                            'monto_usd': recargo_aplicado,
+                        }
+                        deuda_cobrada_usd += recargo_aplicado
+                        disponible_deuda_usd -= recargo_aplicado
 
                 # Descuento por pago dentro de rango: mismo guard de "una vez
                 # por mensualidad" que el recargo. A diferencia del recargo
@@ -853,7 +884,7 @@ class RegistrarPagoView(APIView):
                 # importar lo que haya venido en el payload. Se conserva
                 # además el abono exacto de ESTA operación para el recibo y
                 # para una anulación posterior (AplicacionPago).
-                abono_aplicado = min(monto_a_abonar, saldo_actual)
+                abono_aplicado = min(monto_a_abonar, saldo_actual, disponible_deuda_usd)
                 ajuste_aplicado = min(credito_descuento, saldo_actual - abono_aplicado)
                 m.monto_pagado = min(m.monto_pagado + abono_aplicado + ajuste_aplicado, m.monto_usd)
                 if m.monto_usd <= 0 or m.monto_pagado >= m.monto_usd:
@@ -863,6 +894,7 @@ class RegistrarPagoView(APIView):
                     m.fecha_pago = fecha_cobro
                 m.save()
                 deuda_cobrada_usd += abono_aplicado
+                disponible_deuda_usd -= abono_aplicado
                 if abono_aplicado > 0 or ajuste_aplicado > 0:
                     registrar_aplicacion(pagos_creados[0], m, abono_aplicado, ajuste_aplicado)
 
@@ -957,10 +989,11 @@ class RegistrarPagoView(APIView):
             ):
                 saldo = cuota.saldo
                 abono = Decimal(str(montos_cuota_inscripcion.get(str(cuota.id), saldo)))
-                abono_aplicado = min(max(Decimal('0.00'), abono), saldo)
+                abono_aplicado = min(max(Decimal('0.00'), abono), saldo, disponible_deuda_usd)
                 cuota.monto_pagado = min(cuota.monto_pagado + abono_aplicado, cuota.monto_usd)
                 cuota.save()
                 deuda_cobrada_usd += abono_aplicado
+                disponible_deuda_usd -= abono_aplicado
                 if abono_aplicado > 0:
                     registrar_aplicacion(pagos_creados[0], cuota, abono_aplicado)
             todas_cuotas_inscripcion_qs |= CuotaInscripcion.objects.filter(
@@ -990,10 +1023,11 @@ class RegistrarPagoView(APIView):
                 # cualquier monto que exceda el saldo pendiente.
                 saldo = cuota.monto_usd - cuota.monto_pagado
                 abono = Decimal(str(montos_cuota_solvencia.get(str(cuota.id), saldo)))
-                abono_aplicado = min(max(Decimal('0.00'), abono), saldo)
+                abono_aplicado = min(max(Decimal('0.00'), abono), saldo, disponible_deuda_usd)
                 cuota.monto_pagado = min(cuota.monto_pagado + abono_aplicado, cuota.monto_usd)
                 cuota.save()
                 deuda_cobrada_usd += abono_aplicado
+                disponible_deuda_usd -= abono_aplicado
                 if abono_aplicado > 0:
                     registrar_aplicacion(pagos_creados[0], cuota, abono_aplicado)
             todas_cuotas_solvencia_qs |= CuotaSolvencia.objects.filter(
@@ -1017,11 +1051,12 @@ class RegistrarPagoView(APIView):
             for cuota in cuotas_proyecto:
                 saldo = cuota.monto_usd - cuota.monto_pagado
                 abono = Decimal(str(montos_proyecto_inversion.get(str(cuota.id), saldo)))
-                abono_aplicado = min(max(Decimal('0.00'), abono), saldo)
+                abono_aplicado = min(max(Decimal('0.00'), abono), saldo, disponible_deuda_usd)
                 cuota.monto_pagado = min(cuota.monto_pagado + abono_aplicado, cuota.monto_usd)
                 # pagado/fecha_pago se derivan solos en CuotaProyectoInversion.save().
                 cuota.save()
                 deuda_cobrada_usd += abono_aplicado
+                disponible_deuda_usd -= abono_aplicado
                 if abono_aplicado > 0:
                     registrar_aplicacion(pagos_creados[0], cuota, abono_aplicado)
 
