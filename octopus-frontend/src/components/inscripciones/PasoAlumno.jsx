@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { UserPlus, ArrowRight, ArrowLeft, AlertCircle, X, Camera } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { parse, format, isValid, differenceInYears } from 'date-fns';
@@ -44,7 +44,7 @@ export const PasoAlumno = ({ datos, setDatos, onContinuar, onVolver }) => {
         } finally {
             setLoading(false);
         }
-    }, [datos.representante?.cedula]);
+    }, [datos.representante]);
 
     useEffect(() => {
         const controller = new AbortController();

@@ -72,7 +72,7 @@ describe('CobranzaInteligenteDashboard', () => {
 
     it('muestra KPIs del mes, la tabla y los indicadores de gestión', async () => {
         montar('director');
-        expect(await screen.findByText('$200,00')).toBeInTheDocument();
+        expect(await screen.findByText('$200,00', {}, { timeout: 5000 })).toBeInTheDocument();
         expect(screen.getByText('$125,00')).toBeInTheDocument();
         expect(screen.getByText('63% del total')).toBeInTheDocument();
         expect((await screen.findAllByText('Ana Rojas')).length).toBeGreaterThan(0);

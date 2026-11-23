@@ -365,7 +365,7 @@ export default function Conciliador() {
     showClearConfirm, setShowClearConfirm,
     page, setPage,
     banks, banksLoading, bankInfo, fileRef,
-    processFile, handleDrop, handleFileInput,
+    handleDrop, handleFileInput,
     handleSearch, openSearch, clearFile, retorno,
   } = useConciliador();
   const semiauto = useConciliacionSemiauto({ banco: bank, transactions, fileName });

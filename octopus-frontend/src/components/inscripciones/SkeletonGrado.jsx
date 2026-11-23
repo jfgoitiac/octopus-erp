@@ -1,5 +1,3 @@
-import React from 'react';
-
 export const SkeletonGrado = () => (
     <div
         className="p-5 rounded-2xl animate-pulse"

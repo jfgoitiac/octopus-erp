@@ -1,4 +1,3 @@
-import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { getLogosInstitucionales } from './logosInstitucionales';
 
@@ -18,7 +17,7 @@ const ComprobanteCard = ({ data }) => {
   const {
     nroControl, fechaPago,
     nombreEstudiante, grado, representante,
-    items = [], pagos = [],
+    items = [],
     observaciones, institucion = {},
     encabezadoPersonalizado, piePaginaPersonalizado,
   } = data;

@@ -1,5 +1,3 @@
-import React from 'react';
-
 export const SkeletonCard = () => (
     <div
         className="p-6 rounded-2xl animate-pulse"

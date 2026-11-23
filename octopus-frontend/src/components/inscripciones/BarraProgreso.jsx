@@ -1,4 +1,3 @@
-import React from 'react';
 import { User, GraduationCap, FileText, CheckCircle2, Check } from 'lucide-react';
 
 const PASOS = [

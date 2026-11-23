@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowRight, ArrowLeft, AlertTriangle } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { format, parseISO } from 'date-fns';

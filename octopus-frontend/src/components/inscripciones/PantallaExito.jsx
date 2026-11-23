@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { CheckCircle2, FileText, Loader2 } from 'lucide-react';
 
 export const PantallaExito = ({ alumno, grado, onReiniciar, onDescargar }) => {

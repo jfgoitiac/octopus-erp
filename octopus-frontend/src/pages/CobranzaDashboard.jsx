@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Search, Users, AlertCircle, 
@@ -15,15 +15,6 @@ const CobranzaDashboard = () => {
   const [searchResult, setSearchResult] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    fetchStats();
-  }, []);
-
-  useEffect(() => {
-    if (isDarkMode) document.documentElement.classList.add('dark');
-    else document.documentElement.classList.remove('dark');
-  }, [isDarkMode]);
-
   const fetchStats = async () => {
     try {
       const res = await axiosInstance.get('cobranza/stats/');
@@ -33,13 +24,22 @@ const CobranzaDashboard = () => {
     }
   };
 
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  useEffect(() => {
+    if (isDarkMode) document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
+  }, [isDarkMode]);
+
   const handleSearch = async (e) => {
     if (e.key === 'Enter' && searchTerm) {
       setLoading(true);
       try {
         const res = await axiosInstance.get(`cobranza/buscar/${searchTerm}/`);
         setSearchResult(res.data);
-      } catch (err) {
+      } catch {
         setSearchResult(null);
       } finally {
         setLoading(false);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Loader2, CheckCircle2, ArrowRight, AlertCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { buscarRepresentante } from '../../api/inscripciones.service';
