@@ -747,7 +747,10 @@ const Cobranza = () => {
             }
         } catch (err) {
             const data = err.response?.data;
-            const msg = data?.error || data?.detail
+            // Los descuadres contables devuelven el mensaje humano en
+            // `pagos` y un objeto `conciliacion` con cifras para auditoría.
+            // Priorizar el mensaje evita mostrar "[object Object]" al cajero.
+            const msg = data?.error || data?.detail || data?.pagos?.[0]
                 || (typeof data === 'object' ? Object.values(data).flat().join(' ') : null)
                 || (!err.response ? 'Sin conexión con el servidor. Verifica tu internet e intenta de nuevo.' : 'Error al registrar el pago.');
             toast.error(msg);

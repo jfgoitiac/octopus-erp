@@ -1051,28 +1051,57 @@ class RegistrarPagoView(APIView):
             if solvencia:
                 numero_solvencia = solvencia.numero
 
-        # --- Excedente: no puede superar lo pagado de más ---
-        # pagado − deuda cobrada (abonos + recargos), con tolerancia de
-        # redondeo por línea (cada conversión Bs.→USD redondea a 0,01).
-        # excedente_usd y excedente_ves son el mismo monto en dos monedas
-        # (como el vuelto): se valida el mayor de los dos, en USD. Si falla,
-        # la excepción revierte todo el atomic (pagos, abonos y comprobante).
-        # El excedente NO se resta de ningún total: es dinero que entró.
-        if excedente_usd > 0 or excedente_ves > 0:
+        # --- Conciliación obligatoria de la operación ---
+        # Pago (dinero/recibo) y AplicacionPago (deuda realmente abonada) son
+        # libros distintos. Antes no se conciliaban: podía emitirse un recibo
+        # por 35 USD aunque solo 20 USD hubieran quedado aplicados a la cuota,
+        # que por eso seguía apareciendo pendiente. También era posible el
+        # descuadre inverso. Para toda operación con deudas estructuradas se
+        # exige ahora la identidad:
+        #
+        #   recibido - vuelto = deuda aplicada (incluye recargos) + excedente
+        #
+        # Si falla, la excepción revierte TODO el atomic antes del on_commit
+        # de recibos/notificaciones/comprobante del portal.
+        hay_deudas_estructuradas = bool(
+            todas_mensualidades_qs.exists()
+            or todas_cuotas_inscripcion_qs.exists()
+            or todas_cuotas_solvencia_qs.exists()
+            or proyecto_inversion_ids
+        )
+        if hay_deudas_estructuradas:
+            from rest_framework.exceptions import ValidationError as DRFValidationError
+
             pagado_usd = sum((p.monto_usd for p in pagos_creados), Decimal('0.00'))
-            pagado_de_mas_usd = pagado_usd - deuda_cobrada_usd
-            tolerancia = Decimal('0.01') + Decimal('0.005') * len(pagos_creados)
+            vuelto_en_usd = max(
+                vuelto_usd,
+                (vuelto_ves / tasa_valor).quantize(Decimal('0.01')) if tasa_valor else Decimal('0.00'),
+            )
             excedente_en_usd = max(
                 excedente_usd,
                 (excedente_ves / tasa_valor).quantize(Decimal('0.01')) if tasa_valor else Decimal('0.00'),
             )
-            if excedente_en_usd > pagado_de_mas_usd + tolerancia:
-                from rest_framework.exceptions import ValidationError as DRFValidationError
+            neto_recibido_usd = pagado_usd - vuelto_en_usd
+            destino_usd = deuda_cobrada_usd + excedente_en_usd
+            diferencia_usd = neto_recibido_usd - destino_usd
+            tolerancia = Decimal('0.01') + Decimal('0.005') * len(pagos_creados)
+
+            if abs(diferencia_usd) > tolerancia:
                 raise DRFValidationError({
-                    'excedente_usd': (
-                        f"El excedente ({excedente_en_usd:.2f} USD) supera lo pagado de más "
-                        f"({max(pagado_de_mas_usd, Decimal('0.00')):.2f} USD)."
+                    'pagos': (
+                        "El pago no cuadra con las deudas seleccionadas: "
+                        f"se recibieron {neto_recibido_usd:.2f} USD netos, pero "
+                        f"se aplicaron {deuda_cobrada_usd:.2f} USD y se declaró "
+                        f"un excedente de {excedente_en_usd:.2f} USD "
+                        f"(diferencia: {diferencia_usd:+.2f} USD). "
+                        "Actualice la cotización y revise los montos antes de confirmar."
                     ),
+                    'conciliacion': {
+                        'recibido_neto_usd': str(neto_recibido_usd),
+                        'aplicado_deuda_usd': str(deuda_cobrada_usd),
+                        'excedente_usd': str(excedente_en_usd),
+                        'diferencia_usd': str(diferencia_usd),
+                    },
                 })
 
         if comprobante_portal is not None:

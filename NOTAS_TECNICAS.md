@@ -4663,3 +4663,17 @@ tasa). Deuda nueva (solo anotada):
   manual. No se cambió la precedencia ni el test porque el pago CxC con tarjeta
   prepago debe quedar aislado y no alterar los demás métodos; conviene decidir
   explícitamente cuál fuente debe dominar y alinear contrato, código y prueba.
+
+## Cobranza — trazabilidad histórica de aplicaciones (2026-11-23)
+
+- **Alta — pagos anteriores a `AplicacionPago`:** algunas operaciones antiguas
+  solo conservan el `Pago` y relaciones M2M con las deudas. El M2M demuestra
+  participación, pero no cuánto dinero correspondía a cada mensualidad o cuota;
+  por seguridad `sincronizar_aplicaciones_pagos` las reporta como `REVISAR` y no
+  inventa una distribución. La regularización requiere evidencia bancaria y
+  revisión humana, especialmente si una operación cubrió varias deudas.
+- **Media — notificaciones sin FK contable:** `NotificacionLog` no conserva de
+  forma uniforme `pago_id`, `operacion_uuid` o `factura_id`. Un WhatsApp enviado
+  sirve como evidencia adicional, pero no permite enlazar inequívocamente el
+  mensaje con la distribución del pago. Una migración futura debería agregar
+  esa referencia para auditoría punta a punta.
