@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { obtenerTotalCanonicoVisible } from './PlanEvaluacionPanel';
+import { obtenerTotalCanonicoVisible } from './planEvaluacion.utils';
 
 describe('total canónico del plan de evaluación', () => {
   it('formatea el total confirmado por el backend', () => {

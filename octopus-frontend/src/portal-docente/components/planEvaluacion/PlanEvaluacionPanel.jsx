@@ -12,6 +12,7 @@ import {
 import { useDocentePlanEvaluacion } from '../../hooks/useDocentePlanEvaluacion';
 import SkeletonCard from '../../../portal/components/SkeletonCard';
 import { Modal } from '../../../components/ui/Modal';
+import { obtenerTotalCanonicoVisible } from './planEvaluacion.utils';
 
 const nuevoId = () => `tmp-${Math.random().toString(36).slice(2)}${Date.now()}`;
 
@@ -33,12 +34,6 @@ const nuevoBloque = () => ({
 });
 
 const esTemporal = (id) => typeof id === 'string' && id.startsWith('tmp-');
-
-export function obtenerTotalCanonicoVisible(fila) {
-  if (fila.pendiente || fila.total_canonico == null) return null;
-  const total = Number(fila.total_canonico);
-  return Number.isFinite(total) ? total.toFixed(2) : null;
-}
 
 export default function PlanEvaluacionPanel({ materiaId, lapsoId, tipoEvaluacion, lapsoActivo }) {
   const esLiteral = tipoEvaluacion === 'literal';

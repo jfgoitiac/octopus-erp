@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { FORMATOS_BARRAS_PRODUCTO, FORMATOS_QR_TARJETA, normalizarCodigoTarjetaLeido } from './CameraTarjetaScanner';
-import { normalizarCodigoProductoLeido } from './CameraProductoScanner';
+import {
+  FORMATOS_BARRAS_PRODUCTO,
+  FORMATOS_QR_TARJETA,
+  normalizarCodigoProductoLeido,
+  normalizarCodigoTarjetaLeido,
+} from './cameraScanner.utils';
 
 describe('normalizarCodigoTarjetaLeido', () => {
   it('acepta y normaliza el identificador CANT leído del QR', () => {
