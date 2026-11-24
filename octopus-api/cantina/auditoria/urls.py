@@ -24,6 +24,7 @@ from .views_cierres import (
     RevisarCierreView,
 )
 from .views_panel import PanelEjecutivoView
+from .views_resumen_ejecutivo import ResumenEjecutivoView
 from .views_reportes import (
     ReporteExcepcionesView,
     ReporteInventarioView,
@@ -48,6 +49,7 @@ urlpatterns = [
     path('reportes/excepciones/', ReporteExcepcionesView.as_view(), name='auditoria-reporte-excepciones'),
     path('reportes/inventario/', ReporteInventarioView.as_view(), name='auditoria-reporte-inventario'),
     path('reportes/rentabilidad/', ReporteRentabilidadView.as_view(), name='auditoria-reporte-rentabilidad'),
+    path('reportes/resumen-ejecutivo/', ResumenEjecutivoView.as_view(), name='auditoria-reporte-resumen-ejecutivo'),
 
     # §5 Bitácora
     path('bitacora/', BitacoraListView.as_view(), name='auditoria-bitacora'),
