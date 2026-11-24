@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Max, Q
 from django.utils import timezone
 from rest_framework import permissions, status
@@ -209,6 +209,42 @@ def _materia_operacion_para(request, materia_id):
     if _get_rol(request) != 'docente' and not sede_permitida(request.user, materia.sede_id):
         raise Materia.DoesNotExist
     return materia
+
+
+def _lapso_para_materia(request, materia, lapso_id):
+    """Resuelve un lapso sin permitir cruces de sede o período académico."""
+    try:
+        lapso = Lapso.objects.select_related('periodo', 'periodo__sede').get(pk=lapso_id)
+    except (Lapso.DoesNotExist, TypeError, ValueError):
+        return None
+
+    if lapso.periodo_id:
+        if not sede_permitida(request.user, lapso.periodo.sede_id):
+            return None
+        if materia.periodo_id and materia.periodo_id != lapso.periodo_id:
+            return None
+        if materia.sede_id and materia.sede_id != lapso.periodo.sede_id:
+            return None
+    elif materia.periodo_id:
+        # Una materia ya normalizada no puede volver a enlazarse con un lapso
+        # legacy sin período, porque perdería el aislamiento académico.
+        return None
+
+    return lapso
+
+
+def _lapso_para_alumno(request, alumno, lapso_id):
+    """Resuelve el lapso del boletín dentro de la sede del alumno."""
+    try:
+        lapso = Lapso.objects.select_related('periodo', 'periodo__sede').get(pk=lapso_id)
+    except (Lapso.DoesNotExist, TypeError, ValueError):
+        return None
+    if lapso.periodo_id:
+        if not sede_permitida(request.user, lapso.periodo.sede_id):
+            return None
+        if alumno.sede_id and alumno.sede_id != lapso.periodo.sede_id:
+            return None
+    return lapso
 
 
 def _docente_tiene_seccion(user, grado_seccion, sede_id=None):
@@ -760,9 +796,8 @@ class NotasGradoView(APIView):
                     status=status.HTTP_403_FORBIDDEN
                 )
 
-        try:
-            lapso = Lapso.objects.get(pk=lapso_id)
-        except Lapso.DoesNotExist:
+        lapso = _lapso_para_materia(request, materia, lapso_id)
+        if lapso is None:
             return Response({'error': 'Lapso no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
         # Alumnos activos del grado
@@ -843,9 +878,8 @@ class NotasGradoView(APIView):
                     status=status.HTTP_403_FORBIDDEN
                 )
 
-        try:
-            lapso = Lapso.objects.get(pk=lapso_id)
-        except Lapso.DoesNotExist:
+        lapso = _lapso_para_materia(request, materia, lapso_id)
+        if lapso is None:
             return Response({'error': 'Lapso no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
         if not lapso.activo:
@@ -1741,10 +1775,17 @@ class BoletinView(APIView):
         except Alumno.DoesNotExist:
             return Response({'error': 'Alumno no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
-        try:
-            lapso = Lapso.objects.get(pk=lapso_id)
-        except Lapso.DoesNotExist:
+        lapso = _lapso_para_alumno(request, alumno, lapso_id)
+        if lapso is None:
             return Response({'error': 'Lapso no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        materias_alumno = materia_queryset_para(request.user, Materia.objects).filter(
+            grado_seccion=alumno.grado_seccion,
+            activa=True,
+            sede_id=alumno.sede_id,
+        )
+        if lapso.periodo_id:
+            materias_alumno = materias_alumno.filter(periodo_id=lapso.periodo_id)
 
         if not lapso.activo:
             cierre = CierreLapso.objects.filter(
@@ -1756,9 +1797,7 @@ class BoletinView(APIView):
                     return Response(boletin_cerrado)
 
         materias_notas = []
-        materias = materia_queryset_para(request.user, Materia.objects).filter(
-            grado_seccion=alumno.grado_seccion, activa=True, sede_id=alumno.sede_id,
-        ).order_by('nombre')
+        materias = materias_alumno.order_by('nombre')
         notas_map = {
             n.materia_id: n for n in Nota.objects.filter(
                 alumno=alumno, lapso=lapso, materia__in=materias,
@@ -3832,6 +3871,13 @@ def _validar_payload_plan(materia, lapso, bloques):
         nombres_items = [i['nombre'].strip().casefold() for i in items]
         if len(nombres_items) != len(set(nombres_items)):
             errores.append(f'El bloque "{bloque["nombre"]}" tiene ítems duplicados.')
+        for item in items:
+            fecha_item = item.get('fecha')
+            if fecha_item and not (lapso.fecha_inicio <= fecha_item <= lapso.fecha_fin):
+                errores.append(
+                    f'La fecha de "{item["nombre"]}" debe estar entre '
+                    f'{lapso.fecha_inicio:%d/%m/%Y} y {lapso.fecha_fin:%d/%m/%Y}.'
+                )
         if materia.tipo_evaluacion == 'numerica':
             peso = bloque.get('total_puntos')
             if peso is None or peso <= 0:
@@ -3909,9 +3955,8 @@ class PlanEvaluacionView(APIView):
             materia = _materia_operacion_para(request, materia_id)
         except Materia.DoesNotExist:
             return None, None, Response({'error': 'Materia no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
-        try:
-            lapso = Lapso.objects.get(pk=lapso_id)
-        except Lapso.DoesNotExist:
+        lapso = _lapso_para_materia(request, materia, lapso_id)
+        if lapso is None:
             return None, None, Response({'error': 'Lapso no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
         return materia, lapso, None
 
@@ -3971,10 +4016,13 @@ class PlanEvaluacionView(APIView):
         if error:
             return error
 
+        # Respuesta rápida y estable para el caso habitual; la misma
+        # comprobación se repite bajo bloqueo dentro de la transacción para
+        # cubrir dos solicitudes concurrentes.
         if PlanEvaluacion.objects.filter(materia=materia, lapso=lapso).exists():
             return Response(
                 {'error': 'Ya existe un plan de evaluación para esta materia y lapso. Use PATCH para editarlo.'},
-                status=status.HTTP_409_CONFLICT
+                status=status.HTTP_409_CONFLICT,
             )
 
         serializer = PlanEvaluacionInputSerializer(data=request.data)
@@ -3982,23 +4030,44 @@ class PlanEvaluacionView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         errores_plan = _validar_payload_plan(materia, lapso, serializer.validated_data['bloques'])
         if errores_plan:
-            return Response({'error': errores_plan}, status=status.HTTP_400_BAD_REQUEST)
+            codigo = 'FECHA_EVALUACION_FUERA_LAPSO' if any('debe estar entre' in e for e in errores_plan) else 'PLAN_INVALIDO'
+            return Response({'error': errores_plan, 'codigo': codigo}, status=status.HTTP_400_BAD_REQUEST)
 
         # La creación y el árbol anidado son una sola operación: un error de
         # persistencia no debe dejar un plan vacío o parcialmente configurado.
-        with transaction.atomic():
-            plan = PlanEvaluacion.objects.create(materia=materia, lapso=lapso)
-            _sync_plan_bloques(plan, serializer.validated_data['bloques'])
-            config, _ = ConfiguracionCalificacion.objects.get_or_create(
-                materia=materia, lapso=lapso,
-                defaults={'motor': None, 'origen': 'plan_manual'},
+        try:
+            with transaction.atomic():
+                lapso = Lapso.objects.select_for_update().get(pk=lapso.pk)
+                if not lapso.activo:
+                    return Response(
+                        {'error': 'El lapso fue cerrado mientras se preparaba la creación.',
+                         'codigo': 'LAPSO_CERRADO'},
+                        status=status.HTTP_409_CONFLICT,
+                    )
+                if PlanEvaluacion.objects.filter(materia=materia, lapso=lapso).exists():
+                    return Response(
+                        {'error': 'Ya existe un plan de evaluación para esta materia y lapso. Use PATCH para editarlo.'},
+                        status=status.HTTP_409_CONFLICT,
+                    )
+                plan = PlanEvaluacion.objects.create(materia=materia, lapso=lapso)
+                _sync_plan_bloques(plan, serializer.validated_data['bloques'])
+                config, _ = ConfiguracionCalificacion.objects.get_or_create(
+                    materia=materia, lapso=lapso,
+                    defaults={'motor': None, 'origen': 'plan_manual'},
+                )
+                # Un plan nuevo solo se activa automáticamente cuando no existe
+                # captura legacy. La coexistencia requiere reconciliación explícita.
+                if not Nota.objects.filter(materia=materia, lapso=lapso).exists():
+                    config.motor = 'plan'
+                    config.origen = 'plan_manual'
+                    config.save(update_fields=['motor', 'origen', 'actualizado_en'])
+        except IntegrityError:
+            # La unicidad materia+lapso es la última defensa ante dos POST
+            # concurrentes; el segundo recibe un conflicto, nunca un 500.
+            return Response(
+                {'error': 'Ya existe un plan de evaluación para esta materia y lapso. Use PATCH para editarlo.'},
+                status=status.HTTP_409_CONFLICT,
             )
-            # Un plan nuevo solo se activa automáticamente cuando no existe
-            # captura legacy. La coexistencia requiere reconciliación explícita.
-            if not Nota.objects.filter(materia=materia, lapso=lapso).exists():
-                config.motor = 'plan'
-                config.origen = 'plan_manual'
-                config.save(update_fields=['motor', 'origen', 'actualizado_en'])
 
         plan = PlanEvaluacion.objects.filter(pk=plan.pk).prefetch_related('bloques__items').first()
         return Response(PlanEvaluacionSerializer(plan).data, status=status.HTTP_201_CREATED)
@@ -4033,7 +4102,8 @@ class PlanEvaluacionView(APIView):
             )
         errores_plan = _validar_payload_plan(materia, lapso, serializer.validated_data['bloques'])
         if errores_plan:
-            return Response({'error': errores_plan}, status=status.HTTP_400_BAD_REQUEST)
+            codigo = 'FECHA_EVALUACION_FUERA_LAPSO' if any('debe estar entre' in e for e in errores_plan) else 'PLAN_INVALIDO'
+            return Response({'error': errores_plan, 'codigo': codigo}, status=status.HTTP_400_BAD_REQUEST)
 
         with transaction.atomic():
             lapso = Lapso.objects.select_for_update().get(pk=lapso.pk)
@@ -4112,9 +4182,8 @@ class PlanEvaluacionNotasView(APIView):
             materia = _materia_operacion_para(request, materia_id)
         except Materia.DoesNotExist:
             return Response({'error': 'Materia no encontrada.'}, status=status.HTTP_404_NOT_FOUND)
-        try:
-            lapso = Lapso.objects.get(pk=lapso_id)
-        except Lapso.DoesNotExist:
+        lapso = _lapso_para_materia(request, materia, lapso_id)
+        if lapso is None:
             return Response({'error': 'Lapso no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
         # Mismo criterio de ownership que PlanEvaluacionView: esto expone
@@ -4176,9 +4245,8 @@ class PlanEvaluacionNotasView(APIView):
                     status=status.HTTP_403_FORBIDDEN
                 )
 
-        try:
-            lapso = Lapso.objects.get(pk=lapso_id)
-        except Lapso.DoesNotExist:
+        lapso = _lapso_para_materia(request, materia, lapso_id)
+        if lapso is None:
             return Response({'error': 'Lapso no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
 
         if not lapso.activo:

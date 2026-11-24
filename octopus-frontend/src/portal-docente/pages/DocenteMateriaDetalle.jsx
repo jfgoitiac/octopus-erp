@@ -531,6 +531,8 @@ const DocenteMateriaDetalle = () => {
               lapsoId={lapsoId}
               tipoEvaluacion={materia?.tipo_evaluacion || 'numerica'}
               lapsoActivo={!lapsoSeleccionado || lapsoSeleccionado.activo}
+              fechaInicio={lapsoSeleccionado?.fecha_inicio}
+              fechaFin={lapsoSeleccionado?.fecha_fin}
             />
           )}
         </div>

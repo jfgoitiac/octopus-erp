@@ -1038,6 +1038,37 @@ class PlanEvaluacionEndpointTests(TestCase):
         self.assertEqual(resp.data['bloques'][0]['nombre'], 'Contenido')
         self.assertEqual(resp.data['bloques'][0]['items'][0]['nombre'], 'Examen')
 
+    def test_docente_crea_plan_en_modo_promedio(self):
+        self.client.force_authenticate(user=self.docente)
+        resp = self.client.post(
+            f'/api/academico/docente/plan-evaluacion/?materia_id={self.materia.id}&lapso_id={self.lapso.id}',
+            {'bloques': [{
+                'nombre': 'Contenido', 'modo': 'promedio', 'total_puntos': '10.00',
+                'items': [
+                    {'nombre': 'Examen', 'fecha': '2025-10-10', 'valor_maximo': '20.00'},
+                    {'nombre': 'Taller', 'fecha': '2025-11-10', 'valor_maximo': '20.00'},
+                ],
+            }]},
+            format='json',
+        )
+        self.assertEqual(resp.status_code, 201, resp.content)
+        self.assertEqual(resp.data['bloques'][0]['modo'], 'promedio')
+        self.assertEqual(resp.data['bloques'][0]['items'][0]['valor_maximo'], '20.00')
+
+    def test_post_rechaza_fecha_fuera_del_lapso_sin_dejar_plan_parcial(self):
+        self.client.force_authenticate(user=self.docente)
+        resp = self.client.post(
+            f'/api/academico/docente/plan-evaluacion/?materia_id={self.materia.id}&lapso_id={self.lapso.id}',
+            {'bloques': [{
+                'nombre': 'Contenido', 'modo': 'puntos', 'total_puntos': '10.00',
+                'items': [{'nombre': 'Examen', 'fecha': '2026-01-10', 'valor_maximo': '10.00'}],
+            }]},
+            format='json',
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.data['codigo'], 'FECHA_EVALUACION_FUERA_LAPSO')
+        self.assertFalse(PlanEvaluacion.objects.exists())
+
     def test_docente_no_puede_crear_plan_de_materia_ajena(self):
         self.client.force_authenticate(user=self.otro_docente)
         resp = self.client.post(
@@ -1057,6 +1088,18 @@ class PlanEvaluacionEndpointTests(TestCase):
             format='json',
         )
         self.assertEqual(resp.status_code, 409)
+
+    def test_post_no_crea_plan_si_el_lapso_esta_cerrado(self):
+        self.lapso.activo = False
+        self.lapso.save(update_fields=['activo'])
+        self.client.force_authenticate(user=self.docente)
+        resp = self.client.post(
+            f'/api/academico/docente/plan-evaluacion/?materia_id={self.materia.id}&lapso_id={self.lapso.id}',
+            {'bloques': []},
+            format='json',
+        )
+        self.assertEqual(resp.status_code, 409)
+        self.assertFalse(PlanEvaluacion.objects.exists())
 
     def test_patch_conserva_notas_de_items_que_mantienen_su_id(self):
         plan = PlanEvaluacion.objects.create(materia=self.materia, lapso=self.lapso)

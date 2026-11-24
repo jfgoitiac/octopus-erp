@@ -4677,3 +4677,9 @@ tasa). Deuda nueva (solo anotada):
   sirve como evidencia adicional, pero no permite enlazar inequívocamente el
   mensaje con la distribución del pago. Una migración futura debería agregar
   esa referencia para auditoría punta a punta.
+# PLANES DE EVALUACIÓN — DEUDA TÉCNICA DETECTADA (2026-11-23)
+
+- El lint focalizado sigue reportando `react-hooks/set-state-in-effect` en
+  `PlanEvaluacionPanel.jsx` y `DocenteMateriaDetalle.jsx`. Son sincronizaciones
+  de estado preexistentes y no bloquean el build ni el guardado de planes, pero
+  conviene refactorizarlas en una tarea separada para evitar renders en cascada.

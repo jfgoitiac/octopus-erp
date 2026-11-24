@@ -31,8 +31,17 @@ export function useDocentePlanEvaluacion(materiaId, lapsoId) {
   }, []);
 
   const fetchPlan = useCallback(async () => {
-    if (!materiaId || !lapsoId) { setPlan(null); return; }
     abortPlanRef.current?.abort();
+    abortNotasRef.current?.abort();
+    setPlan(null);
+    setAlumnos([]);
+    setConflictoPlan(null);
+    setConflictoVersion(null);
+    if (!materiaId || !lapsoId) {
+      setLoadingPlan(false);
+      setLoadingNotas(false);
+      return;
+    }
     const controller = new AbortController();
     abortPlanRef.current = controller;
 
@@ -46,6 +55,7 @@ export function useDocentePlanEvaluacion(materiaId, lapsoId) {
       if (err.response?.status === 404) {
         setPlan(null);
       } else {
+        setPlan(null);
         toast.error('No se pudo cargar el plan de evaluación.');
       }
     } finally {
@@ -53,10 +63,13 @@ export function useDocentePlanEvaluacion(materiaId, lapsoId) {
     }
   }, [materiaId, lapsoId]);
 
-  useEffect(() => { fetchPlan(); }, [fetchPlan]);
+  useEffect(() => { queueMicrotask(fetchPlan); }, [fetchPlan]);
 
   const fetchNotas = useCallback(async () => {
-    if (!materiaId || !lapsoId || !plan) { setAlumnos([]); return; }
+    const planCorrespondeAlContexto = plan
+      && String(plan.materia_id) === String(materiaId)
+      && String(plan.lapso_id) === String(lapsoId);
+    if (!materiaId || !lapsoId || !planCorrespondeAlContexto) { setAlumnos([]); return; }
     abortNotasRef.current?.abort();
     const controller = new AbortController();
     abortNotasRef.current = controller;
@@ -74,7 +87,7 @@ export function useDocentePlanEvaluacion(materiaId, lapsoId) {
     }
   }, [materiaId, lapsoId, plan]);
 
-  useEffect(() => { fetchNotas(); }, [fetchNotas]);
+  useEffect(() => { queueMicrotask(fetchNotas); }, [fetchNotas]);
 
   const guardarPlan = useCallback(async (bloques) => {
     setSavingPlan(true);

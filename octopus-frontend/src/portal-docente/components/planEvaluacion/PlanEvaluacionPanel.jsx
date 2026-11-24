@@ -12,30 +12,35 @@ import {
 import { useDocentePlanEvaluacion } from '../../hooks/useDocentePlanEvaluacion';
 import SkeletonCard from '../../../portal/components/SkeletonCard';
 import { Modal } from '../../../components/ui/Modal';
-import { obtenerTotalCanonicoVisible } from './planEvaluacion.utils';
+import {
+  construirPayloadPlan,
+  fechaFueraDelLapso,
+  fechaInicialParaLapso,
+  obtenerTotalCanonicoVisible,
+} from './planEvaluacion.utils';
 
 const nuevoId = () => `tmp-${Math.random().toString(36).slice(2)}${Date.now()}`;
 
-const nuevoItem = () => ({
+const nuevoItem = (fechaInicio, fechaFin) => ({
   id: nuevoId(),
   nombre: '',
-  fecha: format(new Date(), 'yyyy-MM-dd'),
+  fecha: fechaInicialParaLapso(format(new Date(), 'yyyy-MM-dd'), fechaInicio, fechaFin),
   valor_maximo: '',
   orden: 0,
 });
 
-const nuevoBloque = () => ({
+const nuevoBloque = (fechaInicio, fechaFin) => ({
   id: nuevoId(),
   nombre: '',
   total_puntos: '',
   modo: 'puntos',
   orden: 0,
-  items: [nuevoItem()],
+  items: [nuevoItem(fechaInicio, fechaFin)],
 });
 
-const esTemporal = (id) => typeof id === 'string' && id.startsWith('tmp-');
-
-export default function PlanEvaluacionPanel({ materiaId, lapsoId, tipoEvaluacion, lapsoActivo }) {
+export default function PlanEvaluacionPanel({
+  materiaId, lapsoId, tipoEvaluacion, lapsoActivo, fechaInicio, fechaFin,
+}) {
   const esLiteral = tipoEvaluacion === 'literal';
   const {
     plan, loadingPlan, savingPlan, guardarPlan, refetchPlan,
@@ -63,19 +68,22 @@ export default function PlanEvaluacionPanel({ materiaId, lapsoId, tipoEvaluacion
   const iniciarEdicion = () => {
     setBloquesForm(plan?.bloques?.length
       ? plan.bloques.map(b => ({ ...b, items: (b.items || []).map(it => ({ ...it })) }))
-      : [nuevoBloque()]);
+      : [nuevoBloque(fechaInicio, fechaFin)]);
     setEditando(true);
   };
 
   const cancelarEdicion = () => setEditando(false);
 
-  const agregarBloque = () => setBloquesForm(prev => [...prev, nuevoBloque()]);
+  const agregarBloque = () => setBloquesForm(prev => [...prev, nuevoBloque(fechaInicio, fechaFin)]);
   const quitarBloque = (bloqueId) => setBloquesForm(prev => prev.filter(b => b.id !== bloqueId));
   const cambiarBloque = (bloqueId, campo, valor) =>
     setBloquesForm(prev => prev.map(b => (b.id !== bloqueId ? b : { ...b, [campo]: valor })));
 
   const agregarItem = (bloqueId) =>
-    setBloquesForm(prev => prev.map(b => (b.id !== bloqueId ? b : { ...b, items: [...b.items, nuevoItem()] })));
+    setBloquesForm(prev => prev.map(b => (b.id !== bloqueId ? b : {
+      ...b,
+      items: [...b.items, nuevoItem(fechaInicio, fechaFin)],
+    })));
   const quitarItem = (bloqueId, itemId) =>
     setBloquesForm(prev => prev.map(b => (b.id !== bloqueId ? b : { ...b, items: b.items.filter(it => it.id !== itemId) })));
   const cambiarItem = (bloqueId, itemId, campo, valor) =>
@@ -91,25 +99,18 @@ export default function PlanEvaluacionPanel({ materiaId, lapsoId, tipoEvaluacion
       if (!b.items.length) { toast.warning(`El bloque "${b.nombre}" necesita al menos un ítem.`); return; }
       for (const it of b.items) {
         if (!it.nombre.trim()) { toast.warning('Todos los ítems deben tener nombre.'); return; }
+        if (fechaFueraDelLapso(it.fecha, fechaInicio, fechaFin)) {
+          toast.warning(`La fecha de "${it.nombre}" debe estar dentro del lapso.`);
+          return;
+        }
+        if (!esLiteral && Number(it.valor_maximo) <= 0) {
+          toast.warning(`El ítem "${it.nombre}" necesita una nota máxima mayor que cero.`);
+          return;
+        }
       }
     }
 
-    const payload = bloquesForm.map((b, i) => ({
-      ...(esTemporal(b.id) ? {} : { id: b.id }),
-      nombre: b.nombre.trim(),
-      orden: i,
-      ...(esLiteral ? {} : {
-        total_puntos: Number(b.total_puntos) || 0,
-        modo: b.modo || 'puntos',
-      }),
-      items: b.items.map((it, j) => ({
-        ...(esTemporal(it.id) ? {} : { id: it.id }),
-        nombre: it.nombre.trim(),
-        fecha: it.fecha,
-        orden: j,
-        ...(esLiteral || b.modo !== 'puntos' ? {} : { valor_maximo: Number(it.valor_maximo) || 0 }),
-      })),
-    }));
+    const payload = construirPayloadPlan(bloquesForm, esLiteral);
 
     const resultado = await guardarPlan(payload);
     if (resultado.ok) setEditando(false);
@@ -220,6 +221,8 @@ export default function PlanEvaluacionPanel({ materiaId, lapsoId, tipoEvaluacion
           onAgregarItem={agregarItem}
           onQuitarItem={quitarItem}
           onCambiarItem={cambiarItem}
+          fechaInicio={fechaInicio}
+          fechaFin={fechaFin}
           onGuardar={handleGuardarPlan}
           onCancelar={plan ? cancelarEdicion : null}
         />
@@ -360,6 +363,7 @@ export default function PlanEvaluacionPanel({ materiaId, lapsoId, tipoEvaluacion
 // ── Builder de bloques/ítems ───────────────────────────────────────────────
 function BuilderPlan({
   bloques, esLiteral, plan, saving, lapsoActivo,
+  fechaInicio, fechaFin,
   onAgregarBloque, onQuitarBloque, onCambiarBloque,
   onAgregarItem, onQuitarItem, onCambiarItem,
   onGuardar, onCancelar,
@@ -387,8 +391,9 @@ function BuilderPlan({
         <div key={b.id} className="rounded-xl border border-[var(--border)] p-3 space-y-3">
           <div className="flex items-start gap-2">
             <div className="flex-1">
-              <label className="block text-[11px] font-medium text-[var(--ash)] mb-1">Nombre del bloque</label>
+              <label htmlFor={`bloque-nombre-${b.id}`} className="block text-[11px] font-medium text-[var(--ash)] mb-1">Nombre del bloque</label>
               <input
+                id={`bloque-nombre-${b.id}`}
                 type="text"
                 placeholder="Ej: Contenido, Actitudinal..."
                 className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
@@ -410,8 +415,9 @@ function BuilderPlan({
           {!esLiteral && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
-                <label className="block text-[11px] font-medium text-[var(--ash)] mb-1">Total de puntos</label>
+                <label htmlFor={`bloque-total-${b.id}`} className="block text-[11px] font-medium text-[var(--ash)] mb-1">Total de puntos</label>
                 <input
+                  id={`bloque-total-${b.id}`}
                   type="number"
                   min="0"
                   step="0.5"
@@ -422,8 +428,9 @@ function BuilderPlan({
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-medium text-[var(--ash)] mb-1">Modo</label>
+                <label htmlFor={`bloque-modo-${b.id}`} className="block text-[11px] font-medium text-[var(--ash)] mb-1">Modo</label>
                 <select
+                  id={`bloque-modo-${b.id}`}
                   className="w-full border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
                   value={b.modo}
                   onChange={e => onCambiarBloque(b.id, 'modo', e.target.value)}
@@ -454,6 +461,8 @@ function BuilderPlan({
                       selected={it.fecha ? parseISO(it.fecha) : null}
                       onChange={date => onCambiarItem(b.id, it.id, 'fecha', date ? format(date, 'yyyy-MM-dd') : '')}
                       disabled={!lapsoActivo}
+                      minDate={fechaInicio ? parseISO(fechaInicio) : undefined}
+                      maxDate={fechaFin ? parseISO(fechaFin) : undefined}
                       locale={es}
                       dateFormat="dd/MM/yyyy"
                       wrapperClassName="flex-1"
@@ -462,12 +471,13 @@ function BuilderPlan({
                         <input className="w-full border border-[var(--border)] rounded-lg px-2.5 py-1.5 text-xs bg-[var(--surface)] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30" />
                       }
                     />
-                    {!esLiteral && b.modo === 'puntos' && (
+                    {!esLiteral && (
                       <input
                         type="number"
                         min="0"
                         step="0.5"
-                        placeholder="Pts máx."
+                        placeholder={b.modo === 'promedio' ? 'Nota máx.' : 'Pts máx.'}
+                        aria-label={b.modo === 'promedio' ? `Nota máxima de ${it.nombre || 'ítem'}` : `Puntos máximos de ${it.nombre || 'ítem'}`}
                         className="w-24 border border-[var(--border)] rounded-lg px-2.5 py-1.5 text-xs bg-[var(--surface)] focus:outline-none focus:ring-2 focus:ring-[var(--docente-primary)]/30"
                         value={it.valor_maximo}
                         onChange={e => onCambiarItem(b.id, it.id, 'valor_maximo', e.target.value)}
