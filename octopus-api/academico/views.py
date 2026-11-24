@@ -3042,13 +3042,17 @@ class LapsoDetailView(APIView):
         )
 
 
-def _validar_privilegio_y_alcance_cierre(request):
+def _validar_privilegio_y_alcance_cierre(request, lapso=None):
     if not (request.user.is_superuser or _get_rol(request) in ('director', 'sistemas')):
         return Response({'error': 'Solo director o sistemas puede gestionar el cierre de un lapso.'}, status=403)
     permitidas = sedes_academicas_ids(request.user)
     if permitidas is None:
         return None
+    if lapso is None:
+        return None
     materias = Materia.objects.filter(activa=True)
+    if lapso.periodo_id:
+        materias = materias.filter(periodo_id=lapso.periodo_id)
     requeridas = set(materias.exclude(sede_id__isnull=True).values_list('sede_id', flat=True))
     sin_sede = materias.filter(sede_id__isnull=True).exists()
     faltantes = sorted(requeridas - set(permitidas))
@@ -3072,6 +3076,9 @@ class ChecklistCierreLapsoView(APIView):
             lapso = Lapso.objects.get(pk=pk)
         except Lapso.DoesNotExist:
             return Response({'error': 'Lapso no encontrado.'}, status=404)
+        error = _validar_privilegio_y_alcance_cierre(request, lapso)
+        if error:
+            return error
         return Response(construir_checklist_cierre(lapso))
 
 
@@ -3091,6 +3098,9 @@ class CerrarLapsoView(APIView):
                 lapso = Lapso.objects.select_for_update().get(pk=pk)
             except Lapso.DoesNotExist:
                 return Response({'error': 'Lapso no encontrado.'}, status=404)
+            error = _validar_privilegio_y_alcance_cierre(request, lapso)
+            if error:
+                return error
             if not lapso.activo:
                 return Response({'error': 'El lapso ya está cerrado.', 'codigo': 'LAPSO_YA_CERRADO'}, status=409)
             checklist = construir_checklist_cierre(lapso)
@@ -3134,6 +3144,9 @@ class ReabrirLapsoView(CerrarLapsoView):
                 lapso = Lapso.objects.select_for_update().get(pk=pk)
             except Lapso.DoesNotExist:
                 return Response({'error': 'Lapso no encontrado.'}, status=404)
+            error = _validar_privilegio_y_alcance_cierre(request, lapso)
+            if error:
+                return error
             if lapso.activo:
                 return Response({'error': 'El lapso ya está abierto.', 'codigo': 'LAPSO_YA_ABIERTO'}, status=409)
             cierre = CierreLapso.objects.select_for_update().filter(
@@ -3161,7 +3174,13 @@ class UltimoCierreLapsoView(APIView):
         error = _validar_privilegio_y_alcance_cierre(request)
         if error:
             return error
-        cierre = CierreLapso.objects.filter(lapso_id=pk).order_by('-version').first()
+        lapso = Lapso.objects.filter(pk=pk).first()
+        if lapso is None:
+            return Response({'error': 'Lapso no encontrado.'}, status=404)
+        error = _validar_privilegio_y_alcance_cierre(request, lapso)
+        if error:
+            return error
+        cierre = CierreLapso.objects.filter(lapso=lapso).order_by('-version').first()
         if cierre is None:
             return Response({'error': 'El lapso no tiene cierres auditables.'}, status=404)
         return Response({

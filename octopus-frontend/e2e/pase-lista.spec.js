@@ -34,9 +34,15 @@ test.describe('Pase de lista por tarjetas', () => {
     for (const nombre of ['Presente', 'Ausente', 'Justificado']) {
       await alAlcance(page, page.getByRole('button', { name: nombre, exact: true }));
     }
-    await alAlcance(page, page.getByRole('button', { name: 'Llegó tarde' }));
-    await alAlcance(page, page.getByRole('button', { name: /^Siguiente/ }).last());
-    await alAlcance(page, page.getByRole('slider', { name: 'Ir a un alumno' }));
+    const tarde = page.getByRole('button', { name: 'Llegó tarde' });
+    await tarde.evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+    await alAlcance(page, tarde);
+    const siguienteTarjeta = page.getByRole('button', { name: /^Siguiente/ }).last();
+    await siguienteTarjeta.evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+    await alAlcance(page, siguienteTarjeta);
+    const progreso = page.getByRole('slider', { name: 'Ir a un alumno' });
+    await progreso.evaluate((el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+    await alAlcance(page, progreso);
     await sinScrollHorizontal(page);
     await info.attach('tarjeta', { body: await page.screenshot(), contentType: 'image/png' });
 

@@ -13,7 +13,7 @@ from rest_framework.test import APIClient
 from multisede.models import PermisoSede, Sede
 from secretaria.models import Alumno, Representante
 
-from .models import Asistencia, Docente, Lapso, Materia
+from .models import Asistencia, Docente, Lapso, Materia, PeriodoEscolar, PlanEvaluacion
 
 
 User = get_user_model()
@@ -173,6 +173,49 @@ class AislamientoStaffPorSedeTests(SeguridadAcademicaBase):
                     {fila['alumno_id'] for fila in response.json()},
                     {self.alumno_a.id},
                 )
+
+    def test_lapso_de_otra_sede_no_se_puede_combinar_con_materia_o_alumno(self):
+        periodo_a = PeriodoEscolar.objects.create(
+            nombre='2026-2027 A', sede=self.sede_a,
+            fecha_inicio=date(2026, 9, 1), fecha_fin=date(2027, 7, 31),
+        )
+        periodo_b = PeriodoEscolar.objects.create(
+            nombre='2026-2027 B', sede=self.sede_b,
+            fecha_inicio=date(2026, 9, 1), fecha_fin=date(2027, 7, 31),
+        )
+        self.materia_a.periodo = periodo_a
+        self.materia_a.save(update_fields=['periodo'])
+        lapso_b = Lapso.objects.create(
+            nombre='Lapso B', periodo_escolar='2026-2027', periodo=periodo_b,
+            fecha_inicio=date(2026, 9, 1), fecha_fin=date(2026, 12, 15),
+        )
+
+        casos = (
+            ('/api/academico/notas/', {
+                'materia_id': self.materia_a.id, 'lapso_id': lapso_b.id,
+            }),
+            ('/api/academico/boletin/', {
+                'alumno_id': self.alumno_a.id, 'lapso_id': lapso_b.id,
+            }),
+            ('/api/academico/docente/plan-evaluacion/', {
+                'materia_id': self.materia_a.id, 'lapso_id': lapso_b.id,
+            }),
+            ('/api/academico/docente/plan-evaluacion/notas/', {
+                'materia_id': self.materia_a.id, 'lapso_id': lapso_b.id,
+            }),
+        )
+        for url, params in casos:
+            with self.subTest(url=url):
+                response = self.client.get(url, params)
+                self.assertEqual(response.status_code, 404, response.content)
+
+        crear = self.client.post(
+            f'/api/academico/docente/plan-evaluacion/?materia_id={self.materia_a.id}&lapso_id={lapso_b.id}',
+            {},
+            format='json',
+        )
+        self.assertEqual(crear.status_code, 404, crear.content)
+        self.assertFalse(PlanEvaluacion.objects.exists())
 
 
 class DocenteOwnershipYSedeTests(SeguridadAcademicaBase):

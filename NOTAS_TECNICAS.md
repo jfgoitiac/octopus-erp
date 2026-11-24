@@ -4677,6 +4677,32 @@ tasa). Deuda nueva (solo anotada):
   sirve como evidencia adicional, pero no permite enlazar inequívocamente el
   mensaje con la distribución del pago. Una migración futura debería agregar
   esa referencia para auditoría punta a punta.
+
+## Fase 7 de Control de Estudios — QA integral (2026-11-24)
+
+- **Media — migraciones académicas sin ensayo representativo en PostgreSQL:**
+  la cadena completa y las pruebas unitarias migran correctamente una base de
+  prueba vacía, pero todavía falta restaurar un respaldo anonimizado en una
+  instancia temporal de PostgreSQL, ejecutar `0021`–`0027`, auditar incidencias,
+  comprobar checksums/conteos y ensayar rollback/reaplicación. SQLite no valida
+  de forma equivalente constraints ni concurrencia.
+- **Media — costo N+1 en cierres y reportes canónicos:** el checklist y el
+  snapshot ya aíslan el período correcto, pero calculan materia/alumno mediante
+  consultas repetidas. Falta fijar un presupuesto con `assertNumQueries` para
+  matrículas representativas antes de cierres masivos.
+- **Media — lint global no está en verde:** ESLint reporta 82 errores con la
+  regla `react-hooks/set-state-in-effect`, incluidos flujos académicos y de los
+  portales, además de módulos ajenos. El build y las pruebas focales pasan; la
+  corrección requiere un refactor deliberado de carga/estado y no debe hacerse
+  desactivando la regla.
+- **Media — falta contrato integrado panel/portal/PDF:** existen pruebas del
+  motor canónico, del panel y de la tabla del PDF, pero no un escenario único
+  que persista la misma captura y compare definitiva/aprobación entre panel,
+  portal de representante, boletín PDF y reportes.
+- **Baja — escala legacy protegida principalmente en API:** `Nota` valida 0–20
+  en serializers/servicios, pero no tiene un `CheckConstraint` equivalente en
+  base de datos; importadores o escrituras internas podrían eludir el rango.
+
 # PLANES DE EVALUACIÓN — DEUDA TÉCNICA DETECTADA (2026-11-23)
 
 - El lint focalizado sigue reportando `react-hooks/set-state-in-effect` en

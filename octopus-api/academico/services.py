@@ -52,9 +52,23 @@ def _json_academico(valor):
     return valor
 
 
+def _materias_del_lapso(lapso):
+    """Materias que pertenecen al contexto que realmente se está cerrando.
+
+    Los lapsos normalizados son propios de un período y no deben arrastrar
+    materias activas de otros períodos o sedes. Los lapsos legacy sin FK
+    conservan temporalmente el alcance global previo para no reinterpretar
+    datos históricos durante la transición.
+    """
+    materias = Materia.objects.filter(activa=True)
+    if lapso.periodo_id:
+        materias = materias.filter(periodo_id=lapso.periodo_id)
+    return materias
+
+
 def construir_checklist_cierre(lapso):
     """Diagnóstico determinista previo al cierre de un lapso."""
-    materias = list(Materia.objects.filter(activa=True).select_related('sede').order_by('id'))
+    materias = list(_materias_del_lapso(lapso).select_related('sede').order_by('id'))
     planes = set(PlanEvaluacion.objects.filter(lapso=lapso).values_list('materia_id', flat=True))
     configuradas = set(
         ConfiguracionCalificacion.objects.filter(lapso=lapso, motor__isnull=False)
@@ -100,7 +114,7 @@ def construir_checklist_cierre(lapso):
 
 def construir_snapshot_cierre(lapso):
     """Resultado canónico reproducible, incluyendo las sedes derivadas."""
-    materias = Materia.objects.filter(activa=True).select_related('sede').order_by('id')
+    materias = _materias_del_lapso(lapso).select_related('sede').order_by('id')
     filas = []
     boletines = {}
     sedes = set()

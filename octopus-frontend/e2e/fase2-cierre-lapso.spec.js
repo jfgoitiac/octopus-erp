@@ -2,6 +2,8 @@ import { test, expect } from '@playwright/test';
 import { alAlcance, simularApi, sinScrollHorizontal } from './ayudas';
 
 const MATERIA = { id: 4, nombre: 'Matemática', grado_seccion: '3er año A', tipo_evaluacion: 'numerica' };
+const PERIODO = { id: 2, nombre: '2026-2027', estado: 'activo' };
+const SECCION = { id: 3, nombre: '3er año A', grado_seccion: '3er año A' };
 const LAPSO_BASE = {
   id: 7,
   nombre: 'Primer Lapso',
@@ -16,7 +18,8 @@ test('cierre incompleto con override y reapertura auditada son alcanzables y res
   let reaperturaRecibida = null;
 
   const errores = await simularApi(page, 'director', (ruta, req) => {
-    if (ruta === 'secretaria/configuracion-grados/') return [{ id: 1, grado_seccion: '3er año A' }];
+    if (ruta.startsWith('academico/periodos-escolares/')) return [PERIODO];
+    if (ruta.startsWith('academico/secciones/')) return [SECCION];
     if (ruta.startsWith('academico/materias/')) return [MATERIA];
     if (ruta === 'academico/lapsos/') return [{ ...LAPSO_BASE, activo: lapsoActivo }];
     if (ruta === 'academico/lapsos/7/checklist-cierre/') {
@@ -46,10 +49,15 @@ test('cierre incompleto con override y reapertura auditada son alcanzables y res
   await page.goto('/notas');
   await expect(page.getByRole('main').getByRole('heading', { name: 'Registro de Notas' })).toBeVisible();
 
-  const selects = page.locator('select');
-  await selects.nth(0).selectOption('3er año A');
-  await selects.nth(1).selectOption('4');
-  await selects.nth(2).selectOption('7');
+  const periodo = page.locator('#notas-periodo');
+  const seccion = page.getByText('Grado / Año', { exact: true }).locator('..').locator('select');
+  const materia = page.getByText('Materia', { exact: true }).locator('..').locator('select');
+  const lapso = page.getByText('Lapso', { exact: true }).locator('..').locator('select');
+
+  await periodo.selectOption(String(PERIODO.id));
+  await seccion.selectOption(String(SECCION.id));
+  await materia.selectOption(String(MATERIA.id));
+  await lapso.selectOption(String(LAPSO_BASE.id));
   await page.getByRole('button', { name: 'Editar lapso seleccionado' }).click();
 
   await page.getByRole('button', { name: 'Revisar y cerrar' }).click();
@@ -70,7 +78,7 @@ test('cierre incompleto con override y reapertura auditada son alcanzables y res
   });
   await expect(page.getByRole('dialog')).toHaveCount(0);
 
-  await selects.nth(2).selectOption('7');
+  await lapso.selectOption(String(LAPSO_BASE.id));
   await page.getByRole('button', { name: 'Editar lapso seleccionado' }).click();
   const reabrir = page.getByRole('button', { name: 'Reabrir con auditoría' });
   await expect(reabrir).toBeDisabled();
