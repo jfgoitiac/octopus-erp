@@ -12,14 +12,6 @@ from decimal import Decimal
 from .serializers_cierres import dinero
 from .serializers_reportes import CERO, CIEN, advertencia_sin_costo, margen_pct
 
-# Umbrales propios del resumen. Los de descuento y caja viven en
-# `ParametroAuditoriaCantina`; estos dos no tienen parámetro y se evita una
-# migración (ver NOTAS_TECNICAS.md).
-UMBRAL_MARGEN_BAJO_PCT = Decimal('15.00')
-UMBRAL_ANULACIONES_PCT = Decimal('10.00')
-MIN_ANULACIONES_ALERTA = 2
-COBERTURA_COSTO_CRITICA_PCT = Decimal('50.00')
-
 SEVERIDAD_ORDEN = {'critica': 0, 'advertencia': 1, 'info': 2}
 
 # Métricas comparables con el período anterior (clave → tipo de variación).
@@ -175,7 +167,7 @@ def construir_alertas(kpis, base, inventario, caja, parametros):
     cobertura = kpis['cobertura_costo_pct']
 
     if unidades_sin_costo:
-        critica = cobertura is not None and _dec(cobertura) < COBERTURA_COSTO_CRITICA_PCT
+        critica = cobertura is not None and _dec(cobertura) < parametros.cobertura_costo_critica_pct
         alertas.append(_alerta(
             'productos_sin_costo', 'critica' if critica else 'advertencia',
             'Productos vendidos sin costo registrado',
@@ -195,15 +187,15 @@ def construir_alertas(kpis, base, inventario, caja, parametros):
             'margen_negativo', 'critica', 'Margen bruto negativo',
             f'Se vendió por debajo del costo: margen de {margen}%.',
         ))
-    elif margen is not None and _dec(margen) < UMBRAL_MARGEN_BAJO_PCT:
+    elif margen is not None and _dec(margen) < parametros.umbral_margen_bajo_pct:
         alertas.append(_alerta(
             'margen_bajo', 'advertencia', 'Margen bajo',
-            f'El margen bruto es {margen}%, inferior al {UMBRAL_MARGEN_BAJO_PCT}% de referencia.',
+            f'El margen bruto es {margen}%, inferior al {parametros.umbral_margen_bajo_pct}% definido en los parámetros de auditoría.',
         ))
 
     anuladas, completadas = kpis['ventas_anuladas'], kpis['ventas_completadas']
     pct_anuladas = _dec(porcentaje(anuladas, anuladas + completadas))
-    if anuladas >= MIN_ANULACIONES_ALERTA and pct_anuladas >= UMBRAL_ANULACIONES_PCT:
+    if anuladas >= parametros.min_anulaciones_alerta and pct_anuladas >= parametros.umbral_anulaciones_pct:
         alertas.append(_alerta(
             'anulaciones_elevadas', 'advertencia', 'Anulaciones elevadas',
             f"{anuladas} venta(s) anulada(s) por ${kpis['ventas_anuladas_usd']} "

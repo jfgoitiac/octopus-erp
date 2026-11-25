@@ -13,6 +13,8 @@ Parámetros: `fecha_inicio`, `fecha_fin` (YYYY-MM-DD, omitidas → hoy), `area`,
 cargos, ni las cajas de Cantina guardan sede (ver NOTAS_TECNICAS.md), así que
 un filtro por sede sería una promesa falsa de aislamiento; se rechaza con 400.
 """
+from decimal import Decimal
+
 from django.contrib.auth import get_user_model
 from django.db.models import Count, ExpressionWrapper, F, Q
 from django.db.models.functions import Abs, TruncDate
@@ -21,6 +23,7 @@ from rest_framework.response import Response
 
 from cantina.models import (
     AbonoCantina,
+    AplicacionAbonoCantina,
     CargoCantina,
     CierreCajaCantina,
     MovimientoInventario,
@@ -63,8 +66,6 @@ LIMITE_ANULACIONES_CAJERO = 5
 ETIQUETAS_AREA = dict(AREAS)
 
 LIMITACIONES = [
-    'El saldo de cuentas por cobrar es el vigente al momento de la consulta (no se reconstruye a la fecha final).',
-    'El valor de las mermas es una estimación con el costo actual del producto: el movimiento de inventario no guarda costo histórico.',
     'Cantina y Librería no registran sede en sus operaciones: el informe abarca toda la institución.',
 ]
 
@@ -123,20 +124,30 @@ def _agregados_base(fi, ff, area, cajero_id):
         productos_sin_costo=Count('producto', filter=sin_costo, distinct=True),
     )
 
-    en_rango = Q(creado_en__date__gte=fi, creado_en__date__lte=ff)
-    cargos = CargoCantina.objects.exclude(estado='anulado')
+    cargos_qs = CargoCantina.objects.exclude(estado='anulado').filter(creado_en__date__lte=ff)
+    aplicaciones_qs = AplicacionAbonoCantina.objects.filter(
+        cargo__creado_en__date__lte=ff,
+        abono__estatus='completado',
+        abono__fecha_pago__date__lte=ff,
+    ).exclude(cargo__estado='anulado')
     if area:
-        cargos = cargos.filter(area=area)
+        cargos_qs = cargos_qs.filter(area=area)
+        aplicaciones_qs = aplicaciones_qs.filter(cargo__area=area)
     if cajero_id is not None:
-        cargos = cargos.filter(venta__cajero_id=cajero_id)
-    cargos = cargos.aggregate(
-        generadas=Count('id', filter=en_rango),
-        generadas_usd=suma_dinero('monto_usd', en_rango),
-        saldo_usd=suma_dinero(
-            ExpressionWrapper(F('monto_usd') - F('monto_pagado'), output_field=_DECIMAL_FINO),
-            Q(estado='pendiente'),
-        ),
+        cargos_qs = cargos_qs.filter(venta__cajero_id=cajero_id)
+        aplicaciones_qs = aplicaciones_qs.filter(cargo__venta__cajero_id=cajero_id)
+    cargos_agg = cargos_qs.aggregate(
+        generadas=Count('id', filter=Q(creado_en__date__gte=fi)),
+        generadas_usd=suma_dinero('monto_usd', Q(creado_en__date__gte=fi)),
+        total_hasta_ff=suma_dinero('monto_usd'),
     )
+    aplicado_hasta_ff = aplicaciones_qs.aggregate(total=suma_dinero('monto_usd'))['total']
+    saldo_historico = max(Decimal('0.00'), Decimal(str(cargos_agg['total_hasta_ff'])) - Decimal(str(aplicado_hasta_ff)))
+    cargos = {
+        'generadas': cargos_agg['generadas'],
+        'generadas_usd': cargos_agg['generadas_usd'],
+        'saldo_usd': saldo_historico,
+    }
 
     abonos = AbonoCantina.objects.filter(
         estatus='completado', fecha_pago__date__gte=fi, fecha_pago__date__lte=ff,
@@ -217,10 +228,10 @@ def _inventario(fi, ff, area, cajero_id):
     r = movimientos.aggregate(
         **agregados_resumen_inventario(),
         merma_valor=suma_dinero(
-            ExpressionWrapper(F('cantidad') * F('producto__costo'), output_field=_DECIMAL_FINO),
-            merma & Q(producto__costo__isnull=False),
+            ExpressionWrapper(F('cantidad') * F('costo_unitario'), output_field=_DECIMAL_FINO),
+            merma & Q(costo_unitario__isnull=False),
         ),
-        merma_sin_costo=suma_entera('cantidad', merma & Q(producto__costo__isnull=True)),
+        merma_sin_costo=suma_entera('cantidad', merma & Q(costo_unitario__isnull=True)),
     )
     return {
         'entradas': r['entrada'],
@@ -356,3 +367,25 @@ class ResumenEjecutivoView(VistaAuditoria):
             'alertas': construir_alertas(kpis, base, inventario, caja, parametros),
             'limitaciones': LIMITACIONES,
         })
+
+
+class CajerosAuditoriaView(VistaAuditoria):
+    """
+    GET cajeros/: usuarios operativos de Cantina y Librería (roles activos o
+    con actividad histórica en ventas/aperturas/cierres), ordenados por nombre.
+    """
+    ROLES_OPERATIVOS = ('cajero', 'administrador', 'director')
+
+    def get(self, request):
+        usuarios = (
+            User.objects.filter(
+                Q(is_active=True, perfil__esta_activo=True, perfil__rol__in=self.ROLES_OPERATIVOS)
+                | Q(ventas_cantina__isnull=False)
+                | Q(aperturas_cantina__isnull=False)
+                | Q(cierres_cantina__isnull=False)
+            )
+            .distinct()
+            .only('id', 'username', 'first_name', 'last_name')
+        )
+        filas = sorted((usuario_dict(u) for u in usuarios), key=lambda u: u['nombre'].casefold())
+        return Response({'results': filas})

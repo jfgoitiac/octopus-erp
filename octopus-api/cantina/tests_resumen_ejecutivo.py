@@ -12,15 +12,25 @@ from decimal import Decimal
 from django.test.utils import CaptureQueriesContext
 from django.db import connection
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from .models import AbonoCantina, CargoCantina, CierreCajaCantina, ClienteCantina, VentaCantina
+from .models import (
+    AbonoCantina,
+    AplicacionAbonoCantina,
+    CargoCantina,
+    CierreCajaCantina,
+    ClienteCantina,
+    ParametroAuditoriaCantina,
+    VentaCantina,
+)
 from .services_inventario import aplicar_movimiento_inventario
 from .tests_auditoria_base import crear_usuario
 from .tests_auditoria_reportes import BaseReportes
 
 URL = reverse('cantina:auditoria-reporte-resumen-ejecutivo')
+URL_CAJEROS = reverse('cantina:auditoria-cajeros')
 
 CLAVES_RAIZ = {
     'periodo', 'filtros', 'generado_en', 'vacio', 'kpis', 'comparacion', 'distribucion_area',
@@ -257,19 +267,21 @@ class ResumenComparacionTests(BaseResumen):
 class ResumenOperacionTests(BaseResumen):
     def crear_cxc(self):
         cliente = ClienteCantina.objects.create(nombre='Pedro')
-        CargoCantina.objects.create(
+        cargo = CargoCantina.objects.create(
             cliente=cliente, venta=self.v2, area='cantina', monto_usd=Decimal('5.00'), monto_pagado=Decimal('2.00'),
         )
-        AbonoCantina.objects.create(
+        abono = AbonoCantina.objects.create(
             operacion_uuid=uuid.uuid4(), cliente=cliente, area='cantina', metodo_pago='efectivo',
             monto_usd=Decimal('2.00'), tasa_aplicada=Decimal('36.0000'), monto_ves=Decimal('72.00'),
             cajero=self.cajero,
         )
+        AplicacionAbonoCantina.objects.create(abono=abono, cargo=cargo, monto_usd=Decimal('2.00'))
         AbonoCantina.objects.create(  # un abono anulado no cuenta
             operacion_uuid=uuid.uuid4(), cliente=cliente, area='cantina', metodo_pago='efectivo',
             monto_usd=Decimal('9.00'), tasa_aplicada=Decimal('36.0000'), monto_ves=Decimal('324.00'),
             cajero=self.cajero, estatus='anulado',
         )
+        return cargo, abono
 
     def test_cuentas_por_cobrar_y_abonos(self):
         self.crear_cxc()
@@ -279,6 +291,15 @@ class ResumenOperacionTests(BaseResumen):
         self.assertEqual(k['abonos_recibidos_cantidad'], 1)
         self.assertEqual(k['abonos_recibidos_usd'], '2.00')
         self.assertEqual(k['saldo_cxc_pendiente_usd'], '3.00')
+
+    def test_saldo_cxc_es_historico_a_fecha_fin(self):
+        cargo, _ = self.crear_cxc()
+        # Cargo creado hace 5 días, pagado hoy: al cierre de hace 3 días seguía pendiente completo (5.00).
+        CargoCantina.objects.filter(pk=cargo.pk).update(creado_en=timezone.now() - timedelta(days=5))
+        corte = (self.hoy - timedelta(days=3)).isoformat()
+        datos = self.resumen(fecha_inicio=(self.hoy - timedelta(days=5)).isoformat(), fecha_fin=corte)
+        self.assertEqual(datos['kpis']['saldo_cxc_pendiente_usd'], '5.00')
+        self.assertEqual(self.resumen()['kpis']['saldo_cxc_pendiente_usd'], '3.00')
 
     def test_cuentas_por_cobrar_respetan_area_y_cajero(self):
         self.crear_cxc()
@@ -299,10 +320,13 @@ class ResumenOperacionTests(BaseResumen):
         aplicar_movimiento_inventario(self.empanada, 'ajuste', -2, usuario=self.cajero2)
         aplicar_movimiento_inventario(self.empanada, 'merma', 2, motivo='Vencida', usuario=self.cajero)
         aplicar_movimiento_inventario(self.jugo, 'merma', 3, motivo='Dañado', usuario=self.cajero)
+        # Cambiar el costo actual después de la merma NO altera el snapshot histórico del movimiento.
+        self.empanada.costo = Decimal('5.00')
+        self.empanada.save()
         datos = self.resumen()
         self.assertEqual(datos['inventario'], {
             'entradas': 12, 'salidas': 3, 'ajustes': -2, 'mermas': 5,
-            'merma_valor_estimado_usd': '1.20',  # 2 × 0.60; el jugo no tiene costo
+            'merma_valor_estimado_usd': '1.20',  # 2 × 0.60 (snapshot); el jugo no tiene costo
             'merma_unidades_sin_costo': 3,
         })
         self.assertIn('mermas', self.codigos_alerta(datos))
@@ -353,6 +377,20 @@ class ResumenAlertasTests(BaseResumen):
         self.assertIn('anulaciones_elevadas', self.codigos_alerta(datos))
         datos = self.resumen(area='libreria')
         self.assertIn('margen_bajo', self.codigos_alerta(datos))
+
+
+    def test_umbrales_ejecutivos_son_configurables(self):
+        parametros = ParametroAuditoriaCantina.obtener()
+        parametros.umbral_margen_bajo_pct = Decimal('40.00')
+        parametros.save()
+        self.assertIn('margen_bajo', self.codigos_alerta(self.resumen()))
+
+    def test_endpoint_cajeros_auditoria(self):
+        datos = self.get(URL_CAJEROS)
+        ids = {u['id'] for u in datos['results']}
+        self.assertLessEqual({self.director.id, self.cajero.id, self.cajero2.id}, ids)
+        self.client.force_authenticate(self.cajero)
+        self.assertEqual(self.client.get(URL_CAJEROS).status_code, status.HTTP_403_FORBIDDEN)
 
 
 class ResumenVacioYRendimientoTests(BaseResumen):

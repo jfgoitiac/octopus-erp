@@ -24,7 +24,7 @@ from .views_cierres import (
     RevisarCierreView,
 )
 from .views_panel import PanelEjecutivoView
-from .views_resumen_ejecutivo import ResumenEjecutivoView
+from .views_resumen_ejecutivo import CajerosAuditoriaView, ResumenEjecutivoView
 from .views_reportes import (
     ReporteExcepcionesView,
     ReporteInventarioView,
@@ -45,6 +45,7 @@ urlpatterns = [
     path('cierres/<int:pk>/reabrir/', ReabrirCajaView.as_view(), name='auditoria-cierre-reabrir'),
 
     # §4 Reportes
+    path('cajeros/', CajerosAuditoriaView.as_view(), name='auditoria-cajeros'),
     path('reportes/ventas/', ReporteVentasAuditoriaView.as_view(), name='auditoria-reporte-ventas'),
     path('reportes/excepciones/', ReporteExcepcionesView.as_view(), name='auditoria-reporte-excepciones'),
     path('reportes/inventario/', ReporteInventarioView.as_view(), name='auditoria-reporte-inventario'),

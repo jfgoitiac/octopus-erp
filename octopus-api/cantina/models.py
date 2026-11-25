@@ -328,6 +328,8 @@ class MovimientoInventario(models.Model):
     cantidad = models.IntegerField()
     stock_antes = models.IntegerField()
     stock_despues = models.IntegerField()
+    # Snapshot de ProductoCantina.costo al registrar el movimiento (null = costo desconocido).
+    costo_unitario = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
     motivo = models.CharField(max_length=200, blank=True)
     venta = models.ForeignKey('VentaCantina', null=True, blank=True, on_delete=models.SET_NULL, related_name='movimientos_inventario')
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL)
