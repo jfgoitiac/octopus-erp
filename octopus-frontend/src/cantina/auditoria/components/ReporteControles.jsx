@@ -81,10 +81,12 @@ export function ReporteBarra({ children, exportar }) {
   );
 }
 
-// Tarjetas de resumen: 2 columnas en móvil, 4 desde lg.
-export function ReporteResumen({ items }) {
+// Tarjetas de resumen: 2 columnas en móvil, 4 desde lg. Con `unaColumnaMovil`
+// (cifras largas, p. ej. el resumen ejecutivo): 1 columna, 2 en sm, 4 en lg.
+export function ReporteResumen({ items, unaColumnaMovil = false }) {
+  const cuadricula = unaColumnaMovil ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4' : 'grid-cols-2 sm:grid-cols-2 lg:grid-cols-4';
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+    <div className={`grid ${cuadricula} gap-2 sm:gap-3`}>
       {items.map((it) => (
         <div key={it.etiqueta} className="flex min-w-0 flex-col gap-1 rounded-2xl p-3 sm:p-4" style={{ ...ESTILO_TARJETA, ...(it.fondo ? { background: it.fondo } : {}) }}>
           <span className="flex items-center gap-1.5 text-[11px] sm:text-xs uppercase tracking-wider truncate" style={{ color: 'var(--ash)' }}>
@@ -94,7 +96,7 @@ export function ReporteResumen({ items }) {
           <span className="text-lg sm:text-xl font-semibold font-mono tabular-nums truncate" style={{ color: it.color ?? 'var(--jet)' }}>
             {it.valor}
           </span>
-          {it.nota && <span className="text-xs truncate" style={{ color: 'var(--ash)' }}>{it.nota}</span>}
+          {it.nota && <span className="text-xs truncate" style={{ color: it.notaColor ?? 'var(--ash)' }}>{it.nota}</span>}
         </div>
       ))}
     </div>

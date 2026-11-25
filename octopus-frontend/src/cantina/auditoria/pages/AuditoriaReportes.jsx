@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Boxes, ShieldAlert, ShoppingCart, TrendingUp } from 'lucide-react';
+import { Boxes, LayoutDashboard, ShieldAlert, ShoppingCart, TrendingUp } from 'lucide-react';
 import { PageHeader } from '../../../components/ui/PageHeader';
 import ReporteFiltros from '../components/ReporteFiltros';
 import { filtrosReporteIniciales } from '../components/ReporteDatos';
@@ -8,12 +8,14 @@ import ReporteVentas from '../components/ReporteVentas';
 import ReporteExcepciones from '../components/ReporteExcepciones';
 import ReporteInventario from '../components/ReporteInventario';
 import ReporteRentabilidad from '../components/ReporteRentabilidad';
+import ReporteResumenEjecutivo from '../components/ReporteResumenEjecutivo';
 
 // Carril Fase 2 · F4 — reportes de auditoría (CONTRATO_AUDITORIA_CANTINA.md §4).
 // Cada pestaña carga sus datos al montarse; al cambiar de pestaña la anterior
 // se desmonta y aborta su petición en curso.
 
 const PESTANAS = [
+  { id: 'resumen', etiqueta: 'Resumen ejecutivo', icono: LayoutDashboard, Componente: ReporteResumenEjecutivo },
   { id: 'ventas', etiqueta: 'Ventas', icono: ShoppingCart, Componente: ReporteVentas },
   { id: 'excepciones', etiqueta: 'Excepciones', icono: ShieldAlert, Componente: ReporteExcepciones },
   { id: 'inventario', etiqueta: 'Inventario', icono: Boxes, Componente: ReporteInventario },
@@ -63,7 +65,7 @@ const AuditoriaReportes = () => {
     <div className="w-full max-w-7xl mx-auto p-3 sm:p-5 flex flex-col gap-3 sm:gap-4">
       <PageHeader
         titulo="Reportes de auditoría"
-        descripcion="Ventas, excepciones, inventario y rentabilidad del período, con exportación a PDF y Excel."
+        descripcion="Resumen ejecutivo, ventas, excepciones, inventario y rentabilidad del período, con exportación a PDF y Excel."
       />
 
       <ReporteFiltros
