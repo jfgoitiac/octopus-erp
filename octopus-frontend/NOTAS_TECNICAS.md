@@ -634,3 +634,39 @@ el usuario; el resto sigue solo anotado.
   siguiente guardado desde ahí da un 409 contra el propio envío. No se pierde
   nada (se muestra la versión del servidor y se vuelve a guardar), pero es un
   aviso innecesario. Refrescar la asistencia abierta al vaciarse la cola.
+
+## Resumen ejecutivo de Cantina y Librería (2026-11-24)
+
+- [LÍMITE 2026-11-24] Los modelos operativos de Cantina y Librería
+  (`VentaCantina`, `AperturaCajaCantina`, `CierreCajaCantina`, `CargoCantina`,
+  `AbonoCantina`, `MovimientoInventario`) no registran `sede`. El endpoint
+  `GET /api/cantina/auditoria/reportes/resumen-ejecutivo/` rechaza el parámetro
+  `sede` con HTTP 400 para no prometer un aislamiento inexistente y la UI no
+  expone ese filtro. Cuando Cantina incorpore multi-sede, agregar FK `sede` con
+  migración y validar acceso vía `PermisoSede`.
+
+- [LÍMITE 2026-11-24] En el Resumen ejecutivo, `saldo_cxc_pendiente_usd`
+  informa el saldo vigente de cuentas por cobrar al momento de la consulta y no
+  un saldo histórico reconstruido a `fecha_fin` (`CargoCantina.monto_pagado` es
+  un acumulado actual). Si se requiere corte histórico exacto, calcularlo
+  restando aplicaciones de abonos con `fecha_pago <= fecha_fin`.
+
+- [LÍMITE 2026-11-24] `MovimientoInventario` no almacena snapshot de costo
+  unitario; el valor estimado de mermas (`merma_valor_estimado_usd`) se calcula
+  con `ProductoCantina.costo` vigente y se advierte explícitamente en la
+  respuesta y en la UI. Agregar `costo_unitario` a `MovimientoInventario` si se
+  requiere valuación histórica exacta de mermas y ajustes.
+
+- [DEUDA 2026-11-24] Los umbrales de alertas ejecutivas de margen bajo
+  (`15%`), anulaciones elevadas (`10%`, mínimo 2 ventas) y cobertura crítica de
+  costo (`50%`) están definidos como constantes en
+  `octopus-api/cantina/auditoria/serializers_resumen_ejecutivo.py` para evitar
+  migraciones en esta entrega. Conviene trasladarlos a
+  `ParametroAuditoriaCantina` para que el Director pueda parametrizarlos junto
+  a la tolerancia de caja y el límite de descuento.
+
+- [DEUDA 2026-11-24] `AuditoriaReportes.jsx` (igual que `AuditoriaCierres.jsx`)
+  puebla el selector de cajeros a partir de los usuarios que aparecen en las
+  respuestas de cada pestaña porque no existe un endpoint dedicado de cajeros
+  de Cantina. Un endpoint ligero de usuarios con rol operativo evitaría que el
+  filtro arranque vacío al entrar por primera vez.
