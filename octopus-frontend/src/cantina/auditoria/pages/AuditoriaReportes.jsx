@@ -79,7 +79,7 @@ const AuditoriaReportes = () => {
         role="tablist"
         aria-label="Reportes"
         onKeyDown={alTeclear}
-        className="flex gap-1 overflow-x-auto rounded-2xl p-1"
+        className="flex flex-wrap gap-1 rounded-2xl p-1"
         style={{ background: 'var(--jet-light)' }}
       >
         {PESTANAS.map(({ id, etiqueta, icono: Icono }) => {
@@ -94,7 +94,7 @@ const AuditoriaReportes = () => {
               aria-controls="reporte-panel"
               tabIndex={seleccionada ? 0 : -1}
               onClick={() => irA(id)}
-              className="inline-flex shrink-0 sm:flex-1 items-center justify-center gap-2 min-h-[44px] px-4 rounded-xl text-sm font-medium whitespace-nowrap transition-colors"
+              className="inline-flex grow items-center justify-center gap-2 min-h-[44px] px-4 rounded-xl text-sm font-medium whitespace-nowrap transition-colors"
               style={seleccionada
                 ? { background: '#fff', color: 'var(--pb-mid)', boxShadow: '0 1px 3px rgba(43,48,58,.12)' }
                 : { color: 'var(--jet-mid)' }}

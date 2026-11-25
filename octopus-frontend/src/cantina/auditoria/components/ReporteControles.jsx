@@ -89,7 +89,7 @@ export function ReporteResumen({ items, unaColumnaMovil = false }) {
     <div className={`grid ${cuadricula} gap-2 sm:gap-3`}>
       {items.map((it) => (
         <div key={it.etiqueta} className="flex min-w-0 flex-col gap-1 rounded-2xl p-3 sm:p-4" style={{ ...ESTILO_TARJETA, ...(it.fondo ? { background: it.fondo } : {}) }}>
-          <span className="flex items-center gap-1.5 text-[11px] sm:text-xs uppercase tracking-wider truncate" style={{ color: 'var(--ash)' }}>
+          <span className={`flex items-center gap-1.5 text-[11px] sm:text-xs uppercase tracking-wider ${unaColumnaMovil ? 'break-words' : 'truncate'}`} style={{ color: 'var(--ash)' }}>
             {it.icono && <it.icono size={14} aria-hidden="true" className="shrink-0" />}
             {it.etiqueta}
           </span>
