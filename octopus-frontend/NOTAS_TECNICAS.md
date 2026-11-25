@@ -642,31 +642,27 @@ el usuario; el resto sigue solo anotado.
   `AbonoCantina`, `MovimientoInventario`) no registran `sede`. El endpoint
   `GET /api/cantina/auditoria/reportes/resumen-ejecutivo/` rechaza el parámetro
   `sede` con HTTP 400 para no prometer un aislamiento inexistente y la UI no
-  expone ese filtro. Cuando Cantina incorpore multi-sede, agregar FK `sede` con
-  migración y validar acceso vía `PermisoSede`.
+  expone ese filtro. Incorporar multi-sede en Cantina requiere instrumentar
+  POS, cajas, cierres, inventario y CxC (alcance Fase 3 Multi-Sede).
 
-- [LÍMITE 2026-11-24] En el Resumen ejecutivo, `saldo_cxc_pendiente_usd`
-  informa el saldo vigente de cuentas por cobrar al momento de la consulta y no
-  un saldo histórico reconstruido a `fecha_fin` (`CargoCantina.monto_pagado` es
-  un acumulado actual). Si se requiere corte histórico exacto, calcularlo
-  restando aplicaciones de abonos con `fecha_pago <= fecha_fin`.
+- [RESUELTO 2026-11-24] `saldo_cxc_pendiente_usd` en el Resumen ejecutivo ya se
+  reconstruye históricamente al cierre de `fecha_fin` (cargos no anulados hasta
+  `fecha_fin` menos `AplicacionAbonoCantina` de abonos completados hasta
+  `fecha_fin`).
 
-- [LÍMITE 2026-11-24] `MovimientoInventario` no almacena snapshot de costo
-  unitario; el valor estimado de mermas (`merma_valor_estimado_usd`) se calcula
-  con `ProductoCantina.costo` vigente y se advierte explícitamente en la
-  respuesta y en la UI. Agregar `costo_unitario` a `MovimientoInventario` si se
-  requiere valuación histórica exacta de mermas y ajustes.
+- [RESUELTO 2026-11-24] `MovimientoInventario` ahora guarda snapshot
+  `costo_unitario` (migración `0019_costo_movimiento_y_umbrales_ejecutivos`),
+  poblado en `aplicar_movimiento_inventario` y utilizado en el cálculo de
+  mermas del Resumen ejecutivo. Movimientos anteriores a la migración sin
+  `costo_unitario` se informan en `merma_unidades_sin_costo`.
 
-- [DEUDA 2026-11-24] Los umbrales de alertas ejecutivas de margen bajo
-  (`15%`), anulaciones elevadas (`10%`, mínimo 2 ventas) y cobertura crítica de
-  costo (`50%`) están definidos como constantes en
-  `octopus-api/cantina/auditoria/serializers_resumen_ejecutivo.py` para evitar
-  migraciones en esta entrega. Conviene trasladarlos a
-  `ParametroAuditoriaCantina` para que el Director pueda parametrizarlos junto
-  a la tolerancia de caja y el límite de descuento.
+- [RESUELTO 2026-11-24] Los umbrales de alertas ejecutivas
+  (`umbral_margen_bajo_pct`, `umbral_anulaciones_pct`, `min_anulaciones_alerta`,
+  `cobertura_costo_critica_pct`) se movieron a `ParametroAuditoriaCantina`
+  (migración `0019`), expuestos en `/api/cantina/auditoria/parametros/` y
+  editables desde `ParametrosFormulario.jsx`.
 
-- [DEUDA 2026-11-24] `AuditoriaReportes.jsx` (igual que `AuditoriaCierres.jsx`)
-  puebla el selector de cajeros a partir de los usuarios que aparecen en las
-  respuestas de cada pestaña porque no existe un endpoint dedicado de cajeros
-  de Cantina. Un endpoint ligero de usuarios con rol operativo evitaría que el
-  filtro arranque vacío al entrar por primera vez.
+- [RESUELTO 2026-11-24] Se agregó `GET /api/cantina/auditoria/cajeros/`
+  (`CajerosAuditoriaView`, exclusivo del Director) y se conectó en
+  `AuditoriaReportes.jsx` y `AuditoriaCierres.jsx` para precargar el selector
+  de cajeros al montar.
