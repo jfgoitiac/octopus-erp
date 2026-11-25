@@ -26,7 +26,7 @@ export const KPIS_PRINCIPALES = [
 export const KPIS_CARTERA = [
   { clave: 'cxc_generadas_usd', etiqueta: 'Cuentas por cobrar generadas', tipo: 'monto', icono: CreditCard, notaCantidad: 'cxc_generadas_cantidad', unidad: 'cuenta(s)' },
   { clave: 'abonos_recibidos_usd', etiqueta: 'Abonos recibidos', tipo: 'monto', icono: Banknote, buenoSiSube: true, notaCantidad: 'abonos_recibidos_cantidad', unidad: 'abono(s)' },
-  { clave: 'saldo_cxc_pendiente_usd', etiqueta: 'Saldo por cobrar pendiente', tipo: 'monto', icono: Hourglass, nota: 'A la fecha de consulta' },
+  { clave: 'saldo_cxc_pendiente_usd', etiqueta: 'Saldo por cobrar pendiente', tipo: 'monto', icono: Hourglass, nota: 'Al cierre del período' },
 ];
 
 const signo = (n) => (Number(n) > 0 ? '+' : '');

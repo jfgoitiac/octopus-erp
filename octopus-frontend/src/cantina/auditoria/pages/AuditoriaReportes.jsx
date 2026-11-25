@@ -1,7 +1,9 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Boxes, LayoutDashboard, ShieldAlert, ShoppingCart, TrendingUp } from 'lucide-react';
 import { PageHeader } from '../../../components/ui/PageHeader';
+import { getCajerosAuditoria } from '../api/auditoriaApi';
+import { esCancelacion } from '../components/CierreFormato';
 import ReporteFiltros from '../components/ReporteFiltros';
 import { filtrosReporteIniciales } from '../components/ReporteDatos';
 import ReporteVentas from '../components/ReporteVentas';
@@ -26,8 +28,6 @@ const AuditoriaReportes = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const activa = PESTANAS.find((p) => p.id === searchParams.get('tab')) ?? PESTANAS[0];
   const [filtros, setFiltros] = useState(filtrosReporteIniciales);
-  // No hay endpoint de cajeros: se acumulan los usuarios que aparecen en los
-  // reportes (mismo criterio que AuditoriaCierres).
   const [cajeros, setCajeros] = useState({});
 
   const registrarUsuarios = useCallback((usuarios) => {
@@ -39,6 +39,14 @@ const AuditoriaReportes = () => {
       return next;
     });
   }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    getCajerosAuditoria(controller.signal)
+      .then(({ data }) => registrarUsuarios(data?.results ?? []))
+      .catch((err) => { if (!esCancelacion(err)) { /* Fallback: los reportes siguen aportando usuarios. */ } });
+    return () => controller.abort();
+  }, [registrarUsuarios]);
 
   const listaCajeros = Object.entries(cajeros)
     .map(([id, nombre]) => ({ id, nombre }))

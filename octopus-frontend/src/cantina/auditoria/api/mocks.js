@@ -337,6 +337,10 @@ export const parametros = {
   limite_descuentos_dia_cajero: 5,
   limite_descuento_porcentaje: '10.00',
   hora_tope_cierre: '18:00',
+  umbral_margen_bajo_pct: '15.00',
+  umbral_anulaciones_pct: '10.00',
+  min_anulaciones_alerta: 2,
+  cobertura_costo_critica_pct: '50.00',
   actualizado_por: director,
   actualizado_en: '2026-10-10T08:00:00-04:00',
 };

@@ -4,6 +4,9 @@ import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import AuditoriaReportes from './AuditoriaReportes';
 
+vi.mock('../api/auditoriaApi', () => ({
+  getCajerosAuditoria: vi.fn(() => Promise.resolve({ data: { results: [{ id: 7, nombre: 'Ana Pérez' }] } })),
+}));
 vi.mock('../components/ReporteResumenEjecutivo', () => ({ default: () => <div>Contenido resumen</div> }));
 vi.mock('../components/ReporteVentas', () => ({ default: () => <div>Contenido ventas</div> }));
 vi.mock('../components/ReporteExcepciones', () => ({ default: () => <div>Contenido excepciones</div> }));
@@ -37,5 +40,10 @@ describe('AuditoriaReportes — pestañas', () => {
   it('respeta ?tab= para abrir una pestaña directamente', () => {
     montar('/auditoria-cantina/reportes?tab=inventario');
     expect(screen.getByText('Contenido inventario')).toBeInTheDocument();
+  });
+
+  it('precarga los cajeros desde el endpoint dedicado al montar', async () => {
+    montar();
+    expect(await screen.findByRole('option', { name: 'Ana Pérez' })).toBeInTheDocument();
   });
 });

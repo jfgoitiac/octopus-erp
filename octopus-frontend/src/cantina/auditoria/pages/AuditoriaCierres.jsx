@@ -3,7 +3,7 @@ import { toast } from 'react-toastify';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { PageHeader } from '../../../components/ui/PageHeader';
 import { parseApiError } from '../../../utils/apiError';
-import { getCierres } from '../api/auditoriaApi';
+import { getCajerosAuditoria, getCierres } from '../api/auditoriaApi';
 import CierreFiltros from '../components/CierreFiltros';
 import CierreLista, { CierreListaSkeleton } from '../components/CierreLista';
 import { aFechaISO, esCancelacion, haceNDias } from '../components/CierreFormato';
@@ -28,9 +28,23 @@ const AuditoriaCierres = () => {
   // `clave` identifica la consulta que produjo los datos: mientras no coincida
   // con la consulta actual, la lista está cargando.
   const [datos, setDatos] = useState({ clave: null, count: 0, results: [] });
-  // No hay endpoint de cajeros: se acumulan los que aparecen en los cierres,
-  // igual que CantinaReportes.
   const [cajeros, setCajeros] = useState({});
+
+  useEffect(() => {
+    const controller = new AbortController();
+    getCajerosAuditoria(controller.signal)
+      .then(({ data }) => {
+        const lista = data?.results ?? [];
+        if (lista.length === 0) return;
+        setCajeros((prev) => {
+          const next = { ...prev };
+          lista.forEach((u) => { if (u?.id != null) next[u.id] = u.nombre; });
+          return next;
+        });
+      })
+      .catch((err) => { if (!esCancelacion(err)) { /* Fallback: los cierres siguen aportando usuarios. */ } });
+    return () => controller.abort();
+  }, []);
 
   const clave = JSON.stringify({ filtros, pagina });
   const cargando = datos.clave !== clave;

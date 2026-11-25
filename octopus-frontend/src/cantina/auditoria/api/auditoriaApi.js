@@ -117,3 +117,6 @@ export const actualizarParametrosAuditoria = (payload) =>
 // params: fecha_inicio, fecha_fin, area, cajero, comparar ('true'). Sin fixture de mock: siempre consulta al backend.
 export const getResumenEjecutivo = (params, signal) =>
   cantinaApiClient.get(`${BASE}reportes/resumen-ejecutivo/`, { params, signal });
+
+export const getCajerosAuditoria = (signal) =>
+  cantinaApiClient.get(`${BASE}cajeros/`, { signal });
