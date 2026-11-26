@@ -49,6 +49,8 @@ CLAVES_EVENTO = {
 CLAVES_PARAMETROS = {
     'tolerancia_diferencia_caja', 'limite_anulaciones_dia_cajero', 'limite_anulaciones_dia_total',
     'limite_descuentos_dia_cajero', 'limite_descuento_porcentaje', 'hora_tope_cierre',
+    'umbral_margen_bajo_pct', 'umbral_anulaciones_pct', 'min_anulaciones_alerta',
+    'cobertura_costo_critica_pct',
     'actualizado_por', 'actualizado_en',
 }
 

@@ -59,35 +59,74 @@ export const ALINEA_DERECHA = new Set(['monto', 'entero', 'pct']);
 
 /* ── PDF ── */
 
-export function exportarReportePDF({ titulo, desde, hasta, filtros = [], advertencia, secciones }) {
+const COLORES_ALERTA = {
+  critica: { fondo: [254, 226, 226], borde: [220, 38, 38], texto: [150, 20, 20] },
+  advertencia: { fondo: [255, 244, 214], borde: [230, 180, 60], texto: [120, 75, 0] },
+  info: { fondo: [226, 238, 252], borde: [90, 140, 200], texto: [30, 70, 130] },
+};
+
+// Membrete institucional (logo + nombre + datos del colegio). Devuelve la Y donde sigue el contenido.
+function dibujarMembrete(doc, institucion) {
+  const ancho = doc.internal.pageSize.getWidth();
+  const x = institucion.logoColegio ? 36 : 14;
+  if (institucion.logoColegio) {
+    try { doc.addImage(institucion.logoColegio, 'PNG', 14, 8, 18, 18); } catch { /* el PDF sigue siendo válido sin logo */ }
+  }
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(30);
+  doc.text((institucion.nombre || 'Institución educativa').toUpperCase(), x, 13);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(100);
+  const contacto = [institucion.rif, institucion.telefono, institucion.municipioEstado].filter(Boolean).join('  ·  ');
+  if (contacto) doc.text(contacto, x, 18);
+  if (institucion.direccion) doc.text(doc.splitTextToSize(institucion.direccion, ancho - x - 14).slice(0, 2), x, 22);
+  doc.setDrawColor(180); doc.line(14, 29, ancho - 14, 29);
+  return 29;
+}
+
+// `institucion` (opcional): membrete del colegio. `alertas`: [{severidad, titulo, detalle}].
+export function exportarReportePDF({
+  titulo, desde, hasta, filtros = [], advertencia, secciones, institucion, alertas = [],
+}) {
   const anchas = secciones.some((s) => s.columnas.length > 5);
   const doc = new jsPDF({ orientation: anchas ? 'landscape' : 'portrait', unit: 'mm', format: 'a4' });
   const ancho = doc.internal.pageSize.getWidth();
   const alto = doc.internal.pageSize.getHeight();
 
+  const base = institucion ? dibujarMembrete(doc, institucion) + 6 : 0;
   doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(110);
-  doc.text('AUDITORÍA DE CANTINA', 14, 14);
+  doc.text(institucion ? 'INFORME FINANCIERO' : 'AUDITORÍA DE CANTINA', 14, base + 8);
   doc.setFontSize(15); doc.setTextColor(30);
-  doc.text(titulo, 14, 22);
+  doc.text(titulo, 14, base + 16);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(80);
-  doc.text(textoPeriodo(desde, hasta), 14, 28);
-  let y = 28;
-  if (filtros.length) { y += 4.5; doc.text(filtros.join('  ·  '), 14, y); }
+  doc.text(textoPeriodo(desde, hasta), 14, base + 22);
+  let y = base + 22;
+  if (filtros.length) {
+    const lineas = doc.splitTextToSize(filtros.join('  ·  '), ancho - 28);
+    y += 4.5; doc.text(lineas, 14, y); y += (lineas.length - 1) * 4;
+  }
   y += 4.5;
   doc.text(`Generado: ${format(new Date(), "d 'de' MMMM yyyy, HH:mm", { locale: es })}`, 14, y);
   doc.setDrawColor(200); doc.line(14, y + 3, ancho - 14, y + 3);
   y += 9;
 
-  if (advertencia) {
+  const todasAlertas = [
+    ...(advertencia ? [{ severidad: 'advertencia', titulo: 'Advertencia', detalle: advertencia }] : []),
+    ...alertas,
+  ];
+  todasAlertas.forEach((a) => {
+    const c = COLORES_ALERTA[a.severidad] ?? COLORES_ALERTA.advertencia;
     doc.setFontSize(8.5);
-    const lineas = doc.splitTextToSize(`Advertencia: ${advertencia}`, ancho - 34);
-    const altoCaja = lineas.length * 4 + 4;
-    doc.setFillColor(255, 244, 214); doc.setDrawColor(230, 180, 60);
+    const lineas = doc.splitTextToSize(a.detalle, ancho - 34);
+    const altoCaja = lineas.length * 4 + 9;
+    if (y + altoCaja > alto - 20) { doc.addPage(); y = 18; }
+    doc.setFillColor(...c.fondo); doc.setDrawColor(...c.borde);
     doc.roundedRect(14, y, ancho - 28, altoCaja, 1.5, 1.5, 'FD');
-    doc.setFont('helvetica', 'bold'); doc.setTextColor(120, 75, 0);
-    doc.text(lineas, 17, y + 5);
-    y += altoCaja + 6;
-  }
+    doc.setFont('helvetica', 'bold'); doc.setTextColor(...c.texto);
+    doc.text(a.titulo, 17, y + 5);
+    doc.setFont('helvetica', 'normal');
+    doc.text(lineas, 17, y + 9.5);
+    y += altoCaja + 3;
+  });
+  if (todasAlertas.length) y += 3;
 
   secciones.forEach((seccion) => {
     if (y > alto - 40) { doc.addPage(); y = 18; }
@@ -147,43 +186,76 @@ const valorExcel = (tipo, valor) => {
 
 const FORMATO_EXCEL = { monto: '#,##0.00', pct: '0.00', entero: '#,##0' };
 
-// Una hoja por sección: cabecera con título, período y filtros; luego la tabla
-// con montos numéricos y la fila de totales.
-export function exportarReporteExcel({ titulo, desde, hasta, filtros = [], advertencia, secciones }) {
+// Arma una hoja con la cabecera y una o varias tablas apiladas (con título y una
+// fila en blanco entre ellas si son varias). Montos y porcentajes quedan como
+// números con formato; el autofiltro cubre la primera tabla.
+function construirHoja(cabecera, tablas) {
+  const aoa = [...cabecera];
+  const rangos = [];
+  tablas.forEach((tabla, i) => {
+    if (i > 0) aoa.push([]);
+    if (tablas.length > 1 && tabla.titulo) aoa.push([tabla.titulo]);
+    const encabezado = aoa.length;
+    aoa.push(tabla.columnas.map((c) => c.label));
+    tabla.filas.forEach((fila) => aoa.push(tabla.columnas.map((c) => valorExcel(c.tipo, valorCrudo(c, fila)))));
+    if (tabla.totales) {
+      aoa.push(tabla.columnas.map((c, idx) => (idx === 0 ? 'Totales' : valorExcel(c.tipo, tabla.totales[c.key]))));
+    }
+    rangos.push({ tabla, encabezado, ultima: aoa.length - 1 });
+  });
+
+  const hoja = XLSX.utils.aoa_to_sheet(aoa);
+  const anchos = [];
+  rangos.forEach(({ tabla, encabezado, ultima }) => {
+    tabla.columnas.forEach((c, col) => {
+      const z = FORMATO_EXCEL[c.tipo];
+      if (z) {
+        for (let r = encabezado + 1; r <= ultima; r += 1) {
+          const celda = hoja[XLSX.utils.encode_cell({ r, c: col })];
+          if (celda && celda.t === 'n') celda.z = z;
+        }
+      }
+      anchos[col] = Math.max(anchos[col] ?? 0, 12, c.label.length + 4, c.tipo === 'texto' ? 24 : 0);
+    });
+  });
+  hoja['!cols'] = anchos.map((wch) => ({ wch }));
+  const primera = rangos[0];
+  if (primera.tabla.filas.length > 0) {
+    hoja['!autofilter'] = {
+      ref: XLSX.utils.encode_range({
+        s: { r: primera.encabezado, c: 0 },
+        e: { r: primera.encabezado + primera.tabla.filas.length, c: primera.tabla.columnas.length - 1 },
+      }),
+    };
+  }
+  return hoja;
+}
+
+// Una hoja por sección (o por entrada de `hojas`: { nombre, tablas: [...] }):
+// cabecera con título, período y filtros; luego las tablas con totales.
+export function exportarReporteExcel({
+  titulo, desde, hasta, filtros = [], advertencia, secciones = [], hojas, institucion, generado,
+}) {
   const libro = XLSX.utils.book_new();
   const usados = new Set();
+  const lista = hojas ?? secciones.map((s) => ({ nombre: s.titulo || titulo, tablas: [s] }));
 
-  secciones.forEach((seccion) => {
+  lista.forEach((h) => {
+    const unica = !hojas && secciones.length <= 1;
     const cabecera = [
-      [secciones.length > 1 ? `${titulo} — ${seccion.titulo}` : titulo],
+      ...(institucion?.nombre ? [[institucion.nombre]] : []),
+      [unica ? titulo : `${titulo} — ${h.nombre}`],
       [textoPeriodo(desde, hasta)],
       ...(filtros.length ? [[filtros.join(' · ')]] : []),
+      ...(generado ? [[`Generado: ${generado}`]] : []),
       ...(advertencia ? [[`Advertencia: ${advertencia}`]] : []),
       [],
     ];
-    const inicioTabla = cabecera.length;
-    const filas = seccion.filas.map((fila) => seccion.columnas.map((c) => valorExcel(c.tipo, valorCrudo(c, fila))));
-    const totales = seccion.totales
-      ? [seccion.columnas.map((c, idx) => (idx === 0 ? 'Totales' : valorExcel(c.tipo, seccion.totales[c.key])))]
-      : [];
-    const hoja = XLSX.utils.aoa_to_sheet([...cabecera, seccion.columnas.map((c) => c.label), ...filas, ...totales]);
-
-    const ultimaFila = inicioTabla + filas.length + totales.length;
-    seccion.columnas.forEach((c, col) => {
-      const z = FORMATO_EXCEL[c.tipo];
-      if (!z) return;
-      for (let r = inicioTabla + 1; r <= ultimaFila; r += 1) {
-        const celda = hoja[XLSX.utils.encode_cell({ r, c: col })];
-        if (celda && celda.t === 'n') celda.z = z;
-      }
-    });
-    hoja['!cols'] = seccion.columnas.map((c) => ({ wch: Math.max(12, c.label.length + 4, c.tipo === 'texto' ? 24 : 0) }));
-
-    const base = (seccion.titulo || titulo).replaceAll(/[\\/?*[\]:]/g, ' ').slice(0, 31);
+    const base = h.nombre.replaceAll(/[\\/?*[\]:]/g, ' ').slice(0, 31);
     let nombre = base;
     for (let n = 2; usados.has(nombre); n += 1) nombre = `${base.slice(0, 28)} ${n}`;
     usados.add(nombre);
-    XLSX.utils.book_append_sheet(libro, hoja, nombre);
+    XLSX.utils.book_append_sheet(libro, construirHoja(cabecera, h.tablas), nombre);
   });
 
   XLSX.writeFile(libro, nombreArchivo(titulo, desde, hasta, 'xlsx'));

@@ -137,6 +137,10 @@ CAMPOS_PARAMETROS = (
     'limite_descuentos_dia_cajero',
     'limite_descuento_porcentaje',
     'hora_tope_cierre',
+    'umbral_margen_bajo_pct',
+    'umbral_anulaciones_pct',
+    'min_anulaciones_alerta',
+    'cobertura_costo_critica_pct',
 )
 
 
@@ -156,6 +160,16 @@ class ParametrosAuditoriaSerializer(serializers.ModelSerializer):
         max_digits=5, decimal_places=2, min_value=Decimal('0.00'), max_value=Decimal('100.00'),
     )
     hora_tope_cierre = serializers.TimeField(format='%H:%M', input_formats=['%H:%M', '%H:%M:%S'])
+    umbral_margen_bajo_pct = serializers.DecimalField(
+        max_digits=5, decimal_places=2, min_value=Decimal('0.00'), max_value=Decimal('100.00'),
+    )
+    umbral_anulaciones_pct = serializers.DecimalField(
+        max_digits=5, decimal_places=2, min_value=Decimal('0.00'), max_value=Decimal('100.00'),
+    )
+    min_anulaciones_alerta = serializers.IntegerField(min_value=1, max_value=1000)
+    cobertura_costo_critica_pct = serializers.DecimalField(
+        max_digits=5, decimal_places=2, min_value=Decimal('0.00'), max_value=Decimal('100.00'),
+    )
     actualizado_por = serializers.SerializerMethodField()
     actualizado_en = serializers.SerializerMethodField()
 

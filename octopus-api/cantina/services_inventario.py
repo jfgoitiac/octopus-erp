@@ -60,6 +60,7 @@ def aplicar_movimiento_inventario(producto, tipo, cantidad, *, motivo='', venta=
             cantidad=cantidad,
             stock_antes=stock_antes,
             stock_despues=stock_despues,
+            costo_unitario=producto.costo,
             motivo=motivo,
             venta=venta,
             usuario=usuario,

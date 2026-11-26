@@ -634,3 +634,35 @@ el usuario; el resto sigue solo anotado.
   siguiente guardado desde ahí da un 409 contra el propio envío. No se pierde
   nada (se muestra la versión del servidor y se vuelve a guardar), pero es un
   aviso innecesario. Refrescar la asistencia abierta al vaciarse la cola.
+
+## Resumen ejecutivo de Cantina y Librería (2026-11-24)
+
+- [LÍMITE 2026-11-24] Los modelos operativos de Cantina y Librería
+  (`VentaCantina`, `AperturaCajaCantina`, `CierreCajaCantina`, `CargoCantina`,
+  `AbonoCantina`, `MovimientoInventario`) no registran `sede`. El endpoint
+  `GET /api/cantina/auditoria/reportes/resumen-ejecutivo/` rechaza el parámetro
+  `sede` con HTTP 400 para no prometer un aislamiento inexistente y la UI no
+  expone ese filtro. Incorporar multi-sede en Cantina requiere instrumentar
+  POS, cajas, cierres, inventario y CxC (alcance Fase 3 Multi-Sede).
+
+- [RESUELTO 2026-11-24] `saldo_cxc_pendiente_usd` en el Resumen ejecutivo ya se
+  reconstruye históricamente al cierre de `fecha_fin` (cargos no anulados hasta
+  `fecha_fin` menos `AplicacionAbonoCantina` de abonos completados hasta
+  `fecha_fin`).
+
+- [RESUELTO 2026-11-24] `MovimientoInventario` ahora guarda snapshot
+  `costo_unitario` (migración `0019_costo_movimiento_y_umbrales_ejecutivos`),
+  poblado en `aplicar_movimiento_inventario` y utilizado en el cálculo de
+  mermas del Resumen ejecutivo. Movimientos anteriores a la migración sin
+  `costo_unitario` se informan en `merma_unidades_sin_costo`.
+
+- [RESUELTO 2026-11-24] Los umbrales de alertas ejecutivas
+  (`umbral_margen_bajo_pct`, `umbral_anulaciones_pct`, `min_anulaciones_alerta`,
+  `cobertura_costo_critica_pct`) se movieron a `ParametroAuditoriaCantina`
+  (migración `0019`), expuestos en `/api/cantina/auditoria/parametros/` y
+  editables desde `ParametrosFormulario.jsx`.
+
+- [RESUELTO 2026-11-24] Se agregó `GET /api/cantina/auditoria/cajeros/`
+  (`CajerosAuditoriaView`, exclusivo del Director) y se conectó en
+  `AuditoriaReportes.jsx` y `AuditoriaCierres.jsx` para precargar el selector
+  de cajeros al montar.

@@ -341,6 +341,22 @@ class ParametroAuditoriaCantina(models.Model):
         default=time(18, 0),
         help_text='Si a esta hora sigue habiendo cajas abiertas del día, se genera alerta.',
     )
+    umbral_margen_bajo_pct = models.DecimalField(
+        max_digits=5, decimal_places=2, default=Decimal('15.00'),
+        help_text='Un margen bruto inferior a este % genera alerta ejecutiva.',
+    )
+    umbral_anulaciones_pct = models.DecimalField(
+        max_digits=5, decimal_places=2, default=Decimal('10.00'),
+        help_text='Porcentaje de ventas anuladas sobre el total que genera alerta ejecutiva.',
+    )
+    min_anulaciones_alerta = models.PositiveIntegerField(
+        default=2,
+        help_text='Cantidad mínima de ventas anuladas para disparar la alerta ejecutiva.',
+    )
+    cobertura_costo_critica_pct = models.DecimalField(
+        max_digits=5, decimal_places=2, default=Decimal('50.00'),
+        help_text='Si los ingresos con costo registrado caen por debajo de este %, la alerta sin costo es crítica.',
+    )
     actualizado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+',
     )

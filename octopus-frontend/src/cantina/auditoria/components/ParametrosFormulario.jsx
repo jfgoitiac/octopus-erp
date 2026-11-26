@@ -34,6 +34,22 @@ const CAMPOS = [
     clave: 'hora_tope_cierre', tipo: 'hora', etiqueta: 'Hora tope de cierre',
     ayuda: 'Después de esta hora, una caja aún abierta genera alerta.', icono: Clock,
   },
+  {
+    clave: 'umbral_margen_bajo_pct', tipo: 'decimal', etiqueta: 'Umbral de margen bajo',
+    ayuda: 'Un margen bruto inferior en el resumen ejecutivo genera alerta.', icono: Percent, sufijo: '%', min: 0, max: 100,
+  },
+  {
+    clave: 'umbral_anulaciones_pct', tipo: 'decimal', etiqueta: 'Umbral de anulaciones (%)',
+    ayuda: 'Porcentaje de ventas anuladas sobre el total que genera alerta ejecutiva.', icono: Percent, sufijo: '%', min: 0, max: 100,
+  },
+  {
+    clave: 'min_anulaciones_alerta', tipo: 'entero', etiqueta: 'Mínimo de anulaciones para alerta',
+    ayuda: 'Cantidad mínima de ventas anuladas para activar la alerta ejecutiva.', icono: Ban, min: 1, max: 1000,
+  },
+  {
+    clave: 'cobertura_costo_critica_pct', tipo: 'decimal', etiqueta: 'Cobertura crítica de costo',
+    ayuda: 'Si los ingresos con costo caen por debajo de este %, la alerta sin costo es crítica.', icono: Percent, sufijo: '%', min: 0, max: 100,
+  },
 ];
 
 // El backend puede devolver la hora como "18:00:00"; el input usa "HH:MM".

@@ -1,19 +1,23 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Boxes, ShieldAlert, ShoppingCart, TrendingUp } from 'lucide-react';
+import { Boxes, LayoutDashboard, ShieldAlert, ShoppingCart, TrendingUp } from 'lucide-react';
 import { PageHeader } from '../../../components/ui/PageHeader';
+import { getCajerosAuditoria } from '../api/auditoriaApi';
+import { esCancelacion } from '../components/CierreFormato';
 import ReporteFiltros from '../components/ReporteFiltros';
 import { filtrosReporteIniciales } from '../components/ReporteDatos';
 import ReporteVentas from '../components/ReporteVentas';
 import ReporteExcepciones from '../components/ReporteExcepciones';
 import ReporteInventario from '../components/ReporteInventario';
 import ReporteRentabilidad from '../components/ReporteRentabilidad';
+import ReporteResumenEjecutivo from '../components/ReporteResumenEjecutivo';
 
 // Carril Fase 2 · F4 — reportes de auditoría (CONTRATO_AUDITORIA_CANTINA.md §4).
 // Cada pestaña carga sus datos al montarse; al cambiar de pestaña la anterior
 // se desmonta y aborta su petición en curso.
 
 const PESTANAS = [
+  { id: 'resumen', etiqueta: 'Resumen ejecutivo', icono: LayoutDashboard, Componente: ReporteResumenEjecutivo },
   { id: 'ventas', etiqueta: 'Ventas', icono: ShoppingCart, Componente: ReporteVentas },
   { id: 'excepciones', etiqueta: 'Excepciones', icono: ShieldAlert, Componente: ReporteExcepciones },
   { id: 'inventario', etiqueta: 'Inventario', icono: Boxes, Componente: ReporteInventario },
@@ -24,8 +28,6 @@ const AuditoriaReportes = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const activa = PESTANAS.find((p) => p.id === searchParams.get('tab')) ?? PESTANAS[0];
   const [filtros, setFiltros] = useState(filtrosReporteIniciales);
-  // No hay endpoint de cajeros: se acumulan los usuarios que aparecen en los
-  // reportes (mismo criterio que AuditoriaCierres).
   const [cajeros, setCajeros] = useState({});
 
   const registrarUsuarios = useCallback((usuarios) => {
@@ -37,6 +39,14 @@ const AuditoriaReportes = () => {
       return next;
     });
   }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    getCajerosAuditoria(controller.signal)
+      .then(({ data }) => registrarUsuarios(data?.results ?? []))
+      .catch((err) => { if (!esCancelacion(err)) { /* Fallback: los reportes siguen aportando usuarios. */ } });
+    return () => controller.abort();
+  }, [registrarUsuarios]);
 
   const listaCajeros = Object.entries(cajeros)
     .map(([id, nombre]) => ({ id, nombre }))
@@ -63,7 +73,7 @@ const AuditoriaReportes = () => {
     <div className="w-full max-w-7xl mx-auto p-3 sm:p-5 flex flex-col gap-3 sm:gap-4">
       <PageHeader
         titulo="Reportes de auditoría"
-        descripcion="Ventas, excepciones, inventario y rentabilidad del período, con exportación a PDF y Excel."
+        descripcion="Resumen ejecutivo, ventas, excepciones, inventario y rentabilidad del período, con exportación a PDF y Excel."
       />
 
       <ReporteFiltros
@@ -77,7 +87,7 @@ const AuditoriaReportes = () => {
         role="tablist"
         aria-label="Reportes"
         onKeyDown={alTeclear}
-        className="flex gap-1 overflow-x-auto rounded-2xl p-1"
+        className="flex flex-wrap gap-1 rounded-2xl p-1"
         style={{ background: 'var(--jet-light)' }}
       >
         {PESTANAS.map(({ id, etiqueta, icono: Icono }) => {
@@ -92,7 +102,7 @@ const AuditoriaReportes = () => {
               aria-controls="reporte-panel"
               tabIndex={seleccionada ? 0 : -1}
               onClick={() => irA(id)}
-              className="inline-flex shrink-0 sm:flex-1 items-center justify-center gap-2 min-h-[44px] px-4 rounded-xl text-sm font-medium whitespace-nowrap transition-colors"
+              className="inline-flex grow items-center justify-center gap-2 min-h-[44px] px-4 rounded-xl text-sm font-medium whitespace-nowrap transition-colors"
               style={seleccionada
                 ? { background: '#fff', color: 'var(--pb-mid)', boxShadow: '0 1px 3px rgba(43,48,58,.12)' }
                 : { color: 'var(--jet-mid)' }}
